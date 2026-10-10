@@ -1,0 +1,263 @@
+/* ชิ้นส่วนกลางของหน้าประเมิน (js/assessment-ui.js)
+   ใช้ตัวแปรสีของหน้า (--rtw-*) ซึ่งมีค่าโหมดมืดอยู่แล้ว จึงไม่ต้องเขียนสีโหมดมืดซ้ำ */
+
+/* ---------- ช่องนักเรียน ---------- */
+.rtw-page td.pp5-au-namecell { text-align: left; padding-top: .35rem; padding-bottom: .35rem; }
+.pp5-au-who { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+.pp5-au-avatar {
+  flex: 0 0 38px; width: 38px; height: 38px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff; font-size: 1.15rem;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, .28);
+}
+.pp5-au-avatar.has-photo { background: var(--rtw-surface-soft, #f3f4f6); box-shadow: 0 0 0 2px var(--rtw-surface, #fff), 0 2px 6px rgba(15, 23, 42, .18); }
+.pp5-au-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pp5-au-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.pp5-au-name { font-weight: 600; color: var(--rtw-text, #1f2937); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp5-au-meta { display: flex; align-items: center; gap: .35rem; margin-top: .15rem; font-size: .72rem; color: var(--rtw-muted, #6b7280); white-space: nowrap; }
+.pp5-au-chip {
+  display: inline-flex; align-items: center; gap: .2rem; padding: .05rem .4rem; border-radius: 999px;
+  background: var(--rtw-lvl-2-soft, rgba(59, 130, 246, .1)); color: var(--rtw-lvl-2, #2563eb);
+  font-variant-numeric: tabular-nums; font-weight: 600;
+}
+
+/* ---------- การ์ดสรุป ---------- */
+.pp5-au-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; margin: 0 0 .75rem; }
+.pp5-au-card {
+  --c: var(--rtw-lvl-2, #2563eb); --soft: var(--rtw-lvl-2-soft, rgba(59, 130, 246, .1));
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: .6rem; align-items: center;
+  padding: .6rem .8rem; text-align: left; cursor: pointer;
+  background: var(--rtw-surface, #fff); color: var(--rtw-text, #1f2937);
+  border: 1px solid var(--rtw-border, #e5e7eb); border-left: 4px solid var(--c); border-radius: .75rem;
+  transition: box-shadow .15s ease, transform .15s ease, background-color .15s ease;
+}
+.pp5-au-card:hover { box-shadow: 0 4px 12px rgba(15, 23, 42, .08); transform: translateY(-1px); }
+.pp5-au-card:focus-visible { outline: 2px solid var(--c); outline-offset: 2px; }
+.pp5-au-card[aria-pressed="true"] { background: var(--soft); box-shadow: inset 0 0 0 1px var(--c); }
+.pp5-au-card > i { grid-row: 1 / span 2; display: inline-flex; align-items: center; justify-content: center; width: 2.1rem; height: 2.1rem; border-radius: .6rem; background: var(--soft); color: var(--c); font-size: 1.05rem; }
+.pp5-au-card-num { font-size: 1.3rem; font-weight: 700; line-height: 1.1; color: var(--c); font-variant-numeric: tabular-nums; }
+.pp5-au-card-label { font-size: .78rem; color: var(--rtw-muted, #6b7280); }
+.pp5-au-card.is-all { --c: var(--primary); --soft: color-mix(in srgb, var(--primary) 10%, transparent); }
+.pp5-au-card.is-done { --c: var(--rtw-lvl-3, #15803d); --soft: var(--rtw-lvl-3-soft, rgba(22, 163, 74, .12)); }
+.pp5-au-card.is-todo { --c: var(--rtw-lvl-1, #b45309); --soft: var(--rtw-lvl-1-soft, rgba(245, 158, 11, .14)); }
+.pp5-au-card.is-fail { --c: var(--rtw-lvl-0, #dc2626); --soft: var(--rtw-lvl-0-soft, rgba(220, 38, 38, .12)); }
+html[data-theme="dark"] .pp5-au-card.is-all { --c: color-mix(in srgb, var(--primary-light) 50%, #fff); --soft: rgba(129, 140, 248, .18); }
+
+/* ---------- แถบบันทึกล่างจอ ---------- */
+.pp5-au-savebar {
+  /* fixed: js วาง left/width/bottom ให้ตรงการ์ดหน้า และเหนือเมนูล่างจอของมือถือ */
+  position: fixed; bottom: 12px; left: 16px; z-index: 1020; margin: 0;
+  display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap;
+  padding: .6rem .9rem; border-radius: .9rem;
+  background: var(--rtw-surface, #fff); color: var(--rtw-text, #1f2937);
+  border: 1px solid var(--rtw-border, #e5e7eb); box-shadow: 0 -6px 18px rgba(15, 23, 42, .1);
+}
+.pp5-au-status { display: flex; align-items: center; gap: .5rem; font-weight: 600; font-size: .9rem; min-width: 0; }
+.pp5-au-dot { flex: 0 0 .7rem; width: .7rem; height: .7rem; border-radius: 50%; background: var(--rtw-lvl-1, #b45309); box-shadow: 0 0 0 3px var(--rtw-lvl-1-soft, rgba(245, 158, 11, .14)); }
+.pp5-au-savebar.is-complete .pp5-au-dot { background: var(--rtw-lvl-3, #15803d); box-shadow: 0 0 0 3px var(--rtw-lvl-3-soft, rgba(22, 163, 74, .12)); }
+.pp5-au-actions { display: flex; align-items: center; gap: .5rem; margin-left: auto; }
+.pp5-au-btn {
+  display: inline-flex; align-items: center; gap: .4rem; padding: .5rem .9rem; border-radius: .6rem;
+  font-weight: 600; font-size: .9rem; cursor: pointer; border: 1px solid transparent; white-space: nowrap;
+}
+.pp5-au-btn:disabled { opacity: .55; cursor: not-allowed; }
+.pp5-au-pdf { background: var(--rtw-surface, #fff); color: var(--rtw-text, #1f2937); border-color: var(--rtw-border, #e5e7eb); }
+.pp5-au-pdf:not(:disabled):hover { background: var(--rtw-surface-soft, #f3f4f6); }
+.pp5-au-save { background: linear-gradient(135deg, #16a34a, #15803d); color: #fff; padding: .55rem 1.2rem; box-shadow: 0 4px 12px rgba(22, 163, 74, .3); }
+.pp5-au-save:not(:disabled):hover { filter: brightness(1.06); }
+
+@media (max-width: 768px) {
+  .pp5-au-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+  .pp5-au-card { padding: .5rem .6rem; }
+  .pp5-au-avatar { flex-basis: 30px; width: 30px; height: 30px; font-size: .95rem; }
+  .pp5-au-who { gap: .45rem; }
+  .pp5-au-meta { font-size: .68rem; }
+  .pp5-au-no { display: none; }
+  .pp5-au-savebar { padding: .5rem .6rem; gap: .5rem; border-radius: .7rem; }
+  .pp5-au-status { font-size: .8rem; }
+  .pp5-au-btn { padding: .45rem .7rem; font-size: .85rem; }
+}
+
+/* ---------- หน้ากิจกรรม: ปุ่มกดสลับ ผ / มผ ---------- */
+/* select เดิมยังอยู่ (หน้าเดิมเก็บค่าผ่าน onchange) แต่ซ่อนจากตา */
+.pp5-au-hidden-select {
+  position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important;
+  overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; border: 0 !important; opacity: 0 !important;
+}
+.pp5-au-act-table td { position: relative; }
+.pp5-au-toggle {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 3.1rem; height: 2.1rem; padding: 0 .7rem;
+  border-radius: .6rem; font-weight: 700; font-size: .95rem; cursor: pointer; line-height: 1;
+  border: 1.5px solid transparent; transition: transform .1s ease, box-shadow .15s ease, background-color .15s ease;
+}
+.pp5-au-toggle:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(15, 23, 42, .12); }
+.pp5-au-toggle:active { transform: scale(.96); }
+.pp5-au-toggle:focus-visible { outline: 2px solid var(--rtw-lvl-2, #2563eb); outline-offset: 2px; }
+.pp5-au-toggle.is-unset { background: transparent; color: var(--rtw-muted, #6b7280); border: 1.5px dashed var(--rtw-border, #cbd5e1); }
+.pp5-au-toggle.is-pass { background: var(--rtw-lvl-3-soft, rgba(22, 163, 74, .12)); color: var(--rtw-lvl-3, #15803d); border-color: var(--rtw-lvl-3, #15803d); }
+.pp5-au-toggle.is-fail { background: var(--rtw-lvl-0-soft, rgba(220, 38, 38, .12)); color: var(--rtw-lvl-0, #dc2626); border-color: var(--rtw-lvl-0, #dc2626); }
+.pp5-au-overall {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 4.6rem; padding: .3rem .7rem;
+  border-radius: 999px; font-weight: 700; font-size: .85rem; white-space: nowrap;
+}
+.pp5-au-overall.is-unset { background: var(--rtw-unset-soft, rgba(148, 163, 184, .16)); color: var(--rtw-muted, #6b7280); font-weight: 600; }
+.pp5-au-overall.is-pass { background: var(--rtw-lvl-3, #15803d); color: #fff; }
+.pp5-au-overall.is-fail { background: var(--rtw-lvl-0, #dc2626); color: #fff; }
+html[data-theme="dark"] .pp5-au-overall.is-pass, html[data-theme="dark"] .pp5-au-overall.is-fail { color: #0b1220; }
+/* ชื่อชุมนุมอยู่ใต้ปุ่มชุมนุม ช่อง "ชื่อชุมนุม" เดิมซ่อน */
+.pp5-au-act-table .rtw-col-club, .pp5-au-act-table td.pp5-au-clubcol { display: none; }
+.pp5-au-act-table input.pp5-au-clubname {
+  display: block; width: 100%; min-width: 7.5rem; max-width: 11rem; margin: .35rem auto 0;
+  font-size: .78rem; padding: .2rem .45rem; text-align: center; border-radius: .45rem;
+}
+@media (max-width: 768px) {
+  .pp5-au-toggle { min-width: 2.6rem; height: 1.95rem; padding: 0 .5rem; font-size: .88rem; }
+  .pp5-au-overall { min-width: 3.8rem; font-size: .78rem; }
+}
+
+/* ---------- หน้าที่ไม่ได้ใช้ธีม .rtw-page (สมรรถนะ) และตัวเลือกคะแนนที่ลอยอยู่ใน body ---------- */
+.pp5-au-scope {
+  --rtw-surface: #ffffff; --rtw-surface-soft: #f3f4f6; --rtw-border: #e5e7eb; --rtw-text: #1f2937; --rtw-muted: #6b7280;
+  --rtw-lvl-3: #15803d; --rtw-lvl-3-soft: rgba(22, 163, 74, .12);
+  --rtw-lvl-2: #2563eb; --rtw-lvl-2-soft: rgba(59, 130, 246, .10);
+  --rtw-lvl-1: #b45309; --rtw-lvl-1-soft: rgba(245, 158, 11, .14);
+  --rtw-lvl-0: #dc2626; --rtw-lvl-0-soft: rgba(220, 38, 38, .12);
+  --rtw-unset-soft: rgba(148, 163, 184, .16);
+}
+html[data-theme="dark"] .pp5-au-scope {
+  --rtw-surface: #111827; --rtw-surface-soft: #1b2436; --rtw-border: #2b3340; --rtw-text: #e5e7eb; --rtw-muted: #a7afbd;
+  --rtw-lvl-3: #4ade80; --rtw-lvl-3-soft: rgba(34, 197, 94, .16);
+  --rtw-lvl-2: #60a5fa; --rtw-lvl-2-soft: rgba(59, 130, 246, .16);
+  --rtw-lvl-1: #fbbf24; --rtw-lvl-1-soft: rgba(245, 158, 11, .18);
+  --rtw-lvl-0: #f87171; --rtw-lvl-0-soft: rgba(220, 38, 38, .18);
+  --rtw-unset-soft: rgba(148, 163, 184, .18);
+}
+
+/* ---------- ปุ่มคะแนน 0-3 (หน้าสมรรถนะ) ---------- */
+.pp5-au-scope td:has(> .pp5-au-score) { position: relative; text-align: center; vertical-align: middle; }
+.pp5-au-score {
+  display: inline-flex; align-items: center; justify-content: center; width: 2.6rem; height: 2.1rem;
+  border-radius: .6rem; border: 1.5px solid transparent; font-weight: 700; font-size: 1rem; cursor: pointer;
+  transition: transform .1s ease, box-shadow .15s ease;
+}
+.pp5-au-score:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(15, 23, 42, .12); }
+.pp5-au-score:focus-visible { outline: 2px solid var(--rtw-lvl-2); outline-offset: 2px; }
+.pp5-au-score.is-unset { background: transparent; color: var(--rtw-muted); border: 1.5px dashed var(--rtw-border); }
+.pp5-au-score.lvl-3, .pp5-au-pick.lvl-3 { background: var(--rtw-lvl-3-soft); color: var(--rtw-lvl-3); }
+.pp5-au-score.lvl-2, .pp5-au-pick.lvl-2 { background: var(--rtw-lvl-2-soft); color: var(--rtw-lvl-2); }
+.pp5-au-score.lvl-1, .pp5-au-pick.lvl-1 { background: var(--rtw-lvl-1-soft); color: var(--rtw-lvl-1); }
+.pp5-au-score.lvl-0, .pp5-au-pick.lvl-0 { background: var(--rtw-lvl-0-soft); color: var(--rtw-lvl-0); }
+.pp5-au-picker {
+  position: fixed; z-index: 1080; display: flex; gap: .3rem; padding: .4rem; border-radius: .8rem;
+  background: var(--rtw-surface); border: 1px solid var(--rtw-border); box-shadow: 0 12px 28px rgba(15, 23, 42, .22);
+}
+.pp5-au-pick {
+  display: flex; flex-direction: column; align-items: center; gap: .05rem; min-width: 3.3rem; padding: .35rem .4rem;
+  border: 0; border-radius: .55rem; cursor: pointer; font-size: .72rem;
+}
+.pp5-au-pick b { font-size: 1.1rem; line-height: 1.1; }
+.pp5-au-pick:hover, .pp5-au-pick:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
+.pp5-au-pick.is-clear { background: var(--rtw-unset-soft); color: var(--rtw-muted); }
+
+/* ---------- หน้าสมรรถนะ: แท็บและตาราง ---------- */
+.pp5-au-scope #competencyTabs { border: 0; gap: .4rem; flex-wrap: wrap; }
+.pp5-au-scope #competencyTabs .nav-link {
+  border: 1px solid var(--rtw-border); border-radius: 999px; padding: .4rem .95rem; color: var(--rtw-muted);
+  background: var(--rtw-surface); font-weight: 600;
+}
+.pp5-au-scope #competencyTabs .nav-link.active { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 30%, transparent); }
+.pp5-au-scope .tab-pane .table { border-color: var(--rtw-border); }
+.pp5-au-scope .tab-pane .table td.pp5-au-namecell { min-width: 15rem; }
+@media (max-width: 768px) {
+  .pp5-au-score { width: 2.3rem; height: 1.95rem; font-size: .92rem; }
+  .pp5-au-pick { min-width: 2.9rem; }
+}
+
+/* ---------- หน้าสมรรถนะ: แถบ "ให้ทุกคนทั้งด้าน" + "ทั้งคอลัมน์" ใต้หัวตาราง (แทนตารางปุ่มเดิม) ---------- */
+/* .card.bg-light + Bootstrap ที่หน้าโหลดซ้ำทีหลัง: ต้องเจาะจงกว่า .bg-light ถึงจะชนะ (โหมดมืดเคยค้างเป็นสีอ่อน) */
+.card.bg-light.pp5-au-fillbox { background: var(--rtw-surface-soft) !important; border: 1px solid var(--rtw-border) !important; border-radius: .9rem; }
+.pp5-au-fillbox > .card-body { padding: .6rem .8rem; }
+.pp5-au-fillbox > .card-body > .card-title,
+.pp5-au-fillbox > .card-body > .row { display: none !important; }
+.pp5-au-fillbar { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem .75rem; }
+.pp5-au-fillbar-label { font-weight: 600; font-size: .88rem; color: var(--rtw-text); }
+.pp5-au-fillbar-hint { font-size: .78rem; color: var(--rtw-muted); margin-left: auto; }
+.pp5-au-seg { display: inline-flex; border: 1px solid var(--rtw-border); border-radius: 999px; overflow: hidden; background: var(--rtw-surface); }
+.pp5-au-seg-btn {
+  min-width: 2.6rem; padding: .3rem .8rem; border: 0; border-left: 1px solid var(--rtw-border); background: transparent;
+  font-weight: 700; font-size: .9rem; cursor: pointer; transition: background .15s ease, color .15s ease;
+}
+.pp5-au-seg-btn:first-child { border-left: 0; }
+.pp5-au-seg-btn.lvl-3 { color: var(--rtw-lvl-3); } .pp5-au-seg-btn.lvl-3:hover { background: var(--rtw-lvl-3-soft); }
+.pp5-au-seg-btn.lvl-2 { color: var(--rtw-lvl-2); } .pp5-au-seg-btn.lvl-2:hover { background: var(--rtw-lvl-2-soft); }
+.pp5-au-seg-btn.lvl-1 { color: var(--rtw-lvl-1); } .pp5-au-seg-btn.lvl-1:hover { background: var(--rtw-lvl-1-soft); }
+.pp5-au-seg-btn.lvl-0 { color: var(--rtw-lvl-0); } .pp5-au-seg-btn.lvl-0:hover { background: var(--rtw-lvl-0-soft); }
+.pp5-au-seg-btn:focus-visible, .pp5-au-clear-tab:focus-visible { outline: 2px solid var(--rtw-lvl-2); outline-offset: -2px; }
+.pp5-au-clear-tab {
+  display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .8rem; border-radius: 999px; cursor: pointer;
+  font-size: .82rem; font-weight: 600; background: transparent; color: var(--rtw-lvl-0); border: 1px solid var(--rtw-lvl-0);
+}
+.pp5-au-clear-tab:hover { background: var(--rtw-lvl-0-soft); }
+/* หัวคอลัมน์: ชื่อด้าน + ตัวเลือก "ทั้งคอลัมน์" แบบเดียวกับหน้าอ่าน คิด เขียน */
+.pp5-au-th-name { font-weight: 700; line-height: 1.3; }
+.pp5-au-colfill { display: inline-block; margin-top: 4px; }
+.pp5-au-colfill select {
+  font-size: 11px; font-weight: 500; padding: 2px 20px 2px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--rtw-border); background-color: var(--rtw-surface); color: var(--rtw-muted);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%236B7280'%3E%3Cpath d='M1.6 5.1a.75.75 0 0 1 1.06 0L8 10.4l5.34-5.3a.75.75 0 1 1 1.06 1.06l-5.87 5.83a.75.75 0 0 1-1.06 0L1.6 6.16a.75.75 0 0 1 0-1.06z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 7px center; background-size: 9px;
+  -webkit-appearance: none; -moz-appearance: none; appearance: none;
+}
+.pp5-au-colfill select:hover { border-color: var(--rtw-lvl-2); color: var(--rtw-lvl-2); }
+@media (max-width: 576px) {
+  .pp5-au-fillbar-hint { display: none; }
+  .pp5-au-seg-btn { min-width: 2.3rem; padding: .3rem .65rem; }
+}
+
+
+/* ---------- มือถือ รอบ 1: แถบบันทึกแถวเดียว + เกณฑ์หน้าสมรรถนะไม่ขาดเป็นท่อน ---------- */
+@media (max-width: 576px) {
+  /* เดิมตัดเป็น 2 แถว (~95px) บังจอมาก: สถานะย่อเล็ก ปุ่ม PDF เหลือไอคอน (ชื่อปุ่มยังอ่านได้ด้วยโปรแกรมอ่านจอ) */
+  .pp5-au-savebar { flex-wrap: nowrap; gap: .4rem; padding: .4rem .5rem; }
+  .pp5-au-status { flex: 1 1 auto; font-size: .74rem; line-height: 1.25; }
+  .pp5-au-status-text { white-space: normal; }
+  .pp5-au-actions { flex: 0 0 auto; gap: .35rem; }
+  .pp5-au-btn { min-height: 40px; padding: .4rem .6rem; font-size: .82rem; }
+  .pp5-au-pdf span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .pp5-au-save { padding: .4rem .8rem; }
+  /* หน้าสมรรถนะ: "เกณฑ์การให้คะแนน" 4 คอลัมน์ -> 2 คอลัมน์ */
+  .pp5-au-scope .alert-info > .row > .col-3 { flex: 0 0 50%; max-width: 50%; }
+  /* แถบ "ให้ทุกคนทั้งด้าน" */
+  .pp5-au-seg-btn { min-height: 40px; }
+  .pp5-au-clear-tab { min-height: 40px; }
+}
+
+/* ---------- มือถือ รอบ 2 (owner 2026-10-08): คอลัมน์ชื่อค้างไว้ทางซ้ายตอนเลื่อนตารางซ้าย-ขวา ----------
+   ทั้ง 5 หน้าประเมิน: ช่องชื่อ (.pp5-au-namecell) และหัวคอลัมน์ชื่อ (.pp5-au-nameth, js/assessment-ui.js) ติดซ้าย
+   แคบลงเหลือ ~8rem (เดิม 15rem / 241px จนเห็นคะแนนได้ช่องเดียว) ชื่อขึ้น 2 บรรทัด รูปเล็กลง
+   ช่องเลขที่อยู่หน้าชื่อ: ตอนเลื่อนจะลอดใต้ช่องชื่อไปเอง (sticky left:0 เริ่มติดเมื่อชื่อชนขอบซ้าย) */
+@media (max-width: 576px) {
+  td.pp5-au-namecell, th.pp5-au-nameth {
+    position: sticky !important; left: 0 !important;
+    width: 8.2rem !important; min-width: 8.2rem !important; max-width: 8.2rem !important;
+    background: var(--rtw-surface, #fff) !important; background-clip: padding-box;
+    box-shadow: 6px 0 8px -6px rgba(15, 23, 42, .35);
+    padding-left: .4rem !important; padding-right: .35rem !important;
+  }
+  td.pp5-au-namecell { z-index: 3; }
+  th.pp5-au-nameth { z-index: 6; }
+  .pp5-au-scope .tab-pane .table td.pp5-au-namecell { min-width: 8.2rem !important; }
+  td.pp5-au-namecell .pp5-au-who { gap: .35rem; align-items: center; }
+  td.pp5-au-namecell .pp5-au-avatar { width: 1.75rem; height: 1.75rem; min-width: 1.75rem; font-size: .85rem; }
+  td.pp5-au-namecell .pp5-au-name {
+    font-size: .78rem; line-height: 1.25; white-space: normal; word-break: break-word;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  td.pp5-au-namecell .pp5-au-meta { gap: .2rem; }
+  td.pp5-au-namecell .pp5-au-chip { font-size: .66rem; padding: 0 .35rem; }
+  td.pp5-au-namecell .pp5-au-chip i, td.pp5-au-namecell .pp5-au-no { display: none; }
+  /* แถวที่ถูกเลือก/วางเมาส์: ช่องชื่อที่ค้างต้องเปลี่ยนสีตามแถว ไม่ใช่ขาวโดด */
+  tr:hover > td.pp5-au-namecell, tr.table-active > td.pp5-au-namecell, tr.is-active > td.pp5-au-namecell {
+    background: color-mix(in srgb, var(--primary-light) 9%, var(--rtw-surface, #fff)) !important;
+  }
+}

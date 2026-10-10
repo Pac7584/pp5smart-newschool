@@ -1,0 +1,444 @@
+/* Home and school overview: scoped presentation with original data and actions. */
+#homeHubPage, #contentFrame .pp5-dashboard {
+  --overview-surface: #fff;
+  --overview-line: #e4eaf2;
+  --overview-muted: #64748b;
+  --overview-ink: #24334b;
+  --overview-soft: #f5f8fc;
+}
+
+
+[data-theme="dark"] #homeHubPage, [data-theme="dark"] #contentFrame .pp5-dashboard {
+  --overview-surface: #1e2130;
+  --overview-line: #34394d;
+  --overview-muted: #b0bad0;
+  --overview-ink: #edf1fa;
+  --overview-soft: #272c40;
+}
+#homeHubPage .hub-welcome {
+  border-radius: 18px;
+  box-shadow: none;
+}
+#homeHubPage .pp5-mm-panel, #homeHubPage .homeroom-roadmap-card {
+  background: var(--overview-surface);
+  border: 1px solid var(--overview-line);
+  box-shadow: none;
+  border-radius: 18px;
+}
+#homeHubPage .pp5-mm-panel { padding: 20px; }
+#homeHubPage .pp5-mm-head { margin-bottom: 16px; }
+#homeHubPage .pp5-mm-title { color: var(--overview-ink); }
+#homeHubPage .pp5-hub-tabs {
+  margin: 0 0 20px;
+  padding: 5px;
+  background: var(--overview-soft);
+  border-radius: 12px;
+  box-shadow: none;
+  align-items: stretch;
+  gap: 4px;
+}
+#homeHubPage .pp5-hub-tab {
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  padding: 10px 13px;
+  color: var(--overview-muted);
+}
+#homeHubPage .pp5-hub-tab::after { display: none; }
+#homeHubPage .pp5-hub-tab[aria-selected="true"] {
+  background: var(--overview-surface);
+  color: var(--overview-ink);
+  padding: 10px 13px;
+  box-shadow: 0 2px 5px rgb(15 23 42 / 7%);
+}
+#homeHubPage .pp5-mm-cats, #homeHubPage .pp5-mm-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+#homeHubPage .pp5-mm-cat, #homeHubPage .pp5-mm-card {
+  border: 1px solid var(--overview-line);
+  background: var(--overview-surface);
+  padding: 16px 10px;
+  border-radius: 14px;
+  gap: 10px;
+  color: var(--overview-ink);
+}
+#homeHubPage .pp5-mm-cat:hover, #homeHubPage .pp5-mm-card:hover {
+  background: var(--overview-soft);
+  border-color: #a5b8da;
+}
+#homeHubPage .pp5-mm-icon, #homeHubPage .pp5-mm-cat > i,
+#homeHubPage .hub-section .hub-card-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 15px;
+  font-size: 1.5rem;
+  box-shadow: none;
+}
+#homeHubPage .pp5-mm-card:hover .pp5-mm-icon, #homeHubPage .pp5-mm-cat:hover > i,
+#homeHubPage .hub-section .hub-card:hover .hub-card-icon {
+  transform: none;
+  box-shadow: none;
+}
+#homeHubPage .pp5-mm-cat small { color: var(--overview-muted); font-size: .8rem; }
+#homeHubPage .hub-section .hub-grid { gap: 10px; }
+#homeHubPage .hub-section .hub-card { min-height: 104px; }
+#homeHubPage .roadmap-title { font-size: 1.05rem; }
+#homeHubPage .roadmap-title-group { min-width: 0; }
+#homeHubPage .roadmap-icon-badge { box-shadow: none; }
+#homeHubPage .roadmap-subtitle { line-height: 1.6; }
+#contentFrame .pp5-dashboard { padding: 0; color: var(--overview-ink); }
+#contentFrame .pp5-dashboard .dashboard-title {
+  color: var(--overview-ink);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  text-shadow: none;
+  font-size: 1.5rem;
+}
+#contentFrame .pp5-dashboard :is(.stat-card, .chart-container, .grade-chart-card, .progress-card, .alert-card, .pp5-dw) {
+  background: var(--overview-surface);
+  border: 1px solid var(--overview-line);
+  box-shadow: none;
+  border-radius: 16px;
+  backdrop-filter: none;
+  padding: 20px !important;
+}
+#contentFrame .pp5-dashboard .stat-card:hover { transform: none; box-shadow: none; }
+#contentFrame .pp5-dashboard .stat-value { font-size: 2rem; color: var(--overview-ink); }
+#contentFrame .pp5-dashboard :is(.text-dark, .pp5-dw-head h6) { color: var(--overview-ink) !important; }
+#contentFrame .pp5-dashboard :is(.text-muted, .stat-label, .stat-meta) { color: var(--overview-muted) !important; }
+#contentFrame .pp5-dashboard .avatar-circle { width: 48px; height: 48px; font-size: 1.4rem; box-shadow: none; }
+#contentFrame .pp5-dashboard .mini-stat-box { background: var(--overview-soft); border: 0; padding: 12px; }
+#contentFrame .pp5-dashboard .loading-overlay { background: var(--overview-soft); }
+#contentFrame .pp5-dashboard .badge.bg-light { background: var(--overview-soft) !important; border-color: var(--overview-line) !important; }
+#contentFrame .pp5-dashboard .btn-glass {
+  background: var(--overview-surface);
+  border: 1px solid var(--overview-line);
+  color: var(--overview-ink);
+  border-radius: 10px;
+  backdrop-filter: none;
+}
+#contentFrame .pp5-dashboard .btn-glass:hover { transform: none; box-shadow: none; }
+#contentFrame .pp5-dashboard .pp5-overview-fold {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--overview-ink);
+  font: inherit;
+  text-align: left;
+}
+#contentFrame .pp5-dashboard .pp5-overview-fold-label {
+  margin-left: auto;
+  font-size: .8rem;
+  font-weight: 400;
+  color: var(--overview-muted);
+  white-space: nowrap;
+}
+#contentFrame .pp5-dashboard .pp5-overview-fold[aria-expanded="true"] > .bi-chevron-down { transform: rotate(180deg); }
+#contentFrame .pp5-dashboard .pp5-overview-fold:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary-light) 70%, #fff); outline-offset: 4px; border-radius: 6px; }
+#contentFrame .pp5-dashboard :is(#gradeChartContainer, #progressContainer)[hidden] { display: none !important; }
+#contentFrame .pp5-dashboard .grade-chart-card:has([hidden]) > h6 { margin-bottom: 0 !important; }
+
+/* ภาพรวมโรงเรียน รอบ 1 (owner 2026-10-07): หัวเป็นแถบแบนเนอร์ แถวเดิมเหลือปุ่มชิดขวา, ล้าง Cache เป็นไอคอนเล็ก,
+   ไม่มีนักเรียนต้องติดตาม = บรรทัดเดียว, ห้องเช็คชื่อเต็มแถว + กรอบแดงเมื่อเลยเวลา + บอกว่ากดแล้วไปไหน */
+#contentFrame .pp5-dashboard .pp5-dash-tools { flex-direction: row !important; justify-content: flex-end !important; align-items: center !important; margin: -4px 0 12px !important; }
+#contentFrame .pp5-dashboard .pp5-dash-tools .btn-glass { padding: 4px 12px; font-size: .88rem; }
+#contentFrame .pp5-dashboard .pp5-dash-tools .pp5-dash-slim { padding: 4px 9px; color: var(--overview-muted); }
+#contentFrame .pp5-dashboard .pp5-dash-tools .pp5-dash-slim:hover { color: #b91c1c; }
+#contentFrame .pp5-dashboard .pp5-dw-empty-slim {
+  display: inline-flex; align-items: center; padding: 6px 14px; margin-top: 10px;
+  border-radius: 999px; font-size: .9rem; text-align: left;
+}
+#contentFrame .pp5-dashboard .pp5-dw-today-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+#contentFrame .pp5-dashboard .pp5-dw-tile { position: relative; }
+#contentFrame .pp5-dashboard .pp5-dw-tile.is-overdue { border: 2px solid #ef4444; background: #fff5f5; }
+#contentFrame .pp5-dashboard .pp5-dw-tile .pp5-dw-late { color: #b91c1c !important; font-weight: 700; }
+#contentFrame .pp5-dashboard .pp5-dw-go { margin-top: auto; padding-top: 4px; font-size: .78rem; font-weight: 700; color: var(--primary); }
+#contentFrame .pp5-dashboard .pp5-dw-tile:hover .pp5-dw-go i { transform: translateX(3px); }
+#contentFrame .pp5-dashboard .pp5-dw-go i { display: inline-block; transition: transform .15s ease; }
+[data-theme="dark"] #contentFrame .pp5-dashboard .pp5-dw-tile.is-overdue { background: rgba(127, 29, 29, .35); border-color: #f87171; }
+[data-theme="dark"] #contentFrame .pp5-dashboard .pp5-dw-tile .pp5-dw-late { color: #fca5a5 !important; }
+[data-theme="dark"] #contentFrame .pp5-dashboard .pp5-dw-go { color: color-mix(in srgb, var(--primary-light) 50%, #fff); }
+
+/* รอบ 2: ตัวเลขสำคัญ 4 ใบ (แทนการ์ด ทั้งหมด/ชาย/หญิง ซึ่งซ่อนไว้แต่ยังรับตัวเลขจากสคริปต์ของหน้า) */
+#contentFrame .pp5-dashboard .pp5-kpi-source { display: none !important; }
+#contentFrame .pp5-dashboard .pp5-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 1.5rem; }
+#contentFrame .pp5-dashboard .pp5-kpi {
+  --kpi: var(--primary); --kpi-soft: color-mix(in srgb, var(--primary-light) 14%, #fff);
+  display: grid; grid-template-columns: 44px minmax(0, 1fr); grid-template-areas: "icon label" "icon value" "bar bar" "sub sub";
+  column-gap: 12px; row-gap: 2px; align-items: center; text-align: left; font: inherit;
+  padding: 16px 18px; border-radius: 16px; background: var(--overview-surface); border: 1px solid var(--overview-line); color: var(--overview-ink);
+}
+#contentFrame .pp5-dashboard .pp5-kpi[data-kpi-target] { cursor: pointer; }
+#contentFrame .pp5-dashboard .pp5-kpi[data-kpi-target]:hover { border-color: color-mix(in srgb, var(--kpi) 45%, transparent); }
+#contentFrame .pp5-dashboard .pp5-kpi:disabled { opacity: 1; }
+#contentFrame .pp5-dashboard .pp5-kpi-icon { grid-area: icon; width: 44px; height: 44px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; background: var(--kpi-soft); color: var(--kpi); }
+#contentFrame .pp5-dashboard .pp5-kpi-label { grid-area: label; font-size: .84rem; color: var(--overview-muted); align-self: end; }
+#contentFrame .pp5-dashboard .pp5-kpi-value { grid-area: value; font-size: 1.7rem; line-height: 1.1; font-weight: 800; align-self: start; }
+#contentFrame .pp5-dashboard .pp5-kpi-value small { font-size: .85rem; font-weight: 600; color: var(--overview-muted); }
+#contentFrame .pp5-dashboard .pp5-kpi-bar { grid-area: bar; display: block; height: 7px; margin-top: 10px; border-radius: 999px; background: var(--overview-soft); overflow: hidden; }
+#contentFrame .pp5-dashboard .pp5-kpi-bar i { display: block; height: 100%; border-radius: inherit; background: var(--kpi); transition: width .5s ease; }
+#contentFrame .pp5-dashboard .pp5-kpi-sub { grid-area: sub; margin-top: 4px; font-size: .78rem; color: var(--overview-muted); line-height: 1.4; }
+#contentFrame .pp5-dashboard .pp5-kpi-attendance { --kpi: #16a34a; --kpi-soft: #dcfce7; }
+#contentFrame .pp5-dashboard .pp5-kpi-scores { --kpi: #2563eb; --kpi-soft: #dbeafe; }
+#contentFrame .pp5-dashboard .pp5-kpi-assess { --kpi: #db2777; --kpi-soft: #fce7f3; }
+#contentFrame .pp5-dashboard .pp5-kpi[data-tone="low"] .pp5-kpi-bar i { background: #ef4444; }
+#contentFrame .pp5-dashboard .pp5-kpi[data-tone="partial"] .pp5-kpi-bar i { background: #f59e0b; }
+#contentFrame .pp5-dashboard .pp5-kpi[data-tone="done"] .pp5-kpi-bar i { background: #16a34a; }
+/* นักเรียน: แถบเดียว ฟ้า = ชาย ชมพู = หญิง */
+#contentFrame .pp5-dashboard .pp5-kpi-students .pp5-kpi-bar { background: #f472b6; }
+#contentFrame .pp5-dashboard .pp5-kpi-students .pp5-kpi-bar i { background: #3b82f6; border-radius: 999px 0 0 999px; }
+#contentFrame .pp5-dashboard .pp5-kpi-gender { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
+#contentFrame .pp5-dashboard .pp5-kpi-gender .is-m { color: #2563eb; }
+#contentFrame .pp5-dashboard .pp5-kpi-gender .is-f { color: #db2777; }
+[data-theme="dark"] #contentFrame .pp5-dashboard .pp5-kpi { --kpi-soft: color-mix(in srgb, var(--kpi) 22%, transparent); }
+[data-theme="dark"] #contentFrame .pp5-dashboard .pp5-kpi-gender .is-m { color: #93c5fd; }
+[data-theme="dark"] #contentFrame .pp5-dashboard .pp5-kpi-gender .is-f { color: #f9a8d4; }
+@media (max-width: 1100px) { #contentFrame .pp5-dashboard .pp5-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 576px) {
+  #contentFrame .pp5-dashboard .pp5-kpis { gap: 8px; }
+  #contentFrame .pp5-dashboard .pp5-kpi { padding: 12px; grid-template-columns: 34px minmax(0, 1fr); column-gap: 8px; }
+  #contentFrame .pp5-dashboard .pp5-kpi-icon { width: 34px; height: 34px; font-size: 1rem; border-radius: 10px; }
+  #contentFrame .pp5-dashboard .pp5-kpi-value { font-size: 1.3rem; }
+}
+
+/* รอบ 2: งานที่ยังค้าง (ห้อง x งาน) */
+#contentFrame .pp5-dashboard .pp5-pw-wrap { margin-top: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+#contentFrame .pp5-dashboard .pp5-pw { width: 100%; border-collapse: separate; border-spacing: 0 6px; min-width: 640px; }
+#contentFrame .pp5-dashboard .pp5-pw thead th { font-size: .78rem; font-weight: 700; color: var(--overview-muted); text-align: center; padding: 0 6px 2px; white-space: nowrap; }
+#contentFrame .pp5-dashboard .pp5-pw thead th:first-child { text-align: left; }
+#contentFrame .pp5-dashboard .pp5-pw tbody th { font-weight: 800; color: var(--overview-ink); padding: 6px 10px; white-space: nowrap; background: var(--overview-soft); border-radius: 10px 0 0 10px; }
+#contentFrame .pp5-dashboard .pp5-pw tbody th small { display: block; font-weight: 500; font-size: .74rem; color: var(--overview-muted); }
+#contentFrame .pp5-dashboard .pp5-pw td { padding: 0 4px; background: var(--overview-soft); }
+#contentFrame .pp5-dashboard .pp5-pw td:last-child { border-radius: 0 10px 10px 0; }
+#contentFrame .pp5-dashboard .pp5-pw tr.is-done th, #contentFrame .pp5-dashboard .pp5-pw tr.is-done td { opacity: .7; }
+#contentFrame .pp5-dashboard .pp5-pw-cell {
+  width: 100%; min-height: 34px; border: 0; border-radius: 999px; padding: 4px 10px; font: inherit; font-size: .82rem; font-weight: 700;
+  white-space: nowrap; cursor: pointer; transition: transform .12s ease, box-shadow .12s ease;
+}
+#contentFrame .pp5-dashboard .pp5-pw-cell:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(15, 23, 42, .1); }
+#contentFrame .pp5-dashboard .pp5-pw-cell.is-done { background: #dcfce7; color: #15803d; }
+#contentFrame .pp5-dashboard .pp5-pw-cell.is-partial { background: #fef3c7; color: #92400e; }
+#contentFrame .pp5-dashboard .pp5-pw-cell.is-none { background: #fee2e2; color: #b91c1c; }
+#contentFrame .pp5-dashboard .pp5-pw-foot { margin-top: 6px; font-size: .78rem; color: var(--overview-muted); }
+[data-theme="dark"] #contentFrame .pp5-dashboard .pp5-pw-cell.is-done { background: rgba(22, 163, 74, .22); color: #86efac; }
+[data-theme="dark"] #contentFrame .pp5-dashboard .pp5-pw-cell.is-partial { background: rgba(245, 158, 11, .2); color: #fcd34d; }
+[data-theme="dark"] #contentFrame .pp5-dashboard .pp5-pw-cell.is-none { background: rgba(239, 68, 68, .2); color: #fca5a5; }
+
+/* Menu-first home: six primary actions and one expandable room summary. */
+body[data-current-page="home_hub"] #currentPageSubtitle { display: none; }
+#homeHubPage.pp5-home-compact .hub-welcome {
+  padding: 8px 0 16px;
+  margin-bottom: 0;
+  background: transparent;
+  border-radius: 0;
+  gap: 12px;
+}
+#homeHubPage.pp5-home-compact .hub-logo { width: 40px; height: 40px; }
+#homeHubPage.pp5-home-compact .hub-welcome-text { min-width: 0; }
+#homeHubPage.pp5-home-compact .hub-welcome h1 { font-size: 1.1rem; margin: 0; line-height: 1.5; color: var(--overview-ink); }
+#homeHubPage.pp5-home-compact #hubSubLine { display: none; }
+#homeHubPage.pp5-home-compact .hub-stats { gap: 8px; color: var(--overview-muted); }
+#homeHubPage.pp5-home-compact .hub-stat { display: flex; align-items: baseline; gap: 5px; padding: 0; min-width: 0; background: transparent; border: 0; border-radius: 0; }
+#homeHubPage.pp5-home-compact .hub-stat:last-child { order: -1; }
+#homeHubPage.pp5-home-compact .hub-stat:last-child::after { content: '·'; margin-left: 3px; }
+#homeHubPage.pp5-home-compact .hub-stat strong { font-size: .85rem; font-weight: 600; color: var(--overview-muted); }
+#homeHubPage.pp5-home-compact .hub-stat span { order: -1; font-size: .85rem; color: var(--overview-muted); }
+#homeHubPage.pp5-home-compact .hub-search-wrap { margin-bottom: 16px; }
+#homeHubPage.pp5-home-compact .hub-search-wrap input { box-shadow: none; border-radius: 10px; }
+#homeHubPage.pp5-home-compact .pp5-hub-tabs { display: none; }
+#homeHubPage.pp5-home-compact .pp5-mm-grid, #homeHubPage.pp5-home-compact .pp5-mm-cats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#homeHubPage.pp5-home-compact[data-hub-view="main"]:not(.pp5-tab-search) .pp5-mm-all { display: none; }
+#homeHubPage.pp5-home-compact .pp5-mm-title { font-size: 1rem; }
+#homeHubPage.pp5-home-compact .pp5-mm-head { margin-bottom: 14px; }
+#homeHubPage.pp5-home-compact .pp5-mm-card { padding: 16px 8px; }
+#homeHubPage.pp5-home-compact .pp5-mm-name { font-size: .95rem; }
+#homeHubPage.pp5-home-compact .pp5-mm-cat b { font-size: .85rem; }
+#homeHubPage.pp5-home-compact .pp5-home-overview-link { margin-top: 12px; text-align: right; }
+#homeHubPage.pp5-home-compact .pp5-home-overview-link button { padding: 4px 0; color: var(--overview-muted); font-size: .85rem; text-decoration: none; min-height: 40px; }
+#homeHubPage.pp5-home-compact .homeroom-roadmap-card { padding: 0; margin-bottom: 16px; }
+#homeHubPage.pp5-home-compact .pp5-room-summary { display: flex; align-items: center; gap: 12px; padding: 16px 18px; flex-wrap: wrap; cursor: pointer; list-style: none; color: var(--overview-ink); }
+#homeHubPage.pp5-home-compact .pp5-room-summary::-webkit-details-marker { display: none; }
+#homeHubPage.pp5-home-compact .pp5-room-picker { margin: 0; }
+#homeHubPage.pp5-home-compact .pp5-room-picker select { width: auto; min-width: 90px; min-height: 40px; border-radius: 9px; background-color: var(--overview-soft); color: var(--overview-ink); border-color: var(--overview-line); }
+#homeHubPage.pp5-home-compact .pp5-room-progress { color: var(--overview-muted); font-size: .85rem; }
+#homeHubPage.pp5-home-compact .roadmap-percent-pill { display: inline; min-width: 0; height: auto; background: transparent; border: 0; border-radius: 0; color: var(--overview-ink); font-size: inherit; font-weight: 700; }
+#homeHubPage.pp5-home-compact .pp5-room-expand { margin-left: auto; font-size: .8rem; color: var(--overview-muted); }
+#homeHubPage.pp5-home-compact .pp5-room-details[open] .pp5-room-expand i { display: inline-block; transform: rotate(180deg); }
+#homeHubPage.pp5-home-compact .pp5-room-summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary-light) 70%, #fff); outline-offset: -3px; border-radius: 16px; }
+#homeHubPage.pp5-home-compact .roadmap-header, #homeHubPage.pp5-home-compact .roadmap-status-sub { display: none; }
+#homeHubPage.pp5-home-compact .roadmap-summary-strip { margin: 0 18px 16px; padding: 12px; background: var(--overview-soft); border: 0; }
+#homeHubPage.pp5-home-compact .roadmap-status-headline { font-size: .85rem; font-weight: 600; color: var(--overview-ink); }
+#homeHubPage.pp5-home-compact .pp5-room-tools { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 18px 18px; border-top: 1px solid var(--overview-line); }
+#homeHubPage.pp5-home-compact .pp5-room-tools button { box-shadow: none !important; min-height: 40px; }
+@media (max-width: 991px) {
+  body[data-current-page="home_hub"] .mobile-quick-menu { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+  #homeHubPage .pp5-mm-panel { padding: 14px; }
+  #homeHubPage .pp5-mm-cats, #homeHubPage .pp5-mm-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  #homeHubPage .pp5-mm-cat, #homeHubPage .pp5-mm-card { padding: 12px 5px; }
+  #homeHubPage .pp5-mm-name, #homeHubPage .pp5-mm-cat b { font-size: .85rem; }
+  #homeHubPage .pp5-hub-tab { min-height: 42px; font-size: .85rem; }
+  #homeHubPage .homeroom-roadmap-card { padding: 16px; }
+  #homeHubPage .roadmap-pills-bar { flex-wrap: wrap; max-width: 100%; }
+  #contentFrame .pp5-dashboard :is(.stat-card, .chart-container, .grade-chart-card, .progress-card, .alert-card, .pp5-dw) { padding: 16px !important; }
+  #contentFrame .pp5-dashboard .row { --bs-gutter-x: 12px; --bs-gutter-y: 12px; }
+  #contentFrame .pp5-dashboard .dashboard-title { font-size: 1.3rem; }
+  #contentFrame .pp5-dashboard .stat-value { font-size: 1.8rem; }
+  #contentFrame .pp5-dashboard > .row:nth-child(2) > div:not(:first-child) { width: 50%; }
+  #contentFrame .pp5-dashboard > .row:nth-child(2) > div:not(:first-child) .avatar-circle { width: 32px; height: 32px; font-size: 1rem; }
+  body[data-current-page="home_hub"] #contentFrame { padding: 16px; }
+  #homeHubPage.pp5-home-compact .hub-welcome { align-items: flex-start; }
+  #homeHubPage.pp5-home-compact .hub-stats { flex-basis: 100%; }
+  #homeHubPage.pp5-home-compact .hub-welcome h1 { font-size: 1rem; }
+  #homeHubPage.pp5-home-compact .pp5-mm-card { padding: 12px 5px; }
+  #homeHubPage.pp5-home-compact .pp5-mm-icon { width: 42px; height: 42px; font-size: 1.3rem; border-radius: 12px; }
+  #homeHubPage.pp5-home-compact .pp5-mm-name { font-size: .85rem; }
+  #homeHubPage.pp5-home-compact .pp5-room-summary { padding: 12px; gap: 8px; }
+  #homeHubPage.pp5-home-compact .pp5-room-summary > strong { font-size: .9rem; }
+  #homeHubPage.pp5-home-compact .pp5-room-progress { margin-left: auto; font-size: .8rem; }
+  #homeHubPage.pp5-home-compact .pp5-room-expand { flex-basis: 100%; text-align: right; }
+  #homeHubPage.pp5-home-compact .roadmap-pipeline-wrap { padding: 0 16px; overflow: visible; }
+  #homeHubPage.pp5-home-compact .roadmap-track { display: none; }
+  #homeHubPage.pp5-home-compact .roadmap-nodes-container { flex-direction: column; min-width: 0; gap: 0; }
+  #homeHubPage.pp5-home-compact .roadmap-node { flex-direction: row; width: 100%; max-width: none; min-width: 0; align-items: center; gap: 10px; padding: 10px 0; }
+  #homeHubPage.pp5-home-compact .roadmap-node-circle { width: 32px; height: 32px; font-size: .9rem; margin: 0; flex-shrink: 0; }
+  #homeHubPage.pp5-home-compact .roadmap-node-title { text-align: left; margin: 0; flex: 1; }
+  #homeHubPage.pp5-home-compact .roadmap-node-badge { margin: 0; }
+  #homeHubPage.pp5-home-compact .roadmap-summary-strip { margin: 0 12px 12px; }
+}
+
+/* Illustrated home menu, matching the owner's reference. */
+body[data-current-page="home_hub"] #contentFrame { background: linear-gradient(135deg,#f0f8ff,#f4f7ff 65%,#effbf6); }
+#homeHubPage.pp5-home-compact { --home-blue:#2359df; color:var(--overview-ink); }
+#homeHubPage.pp5-home-compact .hub-welcome { padding:0 2px 12px; }
+#homeHubPage.pp5-home-compact .pp5-home-toolbar { display:flex;gap:18px;align-items:stretch;margin-bottom:16px; }
+#homeHubPage.pp5-home-compact .pp5-home-toolbar .hub-search-wrap { flex:1;min-width:0;margin:0; }
+#homeHubPage.pp5-home-compact .hub-search-wrap input { height:44px;border:1px solid #d6e7ff;background-color:var(--overview-surface);border-radius:18px;box-shadow:0 3px 5px #4285dc12;color:var(--overview-ink); }
+#homeHubPage.pp5-home-compact .hub-stats { display:flex;align-items:center;justify-content:center;gap:20px;background:var(--overview-surface);border:1px solid #e0edff;border-radius:18px;padding:8px 22px;box-shadow:0 3px 5px #4285dc12; }
+#homeHubPage.pp5-home-compact .hub-stat:last-child::after { content:none; }
+#homeHubPage.pp5-home-compact .hub-stat:last-child::before { content:'\F214';font-family:bootstrap-icons;color:#345bbb;margin-right:6px;order:-2; }
+#homeHubPage.pp5-home-compact .hub-stat:first-child::after { content:'คน';font-size:.8rem; }
+#homeHubPage.pp5-home-compact .hub-stat :is(strong,span) { color:#294a99;font-size:.82rem; }
+#homeHubPage.pp5-home-compact .pp5-mm-panel { position:relative;padding:0 12px 8px;border-color:#d9eaff;background:linear-gradient(135deg,var(--overview-surface),#f4fbff);box-shadow:0 3px 7px #4285dc14;overflow:hidden; }
+#homeHubPage.pp5-home-compact .pp5-mm-head { min-height:46px;margin:0 -12px 4px;gap:14px;justify-content:flex-start; }
+#homeHubPage.pp5-home-compact .pp5-mm-title { min-height:40px;display:flex;align-items:center;gap:12px;padding:8px 22px;border-radius:18px 22px 0 0;background:linear-gradient(110deg,#6731f7,#327eff);color:white;font-size:1rem;box-shadow:inset 0 2px 3px #ffffff60,0 3px 8px #5447f52b; }
+#homeHubPage.pp5-home-compact .pp5-mm-title::before { content:'\F586';font-family:bootstrap-icons;color:#ffe36b;font-size:1.2rem; }
+#homeHubPage.pp5-home-compact .pp5-mm-hint { color:#3e83ea;font-size:.75rem; }
+#homeHubPage.pp5-home-compact .pp5-mm-all { margin-left:auto;margin-right:14px; }
+#homeHubPage.pp5-home-compact .pp5-mm-grid { gap:14px 16px; }
+#homeHubPage.pp5-home-compact :is(.pp5-mm-card,.pp5-menu-tile) { position:relative;isolation:isolate;overflow:hidden;flex-direction:row;align-items:center;text-align:left;gap:18px;min-height:116px;padding:14px 40px 18px 14px;border-radius:17px;border:1px solid var(--mm-bd);background:linear-gradient(115deg,var(--mm-bg),#fff 60%,var(--mm-bg));box-shadow:0 3px 5px color-mix(in srgb,var(--mm-end) 12%,transparent); }
+#homeHubPage.pp5-home-compact :is(.pp5-mm-card,.pp5-menu-tile):nth-child(1) { --mm-start:#30b9ff;--mm-end:#0050ff;--mm-bd:#b6e8ff;--mm-bg:#effaff; }
+#homeHubPage.pp5-home-compact :is(.pp5-mm-card,.pp5-menu-tile):nth-child(2) { --mm-start:#56dc85;--mm-end:#00b961;--mm-bd:#c8f0db;--mm-bg:#f0fcf5; }
+#homeHubPage.pp5-home-compact :is(.pp5-mm-card,.pp5-menu-tile):nth-child(3) { --mm-start:#ff77af;--mm-end:#fa287f;--mm-bd:#ffc9e3;--mm-bg:#fff2f8; }
+#homeHubPage.pp5-home-compact :is(.pp5-mm-card,.pp5-menu-tile):nth-child(4) { --mm-start:#ad80ff;--mm-end:#7934f5;--mm-bd:#e2d0ff;--mm-bg:#f6f1ff; }
+#homeHubPage.pp5-home-compact :is(.pp5-mm-card,.pp5-menu-tile):nth-child(5) { --mm-start:#c26dff;--mm-end:#8b35ef;--mm-bd:#e4d0ff;--mm-bg:#f7f1ff; }
+#homeHubPage.pp5-home-compact :is(.pp5-mm-card,.pp5-menu-tile):nth-child(6) { --mm-start:#65a5b9;--mm-end:#32627f;--mm-bd:#cce4f1;--mm-bg:#f0f8fc; }
+#homeHubPage.pp5-home-compact :is(.pp5-mm-card,.pp5-menu-tile)::before,#homeHubPage.pp5-home-compact :is(.pp5-mm-card,.pp5-menu-tile)::after { content:'';position:absolute;z-index:-1;pointer-events:none;left:0;right:0;bottom:0;height:40%;background:var(--mm-start);opacity:.17;clip-path:polygon(0 65%,13% 47%,30% 82%,50% 100%,68% 63%,81% 36%,100% 58%,100% 100%,0 100%); }
+#homeHubPage.pp5-home-compact :is(.pp5-mm-card,.pp5-menu-tile)::after { background:var(--mm-end);opacity:.13;clip-path:polygon(0 89%,25% 100%,52% 91%,69% 46%,85% 78%,100% 12%,100% 100%,0 100%); }
+#homeHubPage.pp5-home-compact .pp5-mm-icon { flex-shrink:0;width:76px;height:76px;border:5px solid #ffffffc9;border-radius:25px;font-size:2rem;box-shadow:0 5px 9px color-mix(in srgb,var(--mm-end) 22%,transparent),inset 0 2px 3px #ffffff55; }
+#homeHubPage.pp5-home-compact .pp5-mm-foot { display:flex;flex:1;min-width:0;align-items:center; }
+#homeHubPage.pp5-home-compact .pp5-mm-name { display:block;color:#21356c;font-weight:800;font-size:1rem; }
+#homeHubPage.pp5-home-compact .pp5-mm-desc { display:block;margin-top:4px;font-size:.76rem;line-height:1.5;color:#5872a5;max-width:185px; }
+#homeHubPage.pp5-home-compact .pp5-mm-arrow { display:flex;position:absolute;right:15px;top:26px;align-items:center;justify-content:center;width:21px;height:21px;border:3px solid white;border-radius:50%;background:var(--mm-start);color:white;font-size:1.3rem;font-weight:800;line-height:1;box-shadow:0 2px 4px #25304715; }
+#homeHubPage.pp5-home-compact .pp5-mm-art { position:absolute;right:7px;bottom:-6px;color:var(--mm-end);opacity:.23;font-size:2.8rem;pointer-events:none;transform:rotate(-8deg); }
+#homeHubPage.pp5-home-compact :is(.pp5-mm-card,.pp5-menu-tile):hover { background:linear-gradient(115deg,var(--mm-bg),white 55%,var(--mm-bg));border-color:var(--mm-start);transform:translateY(-2px); }
+#homeHubPage.pp5-home-compact .pp5-home-overview-link { margin:0; }
+#homeHubPage.pp5-home-compact .pp5-home-overview-link button { color:#2877ee;min-height:32px;font-size:.78rem; }
+#homeHubPage.pp5-home-compact .homeroom-roadmap-card { margin-top:18px;border-color:#d9eaff;background:linear-gradient(135deg,var(--overview-surface),#f5fbff);box-shadow:0 3px 7px #4285dc14;overflow:hidden; }
+#homeHubPage.pp5-home-compact .pp5-room-summary { padding:0 18px 8px 0;gap:14px;min-height:50px; }
+#homeHubPage.pp5-home-compact .pp5-room-summary > strong { align-self:stretch;display:flex;align-items:center;gap:10px;padding:9px 20px;color:white;background:linear-gradient(110deg,#8234f6,#9279ff);border-radius:17px 22px 0 0;box-shadow:inset 0 2px 3px #ffffff60;font-size:.95rem; }
+
+#homeHubPage.pp5-home-compact .pp5-room-picker select { min-height:32px;font-size:.8rem;background:var(--overview-surface); }
+#homeHubPage.pp5-home-compact .pp5-room-progress { display:flex;align-items:center;gap:4px;font-size:.78rem; }
+#homeHubPage.pp5-home-compact .pp5-room-meter { display:block;width:150px;height:9px;margin-left:5px;background:#edf2ff;border:1px solid #dce6fa;border-radius:20px;padding:2px; }
+#homeHubPage.pp5-home-compact .pp5-room-meter > span { display:block;height:100%;background:linear-gradient(90deg,#8276fa,#b6a1ff);border-radius:20px;transition:width .2s; }
+#homeHubPage.pp5-home-compact .pp5-room-expand { color:#3980f0;font-size:.75rem; }
+#homeHubPage.pp5-home-compact .roadmap-summary-strip { margin:0 12px 14px;padding:8px 14px;background:linear-gradient(90deg,#eaf6ff,#eff2ff);border-radius:12px; }
+#homeHubPage.pp5-home-compact .roadmap-status-headline { color:#4e3bea;font-size:.85rem; }
+#homeHubPage.pp5-home-compact .roadmap-node-circle { border:4px solid white;box-shadow:0 2px 7px #747ef33b; }
+#homeHubPage.pp5-home-compact .roadmap-node:nth-child(1) .roadmap-node-circle { background:linear-gradient(135deg,#ffc63b,#ff9c00);color:white; }
+#homeHubPage.pp5-home-compact .roadmap-node:nth-child(2) .roadmap-node-circle { background:linear-gradient(135deg,#53c5ff,#315dff);color:white; }
+#homeHubPage.pp5-home-compact .roadmap-node:nth-child(3) .roadmap-node-circle { background:linear-gradient(135deg,#b7a0ff,#8056ed);color:white; }
+#homeHubPage.pp5-home-compact .roadmap-node:nth-child(4) .roadmap-node-circle { background:linear-gradient(135deg,#78c9d5,#3392ad);color:white; }
+#homeHubPage.pp5-home-compact .roadmap-node:nth-child(5) .roadmap-node-circle { background:linear-gradient(135deg,#ff83bb,#f43d87);color:white; }
+[data-theme="dark"] body[data-current-page="home_hub"] #contentFrame { background:linear-gradient(135deg,#182438,#202037); }
+[data-theme="dark"] #homeHubPage.pp5-home-compact :is(.pp5-mm-panel,.homeroom-roadmap-card) { background:var(--overview-surface);border-color:var(--overview-line); }
+[data-theme="dark"] #homeHubPage.pp5-home-compact :is(.pp5-mm-card,.pp5-menu-tile) { background:linear-gradient(115deg,var(--overview-surface),var(--overview-soft));border-color:color-mix(in srgb,var(--mm-end) 40%,#34394d); }
+[data-theme="dark"] #homeHubPage.pp5-home-compact .pp5-mm-name { color:#eaf0ff; }
+[data-theme="dark"] #homeHubPage.pp5-home-compact .pp5-mm-desc { color:#b6c5df; }
+[data-theme="dark"] #homeHubPage.pp5-home-compact :is(.hub-stat strong,.hub-stat span) { color:#c2d4ff; }
+[data-theme="dark"] #homeHubPage.pp5-home-compact :is(.hub-stats,.hub-search-wrap input) { border-color:var(--overview-line); }
+[data-theme="dark"] #homeHubPage.pp5-home-compact .roadmap-summary-strip { background:#293149; }
+[data-theme="dark"] #homeHubPage.pp5-home-compact .roadmap-status-headline { color:#b4adff; }
+@media(max-width:1100px) {
+  #homeHubPage.pp5-home-compact :is(.pp5-mm-card,.pp5-menu-tile) { gap:10px;padding:12px 30px 16px 10px; }
+  #homeHubPage.pp5-home-compact .pp5-mm-icon { width:64px;height:64px;border-radius:22px;font-size:1.7rem; }
+  #homeHubPage.pp5-home-compact .pp5-mm-desc { font-size:.72rem; }
+  #homeHubPage.pp5-home-compact .pp5-room-meter { width:100px; }
+}
+@media(max-width:767px) {
+  #homeHubPage.pp5-home-compact .pp5-home-toolbar { flex-wrap:wrap;gap:8px; }
+  #homeHubPage.pp5-home-compact .pp5-home-toolbar .hub-search-wrap { flex-basis:100%; }
+  #homeHubPage.pp5-home-compact .hub-stats { flex-basis:100%;padding:8px 12px;gap:18px; }
+  #homeHubPage.pp5-home-compact .pp5-mm-panel { padding:0 10px 6px; }
+  #homeHubPage.pp5-home-compact .pp5-mm-head { margin:0 -10px 6px;gap:8px; }
+  #homeHubPage.pp5-home-compact .pp5-mm-title { padding:9px 14px;font-size:.9rem; }
+  #homeHubPage.pp5-home-compact .pp5-mm-hint { font-size:.65rem; }
+  #homeHubPage.pp5-home-compact .pp5-mm-grid { grid-template-columns:repeat(2,minmax(0,1fr));gap:10px; }
+  #homeHubPage.pp5-home-compact :is(.pp5-mm-card,.pp5-menu-tile) { flex-direction:column;align-items:flex-start;min-height:158px;gap:7px;padding:10px 10px 18px; }
+  #homeHubPage.pp5-home-compact .pp5-mm-icon { width:56px;height:56px;border-radius:19px;font-size:1.5rem;border-width:4px; }
+  #homeHubPage.pp5-home-compact .pp5-mm-name { font-size:.92rem; }
+  #homeHubPage.pp5-home-compact .pp5-mm-desc { font-size:.72rem; }
+  #homeHubPage.pp5-home-compact .pp5-mm-arrow { right:10px;top:23px; }
+  #homeHubPage.pp5-home-compact .pp5-mm-art { font-size:2.2rem; }
+  #homeHubPage.pp5-home-compact .pp5-room-summary { gap:8px;padding:0 10px 10px 0; }
+  #homeHubPage.pp5-home-compact .pp5-room-summary > strong { padding:10px 12px;font-size:.85rem; }
+  #homeHubPage.pp5-home-compact .pp5-room-progress { margin-left:12px; }
+  #homeHubPage.pp5-home-compact .pp5-room-expand { flex-basis:auto;margin-left:auto; }
+  #homeHubPage.pp5-home-compact .pp5-room-meter { width:85px; }
+}
+@media(prefers-reduced-motion:reduce) { #homeHubPage.pp5-home-compact :is(.pp5-mm-card,.pp5-menu-tile):hover { transform:none; } #homeHubPage.pp5-home-compact .pp5-room-meter > span { transition:none; } }
+
+/* Categories, history and section routes share the main cards, including search results. */
+#homeHubPage.pp5-home-compact :is(.pp5-mm-cats,.hub-section .hub-grid) { grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 16px; }
+#homeHubPage.pp5-home-compact .pp5-menu-tile { white-space:normal;line-height:1.5;font-family:inherit;cursor:pointer;color:var(--overview-ink); }
+#homeHubPage.pp5-home-compact .pp5-menu-tile .pp5-mm-icon { display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--mm-start),var(--mm-end));color:white;margin:0; }
+#homeHubPage.pp5-home-compact .pp5-menu-tile .pp5-mm-name { line-height:1.5;overflow-wrap:anywhere; }
+#homeHubPage.pp5-home-compact .pp5-mm-cat .pp5-mm-foot { text-align:left; }
+#homeHubPage.pp5-home-compact .pp5-menu-tile:focus-visible { outline:3px solid color-mix(in srgb, var(--primary-light) 70%, #fff);outline-offset:3px; }
+@media(max-width:767px) { #homeHubPage.pp5-home-compact :is(.pp5-mm-cats,.hub-section .hub-grid) { grid-template-columns:repeat(2,minmax(0,1fr));gap:10px; } }
+@media(max-width:767px) {
+  #homeHubPage.pp5-home-compact .pp5-mm-title { white-space:nowrap;flex-shrink:0; }
+  #homeHubPage.pp5-home-compact .pp5-mm-all { white-space:nowrap;flex-shrink:0;font-size:.8rem; }
+  #homeHubPage.pp5-home-compact:not([data-hub-view="main"]) .pp5-mm-hint { display:none; }
+  #homeHubPage.pp5-home-compact [data-history-link].pp5-menu-tile { grid-column:1/-1;flex-direction:row;min-height:104px; }
+}
+
+/* รอบ 3 (owner 2026-10-08): ส่วนที่ยังไม่มีข้อมูล (ต้นภาค) เหลือบรรทัดเดียว, ป้ายห้องของครูประจำชั้น,
+   ปุ่มพิมพ์สรุป 1 หน้า, จำนวนผู้ปกครองที่เชื่อม LINE ในการ์ดบัญชีผู้ปกครอง */
+#contentFrame .pp5-dashboard .row[hidden], #contentFrame .pp5-dashboard #attendanceSection[hidden],
+#contentFrame .pp5-dashboard .pp5-dash-empty-note[hidden] { display: none !important; }
+#contentFrame .pp5-dashboard .pp5-dash-empty-note {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 1.5rem; padding: 10px 16px;
+  border-radius: 14px; border: 1px dashed var(--overview-line); background: var(--overview-soft);
+  color: var(--overview-muted); font-size: .92rem;
+}
+#contentFrame .pp5-dashboard .pp5-dash-empty-note b { color: var(--overview-ink); font-weight: 700; }
+#contentFrame .pp5-dashboard .pp5-dash-tools { flex-wrap: wrap; gap: 8px; }
+#contentFrame .pp5-dashboard .pp5-dash-scope {
+  margin-right: auto; display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px;
+  font-size: .85rem; font-weight: 700; color: var(--primary); background: color-mix(in srgb, var(--primary-light) 12%, #fff);
+}
+[data-theme="dark"] #contentFrame .pp5-dashboard .pp5-dash-scope { color: color-mix(in srgb, var(--primary-light) 50%, #fff); background: color-mix(in srgb, var(--primary) 30%, transparent); }
+#contentFrame .pp5-dashboard .pp5-dw-tile .pp5-dw-line { color: #06a04a; font-weight: 600; }
+[data-theme="dark"] #contentFrame .pp5-dashboard .pp5-dw-tile .pp5-dw-line { color: #4ade80; }
+@media (max-width: 576px) {
+  #contentFrame .pp5-dashboard .pp5-dash-scope { flex-basis: 100%; justify-content: center; margin-right: 0; }
+}

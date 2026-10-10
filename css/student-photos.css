@@ -1,0 +1,105 @@
+/* หน้าต่างอัปโหลดรูปนักเรียน (js/student-photos.js) และรูปลูกในหน้าผู้ปกครอง */
+.pp5sp-overlay {
+  --sp-bg: #ffffff; --sp-soft: #f3f6fb; --sp-line: #e2e8f0; --sp-text: #1f2937; --sp-muted: #6b7280;
+  --sp-primary: #2563eb; --sp-ok: #15803d; --sp-ok-soft: rgba(22, 163, 74, .12); --sp-warn: #b45309; --sp-warn-soft: rgba(245, 158, 11, .15);
+  --sp-bad: #dc2626; --sp-bad-soft: rgba(220, 38, 38, .12); --sp-info: var(--primary); --sp-info-soft: color-mix(in srgb, var(--primary) 12%, transparent);
+  position: fixed; inset: 0; z-index: 1090; background: rgba(15, 23, 42, .55);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+html[data-theme="dark"] .pp5sp-overlay {
+  --sp-bg: #111827; --sp-soft: #1b2436; --sp-line: #2b3340; --sp-text: #e5e7eb; --sp-muted: #a7afbd;
+  --sp-primary: #60a5fa; --sp-ok: #4ade80; --sp-ok-soft: rgba(34, 197, 94, .16); --sp-warn: #fbbf24; --sp-warn-soft: rgba(245, 158, 11, .18);
+  --sp-bad: #f87171; --sp-bad-soft: rgba(220, 38, 38, .18); --sp-info: color-mix(in srgb, var(--primary-light) 50%, #fff); --sp-info-soft: rgba(129, 140, 248, .18);
+}
+.pp5sp-modal {
+  width: min(760px, 100%); max-height: calc(100vh - 32px); overflow: auto; display: flex; flex-direction: column; gap: .8rem;
+  background: var(--sp-bg); color: var(--sp-text); border-radius: 18px; padding: 1.1rem 1.2rem; box-shadow: 0 24px 60px rgba(0, 0, 0, .35);
+}
+.pp5sp-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.pp5sp-head h5 { margin: 0; font-weight: 700; font-size: 1.15rem; display: flex; align-items: center; gap: .5rem; }
+.pp5sp-x { border: 0; background: var(--sp-soft); color: var(--sp-text); width: 2.2rem; height: 2.2rem; border-radius: 50%; cursor: pointer; }
+.pp5sp-steps { margin: 0; padding: .7rem .9rem .7rem 2rem; background: var(--sp-soft); border-radius: 12px; font-size: .88rem; line-height: 1.8; }
+.pp5sp-steps code { background: var(--sp-bg); color: var(--sp-primary); padding: .05rem .35rem; border-radius: .35rem; }
+.pp5sp-pick { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.pp5sp-summary, .pp5sp-progress, .pp5sp-note { color: var(--sp-muted); font-size: .88rem; }
+.pp5sp-btn {
+  display: inline-flex; align-items: center; gap: .45rem; padding: .55rem 1rem; border-radius: .65rem; font-weight: 600;
+  border: 1px solid var(--sp-line); background: var(--sp-bg); color: var(--sp-text); cursor: pointer; margin: 0;
+}
+.pp5sp-btn:disabled { opacity: .5; cursor: not-allowed; }
+.pp5sp-primary { background: var(--sp-primary); border-color: var(--sp-primary); color: #fff; }
+.pp5sp-go { background: linear-gradient(135deg, #16a34a, #15803d); border: 0; color: #fff; padding: .6rem 1.3rem; }
+.pp5sp-danger { color: var(--sp-bad); border-color: var(--sp-bad); }
+.pp5sp-list { display: flex; flex-direction: column; gap: .45rem; max-height: 46vh; overflow: auto; }
+.pp5sp-list:empty { display: none; }
+.pp5sp-row {
+  display: grid; grid-template-columns: 52px minmax(0, 1fr) minmax(0, 1.2fr); align-items: center; gap: .7rem;
+  padding: .45rem .55rem; border: 1px solid var(--sp-line); border-radius: 12px;
+}
+.pp5sp-thumb { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; background: var(--sp-soft); }
+.pp5sp-file { min-width: 0; display: flex; flex-direction: column; gap: .2rem; }
+.pp5sp-name { font-weight: 600; font-size: .88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp5sp-tag { align-self: flex-start; font-size: .74rem; font-weight: 600; padding: .1rem .5rem; border-radius: 999px; background: var(--sp-soft); color: var(--sp-muted); }
+.pp5sp-tag.is-ok { background: var(--sp-ok-soft); color: var(--sp-ok); }
+.pp5sp-tag.is-warn { background: var(--sp-warn-soft); color: var(--sp-warn); }
+.pp5sp-tag.is-bad { background: var(--sp-bad-soft); color: var(--sp-bad); white-space: normal; }
+.pp5sp-tag.is-info { background: var(--sp-info-soft); color: var(--sp-info); }
+.pp5sp-foot { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+.pp5sp-remove { border-top: 1px solid var(--sp-line); padding-top: .6rem; font-size: .9rem; }
+.pp5sp-remove summary { cursor: pointer; color: var(--sp-muted); font-weight: 600; }
+.pp5sp-remove-row { display: flex; gap: .5rem; margin: .6rem 0 .3rem; flex-wrap: wrap; }
+.pp5sp-remove-row select { flex: 1 1 260px; }
+@media (max-width: 576px) {
+  .pp5sp-modal { padding: .9rem; border-radius: 14px; }
+  .pp5sp-row { grid-template-columns: 44px minmax(0, 1fr); }
+  .pp5sp-row select { grid-column: 1 / -1; }
+  .pp5sp-thumb { width: 44px; height: 44px; }
+}
+
+/* หน้าผู้ปกครอง: รูปลูกข้างชื่อ */
+.pp5-pv-kidrow { display: flex; align-items: center; gap: 10px; }
+.pp5-pv-kidphoto {
+  flex: 0 0 52px; width: 52px; height: 52px; border-radius: 50%; overflow: hidden;
+  box-shadow: 0 0 0 3px #fff, 0 3px 10px rgba(15, 23, 42, .18); background: color-mix(in srgb, var(--primary-light) 9%, #fff);
+}
+.pp5-pv-kidphoto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+[data-theme="dark"] .pp5-pv-kidphoto { box-shadow: 0 0 0 3px #1f2937, 0 3px 10px rgba(0, 0, 0, .4); }
+
+/* รูปหน้าชื่อในตารางรายชื่อนักเรียน (studentList) */
+.pp5-student-manager .pp5sp-rowwho { display: flex; align-items: center; gap: .55rem; min-width: 0; }
+.pp5-student-manager .pp5sp-rowavatar {
+  flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%; overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff; font-size: 1.05rem;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, .25);
+}
+.pp5-student-manager .pp5sp-rowavatar.has-photo { background: #f3f4f6; box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(15, 23, 42, .18); }
+html[data-theme="dark"] .pp5-student-manager .pp5sp-rowavatar.has-photo { background: #1b2436; box-shadow: 0 0 0 2px #111827, 0 2px 6px rgba(0, 0, 0, .4); }
+.pp5-student-manager .pp5sp-rowavatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pp5-student-manager .pp5sp-rowname { min-width: 0; }
+.pp5-student-manager .pp5sp-rowavatar.has-photo { cursor: zoom-in; transition: transform .15s ease; }
+.pp5-student-manager .pp5sp-rowavatar.has-photo:hover { transform: scale(1.12); }
+
+/* ป๊อปอัพรูปใหญ่ */
+.pp5sp-viewer {
+  position: fixed; inset: 0; z-index: 1095; background: rgba(15, 23, 42, .78);
+  display: flex; align-items: center; justify-content: center; padding: 16px; cursor: zoom-out;
+}
+.pp5sp-viewer-box {
+  position: relative; margin: 0; cursor: default; max-width: 100%;
+  background: #fff; color: #1f2937; border-radius: 18px; padding: 12px; box-shadow: 0 24px 60px rgba(0, 0, 0, .45);
+}
+html[data-theme="dark"] .pp5sp-viewer-box { background: #111827; color: #e5e7eb; }
+.pp5sp-viewer-box img {
+  display: block; width: min(380px, calc(100vw - 56px)); height: auto; max-height: calc(100vh - 120px);
+  border-radius: 12px; object-fit: contain;
+}
+.pp5sp-viewer-box figcaption { text-align: center; font-weight: 700; padding: .6rem .25rem .1rem; }
+.pp5sp-viewer-box .pp5sp-x {
+  position: absolute; top: -12px; right: -12px; border: 0; width: 2.3rem; height: 2.3rem; border-radius: 50%;
+  background: #fff; color: #1f2937; box-shadow: 0 4px 12px rgba(0, 0, 0, .3); cursor: pointer;
+}
+
+/* หน้าประเมินทั้ง 5 หน้า: คลิกรูปเพื่อดูใหญ่ (ใช้ป๊อปอัพเดียวกับตารางรายชื่อ) */
+.pp5-au-avatar.has-photo { cursor: zoom-in; transition: transform .15s ease; }
+.pp5-au-avatar.has-photo:hover { transform: scale(1.12); }

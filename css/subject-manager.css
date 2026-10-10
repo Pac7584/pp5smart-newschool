@@ -1,0 +1,156 @@
+/* ===== จัดการรายวิชา (owner 2026-10-10): ปุ่มสีสด + มือถือจัดเป็น 2 แถว =====
+   หน้าเดิม (gas-pages.js subjectManager) ใช้ปุ่มเส้นขอบบาง ๆ  บนมือถือช่องเลือก 2 ช่องและปุ่ม 3 ปุ่มเรียงลงทีละแถว
+   (5 แถว ชิดขวา)  ตอนนี้:  [ชั้น][ประเภท]  /  [นำเข้า][ส่งออก PDF][เพิ่มวิชา]
+   ปุ่มหาจาก onclick เดิม จึงไม่ต้องแก้ HTML ของหน้า */
+
+#subjectsPage button[onclick*="csvFileInput"],
+#subjectsPage button[onclick*="exportAllSubjects"],
+#subjectsPage button[onclick*="openModal"] {
+  min-height: 38px;
+  padding: 7px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+#subjectsPage button[onclick*="csvFileInput"]:hover,
+#subjectsPage button[onclick*="exportAllSubjects"]:hover,
+#subjectsPage button[onclick*="openModal"]:hover { transform: translateY(-1px); filter: brightness(1.03); }
+#subjectsPage button[onclick*="csvFileInput"]:active,
+#subjectsPage button[onclick*="exportAllSubjects"]:active,
+#subjectsPage button[onclick*="openModal"]:active { transform: scale(0.97); }
+
+/* นำเข้า = ฟ้า */
+#subjectsPage button[onclick*="csvFileInput"] {
+  background: linear-gradient(135deg, #e0f2fe 0%, #cffafe 100%);
+  border-color: #7dd3fc;
+  color: #0369a1;
+  box-shadow: 0 3px 10px rgba(14, 165, 233, 0.18);
+}
+/* ส่งออก PDF = ส้ม (สีเอกสาร) */
+#subjectsPage button[onclick*="exportAllSubjects"] {
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  border-color: #fdba74;
+  color: #c2410c;
+  box-shadow: 0 3px 10px rgba(249, 115, 22, 0.18);
+}
+/* เพิ่มรายวิชา = เขียวเข้ม (ใช้บ่อยสุด) */
+#subjectsPage button[onclick*="openModal"] {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: #059669;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+}
+
+[data-theme="dark"] #subjectsPage button[onclick*="csvFileInput"] {
+  background: linear-gradient(135deg, #0c4a6e 0%, #155e75 100%);
+  border-color: #0284c7;
+  color: #e0f2fe;
+}
+[data-theme="dark"] #subjectsPage button[onclick*="exportAllSubjects"] {
+  background: linear-gradient(135deg, #7c2d12 0%, #9a3412 100%);
+  border-color: #ea580c;
+  color: #ffedd5;
+}
+
+/* ปุ่มแก้ไข / ลบ ในตาราง: มุมมน ขนาดกดง่าย */
+#subjectsPage .btn-act { border-radius: 10px; min-width: 36px; min-height: 34px; }
+
+/* โหมดมืด: กล่องหน้านี้ (.container) เคยค้างพื้นขาว ขณะที่ตัวหนังสือตารางเป็นสีอ่อน -> แทบอ่านไม่ออก */
+[data-theme="dark"] #contentFrame #subjectsPage { background-color: transparent !important; color: #e5e7eb; }
+[data-theme="dark"] #subjectsPage .fs-badge { background: #1e3a5f; color: #bfdbfe; }
+
+@media (max-width: 767.98px) {
+  #subjectsPage > .row.mb-3 { --bs-gutter-x: 8px; --bs-gutter-y: 8px; }
+  /* ช่องเลือกชั้น / ประเภท แถวเดียว */
+  #subjectsPage > .row.mb-3 > .col-md-3 { flex: 0 0 50%; max-width: 50%; }
+  /* 3 ปุ่มแถวเดียว */
+  #subjectsPage > .row.mb-3 > .col-md-2 { flex: 0 0 33.333%; max-width: 33.333%; text-align: center !important; }
+  #subjectsPage > .row.mb-3 > .col-md-2 > button {
+    width: 100%;
+    min-height: 44px;
+    padding: 6px 4px;
+    font-size: 0;            /* ข้อความยาวเดิมซ่อน แสดงข้อความสั้นแทน (::after) */
+    white-space: nowrap;
+  }
+  #subjectsPage > .row.mb-3 > .col-md-2 > button::after { font-size: 0.86rem; }
+  #subjectsPage button[onclick*="csvFileInput"]::after { content: "📥 นำเข้า"; }
+  #subjectsPage button[onclick*="exportAllSubjects"]::after { content: "🧾 ส่งออก PDF"; }
+  #subjectsPage button[onclick*="openModal"]::after { content: "➕ เพิ่มวิชา"; }
+
+  /* ตาราง 11 คอลัมน์ -> การ์ดทีละวิชา (ปุ่มแก้ไข/ลบ อยู่มุมขวาบนของการ์ด)
+     คอลัมน์: 1 ชั้น 2 รหัส 3 ชื่อวิชา 4 ชม. 5 ประเภท 6 คะแนนรายครั้ง 7 ระหว่าง 8 ปลาย 9 รวม 10 ครู 11 จัดการ */
+  #subjectsPage .table-responsive { overflow: visible; }
+  #subjectsPage #subjectTable,
+  #subjectsPage #subjectTable tbody { display: block; width: 100%; border: 0; }
+  #subjectsPage #subjectTable thead { display: none; }
+  #subjectsPage #subjectTable tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #10b981;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  }
+  #subjectsPage #subjectTable tbody td {
+    display: block;
+    padding: 0 !important;
+    border-width: 0 !important;
+    background: transparent !important;
+    text-align: left !important;
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+  /* แถว 1: ชื่อวิชา + ปุ่ม */
+  #subjectsPage #subjectTable tbody td:nth-child(3) { order: 1; flex: 1 1 calc(100% - 110px); min-width: 0; font-size: 1rem; font-weight: 800; color: #0f172a; }
+  #subjectsPage #subjectTable tbody td:nth-child(11) { order: 2; flex: 0 0 auto; display: flex; gap: 6px; }
+  #subjectsPage #subjectTable tbody td:nth-child(11) .btn-act { min-width: 40px; min-height: 38px; margin: 0; }
+  /* แถว 2: ป้ายรหัส ชั้น ประเภท ชม. */
+  #subjectsPage #subjectTable tbody td:nth-child(2),
+  #subjectsPage #subjectTable tbody td:nth-child(1),
+  #subjectsPage #subjectTable tbody td:nth-child(5),
+  #subjectsPage #subjectTable tbody td:nth-child(4) {
+    padding: 2px 8px !important;
+    border-radius: 999px;
+    background: #f1f5f9 !important;
+    color: #334155;
+    font-weight: 700;
+  }
+  #subjectsPage #subjectTable tbody td:nth-child(2) { order: 4; background: #ecfdf5 !important; color: #047857; }
+  #subjectsPage #subjectTable tbody td:nth-child(1) { order: 5; }
+  #subjectsPage #subjectTable tbody td:nth-child(5) { order: 6; }
+  #subjectsPage #subjectTable tbody td:nth-child(4) { order: 7; }
+  #subjectsPage #subjectTable tbody td:nth-child(4)::after { content: " ชม."; }
+  /* แถว 3: คะแนน ระหว่าง / ปลาย / รวม */
+  #subjectsPage #subjectTable tbody td:nth-child(7) { order: 8; margin-left: auto; }
+  #subjectsPage #subjectTable tbody td:nth-child(7)::before { content: "ระหว่าง "; color: #64748b; font-weight: 400; }
+  #subjectsPage #subjectTable tbody td:nth-child(8) { order: 9; }
+  #subjectsPage #subjectTable tbody td:nth-child(8)::before { content: "· ปลาย "; color: #64748b; font-weight: 400; }
+  #subjectsPage #subjectTable tbody td:nth-child(9) { order: 10; }
+  #subjectsPage #subjectTable tbody td:nth-child(9)::before { content: "· รวม "; color: #64748b; font-weight: 400; }
+  /* แถว 4-5: คะแนนรายครั้ง, ครูผู้สอน (เต็มบรรทัด) */
+  #subjectsPage #subjectTable tbody td:nth-child(6) { order: 11; flex-basis: 100%; color: #64748b; }
+  #subjectsPage #subjectTable tbody td:nth-child(6)::before { content: "คะแนนเต็มรายครั้ง "; }
+  #subjectsPage #subjectTable tbody td:nth-child(10) { order: 12; flex-basis: 100%; color: #475569; }
+  #subjectsPage #subjectTable tbody td:nth-child(10):not(:empty)::before { content: "👩‍🏫 "; }
+  #subjectsPage #subjectTable tbody td:nth-child(10):empty { display: none; }
+  /* "ไม่พบข้อมูล" (td เดียว colspan) */
+  #subjectsPage #subjectTable tbody td:only-child { flex-basis: 100%; text-align: center !important; font-size: 0.9rem; }
+  #subjectsPage #subjectTable tbody tr:has(> td:only-child) { border-left-width: 1px; }
+
+  [data-theme="dark"] #subjectsPage #subjectTable tbody tr { background: #1f2937; border-color: #374151; border-left-color: #10b981; }
+  [data-theme="dark"] #subjectsPage #subjectTable tbody td:nth-child(3) { color: #f9fafb !important; }
+  [data-theme="dark"] #subjectsPage #subjectTable tbody td:nth-child(1),
+  [data-theme="dark"] #subjectsPage #subjectTable tbody td:nth-child(5),
+  [data-theme="dark"] #subjectsPage #subjectTable tbody td:nth-child(4) { background: #374151 !important; color: #e5e7eb !important; }
+  [data-theme="dark"] #subjectsPage #subjectTable tbody td:nth-child(2) { background: #064e3b !important; color: #a7f3d0 !important; }
+}
+
+@media (max-width: 359.98px) {
+  #subjectsPage button[onclick*="exportAllSubjects"]::after { content: "🧾 PDF"; }
+}

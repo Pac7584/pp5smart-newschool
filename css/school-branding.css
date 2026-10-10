@@ -1,0 +1,125 @@
+/* หน้าตาโรงเรียน (js/school-branding.js): แบนเนอร์หน้าหลัก + แท็บตั้งค่า
+   สีมาจากตัวแปรธีม --pp5-brand-1/2/3 (ค่าเริ่มต้น = สีเดิมของระบบ) จึงเปลี่ยนตามธีมที่โรงเรียนเลือก */
+:root { --pp5-brand-1: #4F46E5; --pp5-brand-2: #6366F1; --pp5-brand-3: #06B6D4; }
+
+/* ---------- แบนเนอร์ (กล่อง .hub-welcome เดิมบนหน้าหลัก) ---------- */
+#homeHubPage .hub-welcome.pp5-school-banner,
+.pp5-sb .hub-welcome.pp5-school-banner {
+  position: relative; overflow: hidden; isolation: isolate;
+  display: flex; align-items: center; gap: 18px; flex-wrap: nowrap;
+  min-height: 132px; margin: 0 0 16px; padding: 20px 26px;
+  border-radius: 22px; color: #fff;
+  background:
+    radial-gradient(circle at 88% -10%, rgba(255, 255, 255, .28) 0 90px, transparent 91px),
+    radial-gradient(circle at 70% 130%, rgba(255, 255, 255, .16) 0 120px, transparent 121px),
+    linear-gradient(120deg, var(--pp5-brand-1) 0%, var(--pp5-brand-2) 58%, var(--pp5-brand-3) 100%);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, .16);
+}
+#homeHubPage .pp5-school-banner .hub-logo,
+.pp5-sb .pp5-school-banner .hub-logo {
+  flex: 0 0 auto; width: 84px; height: 84px; object-fit: contain; border-radius: 50%;
+  background: rgba(255, 255, 255, .92); padding: 6px; box-shadow: 0 6px 16px rgba(15, 23, 42, .2);
+}
+#homeHubPage .pp5-school-banner .hub-welcome-text,
+.pp5-sb .pp5-school-banner .hub-welcome-text { flex: 1 1 auto; min-width: 0; }
+#homeHubPage .pp5-school-banner .hub-welcome-text h1,
+.pp5-sb .pp5-school-banner .hub-welcome-text h1 {
+  margin: 0; color: #fff !important; font-size: 1.65rem; font-weight: 800; line-height: 1.3;
+  text-shadow: 0 2px 8px rgba(15, 23, 42, .25);
+}
+/* คำทักทาย/ปีการศึกษาอยู่ในแถบสถิติแล้ว ไม่ต้องซ้ำในแบนเนอร์ */
+#homeHubPage .pp5-school-banner #hubSubLine { display: none; }
+.pp5-banner-extra { margin-top: 4px; }
+.pp5-banner-aff { font-size: .95rem; font-weight: 600; opacity: .95; }
+.pp5-banner-motto { margin-top: 6px; display: flex; flex-direction: column; gap: 1px; }
+.pp5-banner-pali { font-size: 1.12rem; font-weight: 700; font-style: italic; color: #FEF3C7; }
+.pp5-banner-meaning { font-size: .92rem; font-style: italic; opacity: .92; }
+.pp5-banner-slogan {
+  flex: 0 0 auto; max-width: 30%; align-self: center; text-align: right;
+  font-size: 1.2rem; font-weight: 800; font-style: italic; line-height: 1.35;
+  transform: rotate(-4deg); text-shadow: 0 2px 10px rgba(15, 23, 42, .3);
+}
+[hidden].pp5-banner-aff, [hidden].pp5-banner-motto, [hidden].pp5-banner-pali, [hidden].pp5-banner-meaning, [hidden].pp5-banner-slogan { display: none !important; }
+[data-theme="dark"] #homeHubPage .hub-welcome.pp5-school-banner,
+[data-theme="dark"] .pp5-sb .hub-welcome.pp5-school-banner {
+  background:
+    linear-gradient(0deg, rgba(2, 6, 23, .38), rgba(2, 6, 23, .38)),
+    linear-gradient(120deg, var(--pp5-brand-1) 0%, var(--pp5-brand-2) 58%, var(--pp5-brand-3) 100%);
+}
+
+@media (max-width: 768px) {
+  #homeHubPage .hub-welcome.pp5-school-banner,
+  .pp5-sb .hub-welcome.pp5-school-banner { flex-wrap: wrap; gap: 12px; min-height: 0; padding: 14px 16px; border-radius: 18px; }
+  #homeHubPage .pp5-school-banner .hub-logo,
+  .pp5-sb .pp5-school-banner .hub-logo { width: 56px; height: 56px; padding: 4px; }
+  #homeHubPage .pp5-school-banner .hub-welcome-text h1,
+  .pp5-sb .pp5-school-banner .hub-welcome-text h1 { font-size: 1.15rem; }
+  .pp5-banner-aff { font-size: .82rem; }
+  .pp5-banner-pali { font-size: .95rem; }
+  .pp5-banner-meaning { font-size: .8rem; }
+  .pp5-banner-slogan { flex-basis: 100%; max-width: none; text-align: left; transform: none; font-size: .95rem; }
+}
+
+/* ---------- แท็บตั้งค่า "หน้าตาโรงเรียน" ---------- */
+.pp5-sb { display: flex; flex-direction: column; gap: 14px; }
+.pp5-sb-muted, .pp5-sb-note { color: #64748B; font-size: .88rem; margin: 0; }
+.pp5-sb-card { border: 1px solid #E2E8F0; border-radius: 14px; padding: 14px 16px; background: #fff; }
+.pp5-sb-card h6 { font-weight: 700; margin: 0 0 10px; display: flex; gap: 8px; align-items: center; }
+.pp5-sb-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.pp5-sb-swatch {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px;
+  border: 2px solid #E2E8F0; border-radius: 12px; cursor: pointer; background: #fff; text-align: center;
+}
+.pp5-sb-swatch input { position: absolute; opacity: 0; pointer-events: none; }
+.pp5-sb-swatch.is-on { border-color: var(--primary); box-shadow: 0 0 0 3px var(--sidebar-active); }
+.pp5-sb-swatch:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+.pp5-sb-chip { width: 54px; height: 32px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; }
+.pp5-sb-chip-custom { background: conic-gradient(#ef4444, #f59e0b, #22c55e, #06b6d4, var(--primary-light), #ec4899, #ef4444); color: #fff; }
+.pp5-sb-name { font-size: .84rem; font-weight: 600; }
+.pp5-sb-custom { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.pp5-sb-custom input[type="color"] { width: 54px; height: 38px; border: 0; padding: 0; background: none; vertical-align: middle; cursor: pointer; }
+.pp5-sb-toggles { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.pp5-sb-preview-label { margin: 14px 0 6px; font-weight: 700; font-size: .88rem; color: #475569; }
+.pp5-sb-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.pp5-sb-status { margin-right: auto; color: #475569; font-size: .9rem; }
+[data-theme="dark"] .pp5-sb-card, [data-theme="dark"] .pp5-sb-swatch { background: #111827; border-color: #2B3340; color: #E5E7EB; }
+[data-theme="dark"] .pp5-sb-muted, [data-theme="dark"] .pp5-sb-note, [data-theme="dark"] .pp5-sb-status, [data-theme="dark"] .pp5-sb-preview-label { color: #A7AFBD; }
+
+
+/* ---------- รูปพื้นหลังแบนเนอร์ (round 3): ทับด้วยสีธีม ซ้ายเข้ม ขวาจาง ตัวหนังสือขาวอ่านออกเสมอ ---------- */
+#homeHubPage .hub-welcome.pp5-school-banner.has-photo,
+.pp5-sb .hub-welcome.pp5-school-banner.has-photo {
+  background:
+    linear-gradient(100deg, var(--pp5-banner-ov1) 0%, var(--pp5-banner-ov1) 34%, var(--pp5-banner-ov2) 62%, var(--pp5-banner-ov3) 100%),
+    var(--pp5-banner-img) var(--pp5-banner-pos, center 50%) / cover no-repeat,
+    var(--pp5-brand-1);
+  min-height: 170px;
+}
+[data-theme="dark"] #homeHubPage .hub-welcome.pp5-school-banner.has-photo,
+[data-theme="dark"] .pp5-sb .hub-welcome.pp5-school-banner.has-photo {
+  background:
+    linear-gradient(0deg, rgba(2, 6, 23, .35), rgba(2, 6, 23, .35)),
+    linear-gradient(100deg, var(--pp5-banner-ov1) 0%, var(--pp5-banner-ov1) 34%, var(--pp5-banner-ov2) 62%, var(--pp5-banner-ov3) 100%),
+    var(--pp5-banner-img) var(--pp5-banner-pos, center 50%) / cover no-repeat,
+    var(--pp5-brand-1);
+}
+@media (max-width: 768px) {
+  /* จอแคบ: ตัวหนังสือกินเกือบทั้งกว้าง ทับสีให้ทั่วขึ้น */
+  #homeHubPage .hub-welcome.pp5-school-banner.has-photo,
+  .pp5-sb .hub-welcome.pp5-school-banner.has-photo {
+    background:
+      linear-gradient(180deg, var(--pp5-banner-ov1) 0%, var(--pp5-banner-ov2) 100%),
+      var(--pp5-banner-img) var(--pp5-banner-pos, center 50%) / cover no-repeat,
+      var(--pp5-brand-1);
+    min-height: 0;
+  }
+}
+.pp5-sb-photo { margin-top: 14px; padding-top: 12px; border-top: 1px dashed #E2E8F0; }
+.pp5-sb-photo-head { margin-bottom: 8px; }
+.pp5-sb-photo-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pp5-sb-photo-row .btn { display: inline-flex; align-items: center; gap: .35rem; min-height: 40px; }
+.pp5-sb-focus { display: inline-flex; align-items: center; gap: 8px; font-size: .88rem; color: #475569; }
+.pp5-sb-focus input { width: 160px; }
+[hidden].pp5-sb-focus, .pp5-sb-photo-row [hidden] { display: none !important; }
+[data-theme="dark"] .pp5-sb-photo { border-top-color: #2B3340; }
+[data-theme="dark"] .pp5-sb-focus { color: #A7AFBD; }

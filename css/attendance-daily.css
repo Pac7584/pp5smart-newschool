@@ -1,0 +1,85 @@
+/* ===== เช็คชื่อรายวัน บนมือถือ/แท็บเล็ต (owner 2026-10-10) =====
+   หน้าเดิม (gas-pages.js attendance_daily) วางวันที่ ชั้น ห้อง ซ้อนกัน 2 แถว + หัวข้อแต่ละช่อง และปุ่ม 6 ปุ่ม
+   (รวมปุ่ม LINE จาก js/line-notify.js) ยาว 4 แถว จนรายชื่อนักเรียนเริ่มเกือบล่างจอ
+   ตอนนี้: วันที่ | ชั้น | ห้อง แถวเดียว  ปุ่ม 2 แถว:  [บันทึก][มาทุกคน] / [LINE][ชาย→หญิง][รีเฟรช][ลบ]
+   จอคอม (>= 992px) ไม่เปลี่ยน  ไม่แตะ HTML ของหน้าเดิม */
+
+/* แถบบันทึกด้านล่าง: js/attendance-daily-bar.js ใส่ .pp5-att-idle เมื่อไม่มีอะไรต้องบันทึก */
+html body #mobileStickySaveBar.pp5-att-idle { display: none !important; }
+
+@media (max-width: 991.98px) {
+  html body #mobileStickySaveBar { padding: 6px 8px 6px 12px; border-radius: 14px; }
+  html body #mobileStickySaveBar .mobile-save-info { font-size: 0.74rem; color: #fde68a; }
+  html body #mobileStickySaveBar .btn-mobile-save { padding: 8px 14px; font-size: 0.9rem; border-radius: 10px; }
+
+  /* วันที่ | ชั้น | ห้อง แถวเดียว */
+  #contentFrame .attendance-controls-card .form-row {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 6px;
+  }
+  #contentFrame .attendance-controls-card .form-row .form-group:first-child { grid-column: auto; }
+  #contentFrame .attendance-controls-card .form-row .form-label { display: none; }
+  #contentFrame .attendance-controls-card .form-row .form-control,
+  #contentFrame .attendance-controls-card .thai-date-button {
+    height: 42px;
+    min-height: 42px;
+    padding-left: 8px;
+    padding-right: 6px;
+    font-size: 0.86rem;
+  }
+  #contentFrame .attendance-controls-card .thai-date-button { gap: 4px; white-space: nowrap; }
+  #contentFrame .attendance-controls-card .thai-date-button #attendanceDateText { overflow: hidden; text-overflow: ellipsis; }
+
+  /* ปุ่ม 2 แถว (ตาราง 6 ช่อง) */
+  #contentFrame .attendance-controls-card .button-container {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+  #contentFrame .attendance-controls-card .button-container > .btn,
+  #contentFrame .attendance-controls-card #pp5LineAbsence > .btn {
+    width: 100%;
+    height: 40px;
+    min-height: 40px;
+    margin: 0;
+    padding: 4px 6px;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    justify-content: center;
+  }
+  #contentFrame .attendance-controls-card .button-container .btn-main-save { grid-column: span 3; height: 40px; font-size: 0.88rem; }
+  #contentFrame .attendance-controls-card .button-container .btn-warning { grid-column: span 3; }
+  #contentFrame .attendance-controls-card #btnAttSortToggle { grid-column: span 2; }
+  #contentFrame .attendance-controls-card .button-container .btn-primary,
+  #contentFrame .attendance-controls-card .button-container .btn-danger { grid-column: span 1; }
+  /* รีเฟรช / ลบ เหลือไอคอน (ปุ่มลบยังเป็นสีแดง) */
+  #contentFrame .attendance-controls-card .button-container .btn-primary .btn-label,
+  #contentFrame .attendance-controls-card .button-container .btn-danger .btn-label { display: none; }
+
+  /* ปุ่ม LINE (ใส่โดย js/line-notify.js หลังปุ่มบันทึก) เป็นช่องหนึ่งของแถว 2 ด้วยข้อความสั้น */
+  #contentFrame .attendance-controls-card #pp5LineAbsence:not([hidden]) {
+    grid-column: span 2;
+    grid-row: 2;
+    margin: 0 !important;
+    display: block !important;
+    min-width: 0;
+  }
+  #contentFrame .attendance-controls-card #pp5LineAbsence > .btn {
+    font-size: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid #86efac;
+    background: #f0fdf4;
+    color: #15803d;
+    border-radius: 8px;
+  }
+  #contentFrame .attendance-controls-card #pp5LineAbsence > .btn i { font-size: 0.95rem; }
+  #contentFrame .attendance-controls-card #pp5LineAbsence > .btn::after { content: "แจ้งขาด"; font-size: 0.82rem; }
+  /* ข้อความผลการส่ง LINE ขึ้นใต้ปุ่มทั้งแถว */
+  #contentFrame .attendance-controls-card #pp5LineAbsence [data-msg]:not(:empty) { display: block; margin-top: 4px; white-space: normal; }
+  /* ไม่มี LINE: ชาย→หญิง กว้างขึ้นแทน */
+  #contentFrame .attendance-controls-card .button-container:not(:has(#pp5LineAbsence:not([hidden]))) #btnAttSortToggle { grid-column: span 4; }
+}

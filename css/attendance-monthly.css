@@ -1,0 +1,455 @@
+/* Monthly attendance only. Keep the legacy DOM and all attendance handlers intact.
+   Container queries follow the usable page width, including an expanded sidebar. */
+.main-container:has(> .att-filter-card.pro-toolbar > #gcQuickBarHost) {
+  container: attendance-monthly-controls / inline-size;
+  padding: 4px 6px 8px !important;
+}
+
+/* Compact Header with Top Save Button */
+.main-container:has(> .att-filter-card.pro-toolbar > #gcQuickBarHost) .att-header-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 12px !important;
+  margin-bottom: 6px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+}
+
+.main-container:has(> .att-filter-card.pro-toolbar > #gcQuickBarHost) .att-header-icon {
+  width: 34px !important;
+  height: 34px !important;
+  font-size: 1.1rem !important;
+  border-radius: 8px !important;
+  flex-shrink: 0;
+}
+
+.main-container:has(> .att-filter-card.pro-toolbar > #gcQuickBarHost) .att-header-copy h2 {
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  margin: 0 0 1px !important;
+  line-height: 1.25 !important;
+}
+
+.main-container:has(> .att-filter-card.pro-toolbar > #gcQuickBarHost) .att-header-copy p {
+  font-size: 0.78rem !important;
+  margin: 0 !important;
+  color: #64748b !important;
+  line-height: 1.2 !important;
+}
+
+.main-container:has(> .att-filter-card.pro-toolbar > #gcQuickBarHost) .att-header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.main-container:has(> .att-filter-card.pro-toolbar > #gcQuickBarHost) .btn-save-monthly-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0 16px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border: none !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.28);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.main-container:has(> .att-filter-card.pro-toolbar > #gcQuickBarHost) .btn-save-monthly-top:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.38);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+}
+
+.main-container:has(> .att-filter-card.pro-toolbar > #gcQuickBarHost) .btn-save-monthly-top:active {
+  transform: translateY(0);
+}
+
+.main-container:has(> .att-filter-card.pro-toolbar > #gcQuickBarHost) .btn-save-monthly-top:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* 2-Column Compact Grid on Desktop */
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) {
+  display: grid;
+  grid-template-columns: auto auto auto 1fr max-content;
+  grid-template-rows: auto auto auto;
+  align-items: center;
+  gap: 4px 10px !important;
+  padding: 8px 12px !important;
+  margin-bottom: 8px !important;
+  border: 1px solid #dfe5f0;
+  border-radius: 12px !important;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+/* Quick Bar Label */
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) > .att-filter-quick-label {
+  display: block !important;
+  grid-column: 1 / 5;
+  grid-row: 1;
+  margin: 0 0 2px 0 !important;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #475569;
+  line-height: 1.2;
+}
+
+/* Quick Bar Host and Buttons */
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) > #gcQuickBarHost {
+  display: block !important;
+  grid-column: 1 / 5;
+  grid-row: 2;
+  min-width: 0;
+  margin-bottom: 2px !important;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) #gcQuickBarHost .gc-quick-bar {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 !important;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) #gcQuickBarHost .gc-quick-btn {
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 2px 12px !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  border-radius: 9999px !important;
+  border: 1px solid #dbeafe !important;
+  background: #ffffff !important;
+  color: #2563eb !important;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.15s ease !important;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) #gcQuickBarHost .gc-quick-btn:hover {
+  background: #eff6ff !important;
+  border-color: #93c5fd !important;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) #gcQuickBarHost .gc-quick-btn.btn-primary,
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) #gcQuickBarHost .gc-quick-btn.is-active {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35) !important;
+}
+
+/* Expose the three filters and the existing action hub to the same grid */
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) > .att-filter-toolbar,
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .att-filter-toolbar > .w-100:has(> .pro-action-hub) {
+  display: contents;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .att-filter-toolbar > .d-flex {
+  grid-row: 3;
+  min-width: 0;
+  justify-self: start;
+  gap: 6px !important;
+  font-size: 0.8rem;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .att-filter-toolbar > .d-flex:nth-of-type(1) {
+  grid-column: 1;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .att-filter-toolbar > .d-flex:nth-of-type(2) {
+  grid-column: 2;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .att-filter-toolbar > .d-flex:nth-of-type(3) {
+  grid-column: 3;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .att-filter-toolbar > .d-flex > .text-secondary {
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+  white-space: nowrap !important;
+  margin-right: 2px;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .att-filter-toolbar > .d-flex > .btn-group {
+  min-width: 0;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .btn-icon {
+  width: 28px !important;
+  height: 30px !important;
+  flex: 0 0 28px;
+  padding: 0 !important;
+  border-radius: 6px !important;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) #attendanceMonthPickerButton {
+  width: 135px;
+  min-width: 0 !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 2px 8px !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  white-space: nowrap;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) #gradeSelect {
+  height: 30px !important;
+  min-height: 30px !important;
+  min-width: 75px !important;
+  max-width: 85px !important;
+  font-size: 0.8rem !important;
+  padding: 2px 22px 2px 8px !important;
+  border-radius: 6px !important;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) #classSelect {
+  height: 30px !important;
+  min-height: 30px !important;
+  min-width: 65px !important;
+  max-width: 75px !important;
+  font-size: 0.8rem !important;
+  padding: 2px 22px 2px 8px !important;
+  border-radius: 6px !important;
+}
+
+/* Action Hub: Compact Command Panel on the right side */
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .pro-action-hub {
+  grid-column: 5;
+  grid-row: 1 / 4;
+  justify-self: end;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .action-group-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 !important;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .action-group-row + .action-group-row {
+  padding-top: 6px;
+  border-top: 1px solid #edf2f7;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .action-group-label {
+  width: 95px;
+  min-width: 95px;
+  flex: 0 0 95px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .action-pill-grid {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .btn-action-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  border-width: 1px;
+  border-style: solid;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .btn-action-pill i {
+  font-size: 0.78rem;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .btn-action-pill:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Color accents matching the screenshot */
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .pill-present {
+  background: #dcfce7 !important;
+  color: #15803d !important;
+  border-color: #86efac !important;
+}
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .pill-present:hover {
+  background: #bbf7d0 !important;
+  border-color: #4ade80 !important;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .pill-leave {
+  background: #fef3c7 !important;
+  color: #b45309 !important;
+  border-color: #fde68a !important;
+}
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .pill-leave:hover {
+  background: #fde68a !important;
+  border-color: #fcd34d !important;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .pill-absent {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+  border-color: #fca5a5 !important;
+}
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .pill-absent:hover {
+  background: #fecaca !important;
+  border-color: #f87171 !important;
+}
+
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .pill-clear,
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .pill-tool {
+  background: #ffffff !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .pill-clear:hover,
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .pill-tool:hover {
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+}
+
+/* Keep sorting available in the toolbar, including on mobile. Hide only the
+   redundant legacy shortcut below the card, not the month/week navigation. */
+.att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .pro-action-hub #btnMonthSortToggle {
+  display: inline-flex !important;
+}
+
+.main-container:has(> .att-filter-card.pro-toolbar > #gcQuickBarHost) #currentMonthDisplay #btnMonthSortToggle {
+  display: none !important;
+}
+
+/* Responsive container queries */
+@container attendance-monthly-controls (max-width: 990px) {
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) {
+    grid-template-columns: auto auto auto 1fr;
+    gap: 8px !important;
+  }
+
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .pro-action-hub {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    justify-self: stretch;
+    margin-top: 4px;
+  }
+}
+
+@container attendance-monthly-controls (max-width: 640px) {
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 10px !important;
+    column-gap: 8px !important;
+  }
+
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) > .att-filter-quick-label,
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) > #gcQuickBarHost {
+    grid-column: 1 / -1;
+  }
+
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .att-filter-toolbar > .d-flex:nth-of-type(1) {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .att-filter-toolbar > .d-flex > .btn-group {
+    flex: 1;
+  }
+
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) #attendanceMonthPickerButton {
+    width: auto;
+    flex: 1;
+  }
+
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .thai-month-picker-popover {
+    left: 0;
+    width: 100%;
+    max-width: 292px;
+    box-sizing: border-box;
+    padding: 10px;
+  }
+
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .thai-month-picker-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .att-filter-toolbar > .d-flex:nth-of-type(2),
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .att-filter-toolbar > .d-flex:nth-of-type(3) {
+    grid-row: 4;
+    width: 100%;
+  }
+
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .att-filter-toolbar > .d-flex:nth-of-type(2) { grid-column: 1; }
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .att-filter-toolbar > .d-flex:nth-of-type(3) { grid-column: 2; }
+
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .pro-action-hub {
+    grid-column: 1 / -1;
+    grid-row: 5;
+    padding: 8px;
+  }
+
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .action-group-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .action-pill-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .btn-action-pill {
+    width: 100%;
+    min-height: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) .btn-action-pill {
+    transition: none;
+  }
+}

@@ -1,0 +1,87 @@
+/* Home sections share the rounded app icons used by the main menu. */
+#homeHubPage .hub-section:not([data-section="quick"]) {
+  background: #fff;
+  border-radius: 22px;
+  padding: 18px 20px 20px;
+  box-shadow: 0 6px 24px rgba(30, 27, 58, .06);
+}
+#homeHubPage .hub-section .hub-grid {
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 16px 12px;
+}
+#homeHubPage .hub-section .hub-card {
+  --app-start: #6a8fa4;
+  --app-end: #425e7a;
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  border-radius: 16px;
+  min-height: 126px;
+  min-width: 0;
+  padding: 10px 4px;
+  gap: 10px;
+  justify-content: flex-start;
+  color: #253047;
+  white-space: normal;
+  transition: background .18s ease;
+}
+#homeHubPage .hub-section .hub-card:hover {
+  background: #f5f7fc;
+  box-shadow: none;
+  transform: none;
+}
+#homeHubPage .hub-section .hub-card:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary-light) 70%, #fff);
+  outline-offset: 3px;
+}
+#homeHubPage .hub-section .hub-card-icon {
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  border-radius: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--app-start), var(--app-end));
+  color: #fff;
+  font-size: 2rem;
+  box-shadow: 0 7px 14px rgba(41, 59, 100, .17), inset 0 1px 0 rgba(255, 255, 255, .28);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+#homeHubPage .hub-section .hub-card:hover .hub-card-icon {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(41, 59, 100, .23);
+}
+#homeHubPage .hub-section .hub-card-label {
+  color: inherit;
+  font-size: .9rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+#homeHubPage .hub-card.c-blue { --app-start: #52c0e8; --app-end: #427ee5; }
+#homeHubPage .hub-card.c-green { --app-start: #59c799; --app-end: #279a7a; }
+#homeHubPage .hub-card.c-teal { --app-start: #60c6c5; --app-end: #3296a5; }
+#homeHubPage .hub-card.c-yellow { --app-start: #f4c671; --app-end: #e5a045; }
+#homeHubPage .hub-card.c-red { --app-start: #ef7f97; --app-end: #dd5473; }
+#homeHubPage .hub-card.c-purple { --app-start: #b86de0; --app-end: #7657ce; }
+#homeHubPage .hub-card.c-orange { --app-start: #f4bc74; --app-end: #ee8c64; }
+[data-theme="dark"] #homeHubPage .hub-section:not([data-section="quick"]) {
+  background: #1e2130;
+}
+[data-theme="dark"] #homeHubPage .hub-section .hub-card {
+  background: transparent;
+  color: #e5e7f5;
+}
+[data-theme="dark"] #homeHubPage .hub-section .hub-card:hover { background: #2a3046; }
+@media (max-width: 575px) {
+  #homeHubPage .hub-section:not([data-section="quick"]) { padding: 16px 10px; }
+  #homeHubPage .hub-section .hub-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 4px; }
+  #homeHubPage .hub-section .hub-card { min-height: 114px; padding: 8px 2px; }
+  #homeHubPage .hub-section .hub-card-icon { width: 64px; height: 64px; border-radius: 19px; font-size: 1.75rem; }
+  #homeHubPage .hub-section .hub-card-label { font-size: .8rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #homeHubPage .hub-section .hub-card,
+  #homeHubPage .hub-section .hub-card-icon { transition: none; }
+  #homeHubPage .hub-section .hub-card:hover .hub-card-icon { transform: none; }
+}

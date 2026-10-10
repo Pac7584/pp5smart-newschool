@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ดูผลการเรียน</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#f4f6fb;--fg:#1e293b;--muted:#64748b;--card:#fff;--accent:#06c755}
+    @media (prefers-color-scheme:dark){:root{--bg:#0f172a;--fg:#e2e8f0;--muted:#94a3b8;--card:#1e293b}}
+    body{margin:0;font-family:Sarabun,sans-serif;background:var(--bg);color:var(--fg);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
+    .box{background:var(--card);border-radius:18px;padding:24px 20px;max-width:420px;width:100%;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.08)}
+    .spin{width:36px;height:36px;border:4px solid #d1fae5;border-top-color:var(--accent);border-radius:50%;margin:0 auto 14px;animation:s 1s linear infinite}
+    @keyframes s{to{transform:rotate(360deg)}}
+    h1{font-size:1.15rem;margin:0 0 8px}
+    p{color:var(--muted);margin:6px 0;line-height:1.6}
+    .btn{display:inline-block;margin-top:14px;background:var(--accent);color:#fff;border:0;border-radius:12px;padding:12px 20px;font:inherit;font-weight:700;text-decoration:none}
+    .err{color:#dc2626}
+  </style>
+  <!-- Same Supabase project and storage as index.html, so the session carries over to the portal. -->
+  <script src="js/app-config.js?v=1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+  <div class="box" id="box"><div class="spin"></div><h1>กำลังเปิดผลการเรียน...</h1><p>สักครู่</p></div>
+  <script>
+    // Opened from the school's LINE menu (LIFF). Linked parent → signed in and sent to the
+    // parent portal at once. Not linked yet → sign in once; the portal then links this LINE.
+    (function () {
+      'use strict';
+      // Same public project config as index.html: js/app-config.js (URL + anon key only, never a secret).
+      var SUPABASE_URL = window.PP5_CONFIG.supabaseUrl;
+      var SUPABASE_ANON_KEY = window.PP5_CONFIG.supabaseAnonKey;
+      var PORTAL = '/?page=parent_portal';
+      var LOGIN = '/?page=login';
+      var box = document.getElementById('box');
+      var show = function (title, text, linkHref, linkText, isError) {
+        box.innerHTML = '<h1' + (isError ? ' class="err"' : '') + '></h1><p></p>' + (linkHref ? '<a class="btn"></a>' : '');
+        box.querySelector('h1').textContent = title;
+        box.querySelector('p').textContent = text;
+        if (linkHref) { var a = box.querySelector('a'); a.href = linkHref; a.textContent = linkText; }
+      };
+      var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      var call = function (body) {
+        return db.functions.invoke('line-notify', { body: body }).then(function (r) {
+          if (r.error) {
+            return (r.error.context && r.error.context.json ? r.error.context.json() : Promise.resolve(null))
+              .catch(function () { return null; })
+              .then(function (d) { throw new Error((d && d.error) || r.error.message); });
+          }
+          return r.data;
+        });
+      };
+
+      async function run() {
+        var cfg = await call({ action: 'liff-config' });
+        if (!cfg || !cfg.liffId) { show('ยังไม่พร้อมใช้งาน', 'โรงเรียนยังตั้งค่าเมนู LINE ไม่เสร็จ', PORTAL, 'เปิดหน้าผู้ปกครอง'); return; }
+        await window.liff.init({ liffId: cfg.liffId });
+        if (!window.liff.isLoggedIn()) { window.liff.login({ redirectUri: location.href }); return; }
+        var idToken = window.liff.getIDToken();
+        if (!idToken) { show('เปิดไม่สำเร็จ', 'LINE ไม่ส่งข้อมูลยืนยันตัวตน กรุณาปิดแล้วเปิดเมนูอีกครั้ง', null, null, true); return; }
+
+        var res = await call({ action: 'liff-session', idToken: idToken });
+        if (res && res.linked && res.tokenHash) {
+          var v = await db.auth.verifyOtp({ token_hash: res.tokenHash, type: 'email' });
+          if (v.error) v = await db.auth.verifyOtp({ token_hash: res.tokenHash, type: 'magiclink' });
+          if (v.error) throw new Error('เข้าสู่ระบบไม่สำเร็จ: ' + v.error.message);
+          location.replace(PORTAL);
+          return;
+        }
+        // First time: remember this LINE (ID token) for the portal to link right after sign-in.
+        try { sessionStorage.setItem('pp5_liff_id_token', idToken); } catch (_) { /* private mode */ }
+        show('ครั้งแรก: เข้าสู่ระบบหนึ่งครั้ง', 'ใช้ชื่อผู้ใช้และรหัสผ่านผู้ปกครองที่โรงเรียนให้ หลังจากนี้กดเมนูใน LINE แล้วเห็นผลการเรียนทันที ไม่ต้องเข้าสู่ระบบอีก', LOGIN, 'เข้าสู่ระบบ');
+      }
+
+      run().catch(function (error) {
+        show('เปิดไม่สำเร็จ', String((error && error.message) || error), PORTAL, 'เปิดหน้าผู้ปกครอง', true);
+      });
+    })();
+  </script>
+</body>
+</html>

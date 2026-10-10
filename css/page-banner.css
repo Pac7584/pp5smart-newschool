@@ -1,0 +1,26 @@
+/* แถบหัวหน้า (js/page-banner.js): โครงและสีมาจากแบนเนอร์หน้าหลักใน css/school-branding.css (.pp5-sb .pp5-school-banner)
+   ไฟล์นี้เพิ่มแค่ไอคอนของหน้า บรรทัดรอง และการซ่อนหัวเดิม */
+/* id + class: Bootstrap .d-flex (display:flex !important, loaded again by some page templates) must not bring the old title back */
+.pp5-pb-hidden, #contentFrame .pp5-pb-hidden { display: none !important; }
+.pp5-page-banner-wrap { margin: 0 0 14px; }
+.pp5-sb .hub-welcome.pp5-page-banner { margin: 0; min-height: 120px; }
+.pp5-sb .hub-welcome.pp5-page-banner.has-photo { min-height: 150px; }
+.pp5-pb-icon {
+  flex: 0 0 auto; width: 76px; height: 76px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, .94); color: var(--pp5-brand-1, #4F46E5);
+  font-size: 2rem; box-shadow: 0 6px 16px rgba(15, 23, 42, .2);
+}
+.pp5-pb-sub { margin-top: 2px; font-size: .98rem; font-weight: 600; opacity: .95; }
+.pp5-pb-school { margin-top: 6px; font-size: .9rem; font-style: italic; color: #FEF3C7; }
+[hidden].pp5-pb-school { display: none !important; }
+[data-theme="dark"] .pp5-pb-icon { background: rgba(15, 23, 42, .78); color: color-mix(in srgb, var(--primary-light) 30%, #fff); }
+
+@media (max-width: 768px) {
+  .pp5-page-banner-wrap { margin: 0 0 10px; }
+  .pp5-sb .hub-welcome.pp5-page-banner { flex-wrap: nowrap; gap: 12px; padding: 14px 16px; min-height: 0; }
+  .pp5-sb .hub-welcome.pp5-page-banner.has-photo { min-height: 0; }
+  .pp5-pb-icon { width: 48px; height: 48px; font-size: 1.35rem; }
+  .pp5-pb-sub { font-size: .8rem; }
+  .pp5-pb-school { font-size: .76rem; margin-top: 3px; }
+}
