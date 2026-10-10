@@ -178,6 +178,8 @@
   // ---------- อ่านค่าโรงเรียน ----------
   let settingsPromise = null;
   let settingsAt = 0;
+  // บันทึกค่าตั้งแล้ว (js/supabaseClient.js) ล้างค่าที่จำไว้ หน้าหลักจะแสดงสังกัด/ชื่อใหม่ทันที
+  global.document?.addEventListener?.('pp5:settings-saved', () => { settingsPromise = null; });
   function loadSettings(force) {
     const data = global.PP5Data;
     if (!data?.settings?.get) return Promise.resolve(null);

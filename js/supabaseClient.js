@@ -426,6 +426,11 @@
     }
   };
 
+  // หน้าที่จำค่าตั้งไว้ (เช่นแบนเนอร์หน้าหลัก js/school-branding.js) ฟังเหตุการณ์นี้แล้วโหลดใหม่ ไม่ต้องรอหมดเวลา
+  const announceSettingsSaved = () => {
+    try { global.document?.dispatchEvent?.(new Event('pp5:settings-saved')); } catch (_) { /* no DOM events */ }
+  };
+
   const settings = {
     async get() {
       const { data, error } = await client.from('school_settings').select('*').limit(1).maybeSingle();
@@ -484,6 +489,7 @@
       if (!payload.school_name) throw appError('กรุณาระบุชื่อโรงเรียนก่อนบันทึก', null, 'SCHOOL_NAME_REQUIRED');
       const { data, error } = await client.from('school_settings').upsert(payload).select().single();
       throwIfError(error, 'บันทึกการตั้งค่าระบบไม่สำเร็จ');
+      announceSettingsSaved();
       return data;
     },
 
@@ -496,7 +502,10 @@
       const rpc = typeof client.rpc === 'function'
         ? await client.rpc('pp5_merge_settings_json', { p_key: key, p_value: value })
         : { error: { code: 'PGRST202' } };
-      if (!rpc.error) return value;
+      if (!rpc.error) {
+        announceSettingsSaved();
+        return value;
+      }
       if (!['PGRST202', '42883'].includes(rpc.error.code)) throwIfError(rpc.error, message);
       const { data: row, error: readError } = await client.from('school_settings').select('id, settings_json').limit(1).maybeSingle();
       throwIfError(readError, 'อ่านการตั้งค่าระบบไม่สำเร็จ');
@@ -504,6 +513,7 @@
       const settingsJson = { ...(row.settings_json && typeof row.settings_json === 'object' ? row.settings_json : {}), [key]: value };
       const { error } = await client.from('school_settings').update({ settings_json: settingsJson }).eq('id', row.id);
       throwIfError(error, message);
+      announceSettingsSaved();
       return value;
     },
 
