@@ -5077,10 +5077,13 @@
             .select('student_id', { count: 'exact', head: true })
             .in('student_id', studentIds);
           growthCount = gCount || 0;
-          const { count: cCount } = await client.from('teacher_comments')
+        } catch (_) {}
+        try {
+          const { count: cCount, error: cError } = await client.from('student_comments')
             .select('student_id', { count: 'exact', head: true })
+            .eq('academic_year', year)
             .in('student_id', studentIds);
-          commentsCount = cCount || 0;
+          commentsCount = cError ? 0 : (cCount || 0);
         } catch (_) {}
       }
       const healthBreakdown = [

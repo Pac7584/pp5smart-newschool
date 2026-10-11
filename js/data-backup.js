@@ -34,7 +34,6 @@
     ['student_growth', [['id'], ['student_id', 'measured_on']]],
     ['student_comments', [['id'], ['student_id', 'academic_year', 'semester']]],
     ['behavior_records', [['id']]],
-    ['teacher_comments', [['id'], ['student_id']]],
     ['teacher_assignments', [['id'], ['academic_year', 'grade', 'room']]],
     ['teachers', [['id']]],
     ['holidays', [['id'], ['holiday_date']]],
@@ -220,7 +219,7 @@
     'attendance_daily', 'attendance_monthly', 'student_growth', 'holidays', 'academic_years', 'academic_year_report_snapshots'];
   const YEAR_DATE_FIELDS = ['attendance_date', 'holiday_date', 'measured_on'];
   // Rows kept for the year's students only.
-  const YEAR_STUDENT_TABLES = ['students', 'student_details', 'teacher_comments'];
+  const YEAR_STUDENT_TABLES = ['students', 'student_details'];
   // Small reference tables kept whole so the archive can be read on its own.
   const YEAR_REFERENCE_TABLES = ['subjects', 'teachers', 'school_settings'];
 
@@ -253,6 +252,7 @@
     if (!ids.size) rowsOf('students').filter((s) => txt(s.academic_year) === y).forEach((s) => ids.add(txt(s.id)));
     if ('students' in tables) out.students = rowsOf('students').filter((s) => ids.has(txt(s.id)));
     if ('student_details' in tables) out.student_details = rowsOf('student_details').filter((row) => ids.has(txt(row.student_id)));
+    // Preserve legacy rows supplied by old files; new exports never query this obsolete table.
     if ('teacher_comments' in tables) {
       out.teacher_comments = rowsOf('teacher_comments').filter((row) => (rowAcademicYear(row) ? rowAcademicYear(row) === y : ids.has(txt(row.student_id))));
     }
