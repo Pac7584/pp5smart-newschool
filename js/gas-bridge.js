@@ -2235,6 +2235,10 @@
     const settings = await data.settings.get();
     const term = String(extraOptions?.term || domTerm || settings.semester || 'year');
     if (!['1', '2', 'year'].includes(term)) throw new Error('ภาคเรียนไม่ถูกต้อง');
+    // owner 2026-10-11: ชั้น ม. ตัดสินผลรายภาคจบในภาค ปพ.6 จึงพิมพ์ได้เฉพาะภาคเรียนที่ 1 หรือ 2 (ไม่มีฉบับรวมทั้งปี)
+    if (term === 'year' && semesterJudgedGrade_(grade)) {
+      throw new Error(`ชั้น ${text(grade).trim()} ตัดสินผลการเรียนรายภาค: พิมพ์ ปพ.6 ได้เฉพาะภาคเรียนที่ 1 หรือภาคเรียนที่ 2`);
+    }
     const showRank = extraOptions?.showRank !== false;
     const domFormat = typeof document !== 'undefined' && typeof document?.getElementById === 'function' ? document.getElementById('pp6ReportFormatSelector')?.value : null;
     const storedFormat = typeof localStorage !== 'undefined' && typeof localStorage?.getItem === 'function' ? localStorage.getItem('pp6_report_format') : null;

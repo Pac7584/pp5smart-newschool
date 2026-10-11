@@ -5973,6 +5973,28 @@ function enhanceSupabaseReportCardGeneratorPage_(withScores) {
       });
     }
 
+    // ชั้น ม. ตัดสินผลรายภาค (owner 2026-10-11): ปพ.6 พิมพ์ได้เฉพาะภาค 1 / ภาค 2 ซ่อน "ตลอดปีการศึกษา" เมื่อเลือกห้อง ม.
+    // ห้องที่เลือกคือปุ่ม .chip.active (data-grade) ของหน้านี้ ดูการเปลี่ยน class แทนการดักทุกทางที่หน้าเลือกห้องได้
+    const syncYearOption = () => {
+      const optYear = termSelect.querySelector('option[value="year"]');
+      if (!optYear) return;
+      const lowerSecondary = /^ม\./.test(frame.querySelector('.chip.active')?.dataset?.grade || '');
+      if (optYear.hidden !== lowerSecondary) { optYear.hidden = lowerSecondary; optYear.disabled = lowerSecondary; }
+      if (lowerSecondary && termSelect.value === 'year') {
+        termSelect.value = '1';
+        // same path as a user change: remembered term + watermark label follow
+        termSelect.dispatchEvent(new Event('change'));
+      }
+    };
+    if (!termSelect.dataset.pp6YearSync) {
+      termSelect.dataset.pp6YearSync = '1';
+      // #contentFrame stays across pages: keep a single observer for the current page's selector
+      frame._pp6YearObserver?.disconnect();
+      frame._pp6YearObserver = new MutationObserver(syncYearOption);
+      frame._pp6YearObserver.observe(frame, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    }
+    syncYearOption();
+
     const termContainer = termSelect.parentElement;
     if (!termContainer || frame.querySelector('#pp6HeaderFormatWrapper')) return;
 
