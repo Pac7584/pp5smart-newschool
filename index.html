@@ -201,6 +201,8 @@
       <li class="nav-item admin-only" data-page="new_settings_editor"><a href="#" class="nav-link" data-page="new_settings_editor"><i class="bi bi-sliders"></i> ตั้งค่าระบบกลาง</a></li>
       <li class="nav-item admin-only" data-page="logo_management"><a href="#" class="nav-link" data-page="logo_management"><i class="bi bi-image-fill"></i> โลโก้และตราโรงเรียน</a></li>
       <li class="nav-item admin-only" data-page="subjectManager"><a href="#" class="nav-link" data-page="subjectManager"><i class="bi bi-journal-bookmark-fill"></i> รายวิชาและหลักสูตร</a></li>
+      <li class="nav-item admin-only" data-page="curriculum_readiness"><a href="#" class="nav-link" data-page="curriculum_readiness"><i class="bi bi-clipboard-check"></i> ตรวจความพร้อมหลักสูตร</a></li>
+      <li class="nav-item admin-only" data-page="setup_wizard"><a href="#" class="nav-link" data-page="setup_wizard"><i class="bi bi-list-check"></i> เริ่มต้นใช้งานโรงเรียน</a></li>
       <li class="nav-item admin-only" data-page="teacher_editor"><a href="#" class="nav-link" data-page="teacher_editor"><i class="bi bi-person-video3"></i> ครูประจำชั้น</a></li>
       <li class="nav-item admin-only" data-page="admin_panel"><a href="#" class="nav-link" data-page="admin_panel"><i class="bi bi-person-gear"></i> ผู้ใช้และสิทธิ์</a></li>
       <li class="nav-item admin-only master-only"><a href="#" class="nav-link" onclick="AppNavigation.exportSystemZip();return false;"><i class="bi bi-box-arrow-up-right"></i> ส่งออกชุดติดตั้งโรงเรียนใหม่</a></li>
@@ -466,6 +468,8 @@
   <script src="js/line-notify.js?v=6"></script>
 
 <!-- Authentic SPA Master Logic -->
+  <link rel="stylesheet" href="css/school-readiness.css?v=1">
+  <script src="js/school-readiness.js?v=1"></script>
   <script src="js/score-drafts.js?v=3"></script>
 <!-- หน้าประเมิน 5 หน้า: รูปนักเรียน การ์ดสรุป แถบบันทึกล่างจอ (ต้องโหลดหลัง gas-bridge ก่อน spa-main) -->
   <link rel="stylesheet" href="css/assessment-ui.css?v=10">
@@ -487,7 +491,7 @@
   <script src="js/student-list-autoload.js?v=1"></script>
   <!-- วิชารายภาค (ม.ต้น): หน้าบันทึกคะแนนเปิดเฉพาะแท็บภาคของวิชา -->
   <script src="js/semester-subjects.js?v=1"></script>
-  <script src="js/spa-main.js?v=142"></script>
+  <script src="js/spa-main.js?v=143"></script>
   <script src="js/exam-import.js?v=3"></script>
 
 <script>

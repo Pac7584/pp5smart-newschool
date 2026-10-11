@@ -2697,6 +2697,7 @@ function subjectWorkbookToCsv_(XLSX, bytes) {
 }
 
 function enhanceSupabaseSubjectManagerPage_() {
+  window.PP5SchoolReadiness?.enhanceSubjects();
   const input = document.getElementById('csvFileInput');
   if (!input) return;
   input.setAttribute('accept', '.csv,.xlsx,.xls');
