@@ -2288,13 +2288,6 @@
 
 
 
-    const SUBJECT_ORDER = [
-      'ภาษาไทย', 'คณิตศาสตร์', 'วิทยาศาสตร์', 'เทคโนโลยี', 'สังคมศึกษา',
-      'ประวัติศาสตร์', 'สุขศึกษา', 'ศิลปะ', 'การงาน',
-      'ภาษาอังกฤษ', 'หน้าที่พลเมือง', 'การป้องกัน'
-    ];
-    const ACTIVITY_ORDER = ['แนะแนว', 'ลูกเสือ', 'เนตรนารี', 'ชุมนุม', 'สาธารณ', 'ประโยชน์', 'กิจกรรม'];
-
     function getTypeRank(s) {
       const t = String(s.subject_type || s.type || '').trim();
       const name = String(s.name || '').trim();
@@ -2307,22 +2300,9 @@
       return 0;
     }
 
-    function getSubjectIdx(name, orderList) {
-      const n = String(name || '').trim();
-      for (let i = 0; i < orderList.length; i++) {
-        if (n.indexOf(orderList[i]) !== -1) return i;
-      }
-      return 999;
-    }
-
-    subjects.sort((a, b) => {
-      const typeA = getTypeRank(a), typeB = getTypeRank(b);
-      if (typeA !== typeB) return typeA - typeB;
-      if (typeA === 2) {
-        return getSubjectIdx(a.name, ACTIVITY_ORDER) - getSubjectIdx(b.name, ACTIVITY_ORDER);
-      }
-      return getSubjectIdx(a.name, SUBJECT_ORDER) - getSubjectIdx(b.name, SUBJECT_ORDER);
-    });
+    // Same order as the subject manager (owner 2026-10-11): ม. ภาค 1 (พื้นฐาน, เพิ่มเติม, กิจกรรม) then ภาค 2, yearly after;
+    // within a group the curriculum order, then the code (ภาษาไทย 1 before ภาษาไทย 2). Primary has no terms: unchanged.
+    subjects = pp6SortSubjects_(subjects);
     // ภาคเรียนที่ 1 / 2: ไม่แสดงวิชารายภาคของอีกภาค (วิชารายปีแสดงเหมือนเดิม)
     subjects = subjects.filter((sub) => subjectInTerm_(sub, term));
 
