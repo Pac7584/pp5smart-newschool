@@ -325,6 +325,28 @@
       || text(a.subjectCode || a.code).localeCompare(text(b.subjectCode || b.code)));
   }
 
+  // Subject lists (subject manager and every page using getSubjects) follow the ปพ.6 layout: grade, then term
+  // (ม.: ภาค 1 before ภาค 2, yearly subjects after), then พื้นฐาน / เพิ่มเติม / กิจกรรม, then curriculum order, then code.
+  const PP6_ACTIVITY_ORDER_ = ['แนะแนว', 'ลูกเสือ', 'เนตรนารี', 'ชุมนุม', 'สาธารณ', 'ประโยชน์', 'กิจกรรม'];
+  function pp6SortSubjects_(rows) {
+    const gradeRank = (grade) => {
+      const match = text(grade).trim().match(/^(อ|ป|ม)\.(\d+)/);
+      return match ? 'อปม'.indexOf(match[1]) * 10 + Number(match[2]) : 99;
+    };
+    const termRank = (row) => subjectSemester_(row) || 3;
+    const areaIndex = (row) => {
+      const name = text(row?.name).trim();
+      const list = parentSubjectTypeRank_(row) === 2 ? PP6_ACTIVITY_ORDER_ : PARENT_SUBJECT_ORDER_;
+      const index = list.findIndex((item) => name.includes(item));
+      return index < 0 ? 999 : index;
+    };
+    return [...(rows || [])].sort((a, b) => (gradeRank(a.grade) - gradeRank(b.grade))
+      || (termRank(a) - termRank(b))
+      || (parentSubjectTypeRank_(a) - parentSubjectTypeRank_(b))
+      || (areaIndex(a) - areaIndex(b))
+      || text(a.code).localeCompare(text(b.code)));
+  }
+
   // Credit used to weight a grade point in the parent GPA (same rule as the ปพ.6 report:
   // credit, else hours per year / 40, else periods per week; 1 when the subject has none).
   function parentSubjectCredit_(subject) {
@@ -5117,7 +5139,7 @@
       // while newer pages pass a grade. Never treat a login token as a grade filter.
       const candidate = text(gradeOrToken).trim();
       const grade = /^(?:อ|ป|ม)\.\d+$/.test(candidate) ? candidate : undefined;
-      return (await data.subjects.list(grade)).map(toLegacySubject);
+      return pp6SortSubjects_(await data.subjects.list(grade)).map(toLegacySubject);
     },
     async getSubjectsForGrade(grade) { return this.getSubjects(grade); },
     async addSubject(values) {
