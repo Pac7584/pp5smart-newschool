@@ -385,6 +385,25 @@
     return '';
   }
 
+  // ปพ.6 activity row: ผ่าน / ไม่ผ่าน from the activity assessment (it used to print "ยังไม่ประเมิน" always).
+  // Term: the subject's own semester (ม. per-semester activity), else the printed term, else (year) ภาค 2 then ภาค 1
+  // like the parent page. Criteria aliases match reportAssessmentSummary (guidance / act1 / 1 ...).
+  function pp6ActivityResult_(rows, subject, term) {
+    const criteria = parentActivityCriteria_(subject);
+    if (!criteria) return 'ยังไม่ประเมิน';
+    const n = ['guidance', 'scout', 'club', 'social'].indexOf(criteria) + 1;
+    const codes = [criteria, 'act' + n, String(n)];
+    const own = subjectSemester_(subject);
+    const wanted = own || (String(term) === '1' ? 1 : String(term) === '2' ? 2 : 0);
+    const pick = (semester) => (rows || []).find((row) => row.assessment_type === 'activity'
+      && codes.includes(text(row.criteria_code)) && number(row.semester, 1) === semester);
+    const row = wanted ? pick(wanted) : (pick(2) || pick(1));
+    const value = row ? row.score : null;
+    if (value === 1 || value === '1') return 'ผ่าน';
+    if (value === 0 || value === '0') return 'ไม่ผ่าน';
+    return 'ยังไม่ประเมิน';
+  }
+
   // 10 characters (the admin-users minimum), no look-alike letters/digits,
   // so a parent can retype it from a LINE message on a phone.
   function generateParentPassword_() {
@@ -2413,7 +2432,8 @@
         });
       const studentComments = commentRows.filter((c) => String(c.student_id) === studentId);
 
-      const assessments = reportAssessmentSummary(classAssessmentRows.filter((row) => String(row.student_id) === studentId), term);
+      const studentAssessmentRows = classAssessmentRows.filter((row) => String(row.student_id) === studentId);
+      const assessments = reportAssessmentSummary(studentAssessmentRows, term);
       let actCounter = 0;
       let subjCounter = 0;
       const processedSubjects = subjects.map((sub) => {
@@ -2467,6 +2487,7 @@
 
         if (isAct) {
           actCounter += 1;
+          const activityResult = pp6ActivityResult_(studentAssessmentRows, sub, term);
           return {
             no: '',
             code: sub.code || '',
@@ -2477,8 +2498,8 @@
             g1: '',
             t2: '',
             g2: '',
-            fg: 'ยังไม่ประเมิน',
-            grade: 'ยังไม่ประเมิน',
+            fg: activityResult,
+            grade: activityResult,
             isActivity: true
           };
         }
