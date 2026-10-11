@@ -5980,6 +5980,10 @@ function enhanceSupabaseReportCardGeneratorPage_(withScores) {
       if (!optYear) return;
       const lowerSecondary = /^ม\./.test(frame.querySelector('.chip.active')?.dataset?.grade || '');
       if (optYear.hidden !== lowerSecondary) { optYear.hidden = lowerSecondary; optYear.disabled = lowerSecondary; }
+      // ม. never gets the "ผลระหว่างปี" watermark (gas-bridge interimWatermarkOn_), so its switch is hidden too
+      const interim = frame.querySelector('#pp6InterimWrapper');
+      // (inline display:flex would override the hidden attribute)
+      if (interim) interim.style.display = lowerSecondary ? 'none' : 'flex';
       if (lowerSecondary && termSelect.value === 'year') {
         termSelect.value = '1';
         // same path as a user change: remembered term + watermark label follow
@@ -6047,6 +6051,8 @@ function enhanceSupabaseReportCardGeneratorPage_(withScores) {
         if (!toggle.dataset.touched) toggle.checked = settings?.interimWatermark !== false;
       }).catch(() => {});
       toggle.addEventListener('change', () => { toggle.dataset.touched = '1'; });
+      // the switch is created after the first sync: apply the ม. rule to it now
+      syncYearOption();
     }
   }
 
@@ -6770,14 +6776,18 @@ function enhanceSupabaseParentPortalPage_() {
       .getParentStudentAttendance(studentId, parentPortalToken_());
   };
 
-  window.viewReportCard = function viewReportCard(studentId, studentName) {
+  // grade (optional): ชั้น ม. ตัดสินผลรายภาค (owner 2026-10-11) ใบรายงานมีเฉพาะภาค 1 / ภาค 2 ไม่มีปุ่มผลประจำปี
+  window.viewReportCard = function viewReportCard(studentId, studentName, grade) {
+    const perSemester = /^ม\./.test(String(grade || '').trim());
     let html = '<div style="display:grid;gap:12px">';
     html += '<div style="padding:14px;border-radius:12px;background:#eff6ff;color:#1e3a8a;font-size:13px;line-height:1.65">';
-    html += '<strong>เลือกรอบผลการเรียนที่ต้องการ</strong><br>รายงานรายภาคใช้แจ้งความก้าวหน้าระหว่างปี ส่วนผลประจำปีใช้สำหรับการตัดสินผลอย่างเป็นทางการ';
+    html += perSemester
+      ? '<strong>เลือกภาคเรียนที่ต้องการ</strong><br>ชั้นมัธยมตัดสินผลการเรียนเป็นรายภาค ใบรายงานแต่ละภาคคือผลของภาคเรียนนั้น'
+      : '<strong>เลือกรอบผลการเรียนที่ต้องการ</strong><br>รายงานรายภาคใช้แจ้งความก้าวหน้าระหว่างปี ส่วนผลประจำปีใช้สำหรับการตัดสินผลอย่างเป็นทางการ';
     html += '</div>';
     html += '<button type="button" class="btn btn-primary" data-report-term="1"><i class="bi bi-1-circle-fill"></i> ผลการเรียนภาคเรียนที่ 1</button>';
     html += '<button type="button" class="btn btn-outline-primary" data-report-term="2"><i class="bi bi-2-circle-fill"></i> ผลการเรียนภาคเรียนที่ 2</button>';
-    html += '<button type="button" class="btn btn-outline-secondary" data-report-term="year"><i class="bi bi-calendar-check-fill"></i> ผลการเรียนประจำปี</button>';
+    if (!perSemester) html += '<button type="button" class="btn btn-outline-secondary" data-report-term="year"><i class="bi bi-calendar-check-fill"></i> ผลการเรียนประจำปี</button>';
     html += '</div>';
     window.openModal('เลือกรอบรายงาน • ' + studentName, html);
     document.querySelectorAll('#modalBody [data-report-term]').forEach(function(button) {
@@ -7110,7 +7120,7 @@ function installParentOverview_(frame, helpers) {
     const name = st.firstName || '';
     if (action === 'scores' && typeof window.viewScores === 'function') window.viewScores(sid, name);
     else if (action === 'attend' && typeof window.viewAttendance === 'function') window.viewAttendance(sid, name);
-    else if (action === 'report' && typeof window.viewReportCard === 'function') window.viewReportCard(sid, name);
+    else if (action === 'report' && typeof window.viewReportCard === 'function') window.viewReportCard(sid, name, st.grade);
     else if (action === 'subject' && state.last) subjectDetail_(state.last.subjects[Number(target.getAttribute('data-index'))] || {});
     else if (action === 'kid') { state.index = Number(target.getAttribute('data-index')) || 0; render_(); }
     else if (action === 'back') {
