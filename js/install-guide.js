@@ -83,7 +83,9 @@
   }
 
   // ---------- wizard state (this browser only) ----------
-  const EMPTY = { step: 0, school: '', schoolEmail: '', adminEmail: '', levels: 'primary', supabaseUrl: '', anonKey: '', siteUrl: '' };
+  const EMPTY = { step: 0, school: '', schoolEmail: '', adminEmail: '', levels: 'primary', supabaseUrl: '', anonKey: '', siteUrl: '', githubUser: '' };
+  const GITHUB_USER = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+  const forkEditUrl = (user) => `https://github.com/${user}/pp5smart-newschool/edit/main/js/app-config.js`;
   function load() {
     try { return { ...EMPTY, ...(JSON.parse(global.localStorage?.getItem(STORE_KEY) || 'null') || {}) }; } catch (_) { return { ...EMPTY }; }
   }
@@ -235,11 +237,14 @@
     {
       title: 'สร้างเว็บของโรงเรียนบน GitHub',
       body: (s) => list([
-        `สมัคร ${link('https://github.com/signup', 'GitHub')} ด้วยอีเมล <b>${esc(s.schoolEmail)}</b>`,
-        `เปิด ${link(LINKS.repo, 'ชุดแจก PP5Smart')} → กด <b>Fork</b> → <b>Create fork</b>`,
-        'ใน repo ที่ fork แล้ว เปิดไฟล์ <code>js/app-config.js</code> → กดรูปดินสอ ✏️',
-        'ลบเนื้อหาเดิมทั้งหมด (Ctrl+A) วางไฟล์ที่เตรียมให้ด้านล่าง → <b>Commit changes</b>'
-      ], true) + code('appConfig', appConfig(s)) + copyBtn('data-copy="appConfig"', 'คัดลอก app-config.js')
+        `สมัคร ${link('https://github.com/signup', 'GitHub')} ด้วยอีเมล <b>${esc(s.schoolEmail)}</b> แล้ว<b>ยืนยันอีเมล</b>ที่ GitHub ส่งมา`,
+        `กด ${link(`${LINKS.repo}/fork`, 'Fork ชุดแจก PP5Smart')} → ปุ่มเขียว <b>Create fork</b>`,
+        'กรอกชื่อบัญชี GitHub ของโรงเรียน (เห็นที่ "Welcome to GitHub, ...") แล้วกดปุ่ม <b>เปิดหน้าแก้ app-config.js</b>',
+        'กดปุ่ม <b>คัดลอก app-config.js</b> → ในหน้าแก้ของ GitHub กด <b>Ctrl+A</b> แล้ว <b>Ctrl+V</b> → <b>Commit changes...</b> → <b>Commit changes</b>'
+      ], true)
+        + field('githubUser', 'ชื่อบัญชี GitHub ของโรงเรียน', s.githubUser, 'placeholder="เช่น school-name" autocomplete="off"')
+        + '<button type="button" class="btn btn-outline-primary btn-sm" data-open-edit style="margin-top:8px">↗ เปิดหน้าแก้ app-config.js</button>'
+        + code('appConfig', appConfig(s)) + copyBtn('data-copy="appConfig"', 'คัดลอก app-config.js')
     },
     {
       title: 'เปิดเว็บด้วย Vercel',
@@ -375,6 +380,14 @@
         state.step = Math.min(STEPS.length - 1, state.step + 1);
         save(state);
         render();
+        return;
+      }
+      if (target?.closest?.('[data-open-edit]')) {
+        readFields();
+        state.githubUser = String(state.githubUser || '').trim().replace(/^@/, '');
+        save(state);
+        if (!GITHUB_USER.test(state.githubUser)) { render('กรอกชื่อบัญชี GitHub ให้ถูกต้องก่อน (ตัวอักษรอังกฤษ ตัวเลข หรือ -)'); return; }
+        global.open?.(forkEditUrl(state.githubUser), '_blank', 'noopener');
         return;
       }
       if (target?.closest?.('[data-reset]')) {
