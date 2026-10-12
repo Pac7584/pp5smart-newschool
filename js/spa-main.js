@@ -4608,106 +4608,10 @@ window.AppNavigation.checkSystemUpdate = function() {
 /* =========================
    EXPORT SYSTEM ZIP
 ========================= */
+// คู่มือติดตั้งโรงเรียนอื่น (owner 2026-10-12): เปิดหน้าต่างคู่มือแทนการสร้างไฟล์ส่งออกแบบ Apps Script เดิม
+// เนื้อหาอยู่ใน js/install-guide.js  ชุดติดตั้งจริงคือ GitHub Pac7584/pp5smart-newschool
 window.AppNavigation.exportSystemZip = function() {
-  if (typeof google !== 'undefined' && google.script && google.script.run) {
-    const loadingOverlay = document.createElement('div');
-    loadingOverlay.id = 'exportLoadingOverlay';
-    loadingOverlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:99999;';
-    loadingOverlay.innerHTML = '<div style="background:#fff;padding:30px;border-radius:16px;text-align:center;max-width:420px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,0.2);font-family:sans-serif;">'
-      + '<div class="spinner-border text-primary" role="status" style="width:3rem;height:3rem;margin-bottom:14px;"></div>'
-      + '<div style="font-weight:800;color:#1f2937;margin-bottom:6px;">กำลังเตรียมไฟล์ส่งออก…</div>'
-      + '<div id="exportLoadingText" style="color:#64748b;margin:0;font-size:0.92rem;">กำลังตรวจสอบสิทธิ์</div>'
-      + '</div>';
-    document.body.appendChild(loadingOverlay);
-
-    const messages = [
-      'กำลังตรวจสอบสิทธิ์',
-      'กำลังสร้างไฟล์แม่แบบส่งออก',
-      'กำลังล้างข้อมูลส่วนบุคคล (นักเรียน/ผู้ใช้/ครู)',
-      'กำลังเตรียมลิงก์สำหรับส่งต่อให้โรงเรียนอื่น'
-    ];
-    let msgIdx = 0;
-    const msgTimer = setInterval(function() {
-      msgIdx = (msgIdx + 1) % messages.length;
-      const el = document.getElementById('exportLoadingText');
-      if (el) el.textContent = messages[msgIdx];
-    }, 900);
-
-    function endLoading_() {
-      try { clearInterval(msgTimer); } catch(_e) {}
-      try { loadingOverlay.remove(); } catch(_e) {}
-    }
-
-    const token = localStorage.getItem('authToken') || '';
-    google.script.run
-      .withSuccessHandler(function(result) {
-        endLoading_();
-        if (result.success) {
-          // สร้าง modal แสดงลิงก์ + ขั้นตอน
-          var overlay = document.createElement('div');
-          overlay.id = 'exportModal';
-          overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:99999;';
-          var warn = (result.warning ? ('<div style="background:#fff7ed;border:2px solid #fb923c;border-radius:12px;padding:12px;margin:0 0 14px;color:#7c2d12;font-size:0.9rem;"><strong>⚠️ แจ้งเตือน:</strong> ' + result.warning + '</div>') : '');
-          var t = result.templateInfo || {};
-          var templateMeta = '';
-          if (t && (t.name || t.id || t.lastUpdated)) {
-            templateMeta =
-              '<div style="background:#f8f9fa;border-radius:12px;padding:12px;margin-bottom:14px;">' +
-                '<div style="font-weight:700;color:#333;margin:0 0 6px;">ข้อมูลไฟล์แม่แบบ</div>' +
-                '<div style="font-size:0.9rem;color:#555;line-height:1.55;">' +
-                  (t.name ? ('<div><strong>ชื่อไฟล์:</strong> ' + t.name + '</div>') : '') +
-                  (t.id ? ('<div><strong>Template ID:</strong> <code>' + t.id + '</code></div>') : '') +
-                  (result.activeSpreadsheetId ? ('<div><strong>Active ID:</strong> <code>' + result.activeSpreadsheetId + '</code></div>') : '') +
-                  (t.lastUpdated ? ('<div><strong>อัปเดตล่าสุด:</strong> ' + t.lastUpdated + '</div>') : '') +
-                  (t.url ? ('<div><a href="' + t.url + '" target="_blank" style="color:#1a73e8;text-decoration:none;font-weight:600;">เปิดไฟล์แม่แบบ</a></div>') : '') +
-                '</div>' +
-              '</div>';
-          }
-          var excludedMeta = '';
-          if (result.sanitized) {
-            var ex = Array.isArray(result.excludedData) ? result.excludedData : [];
-            excludedMeta =
-              '<div style="background:#ecfdf5;border:2px solid #34d399;border-radius:12px;padding:12px;margin-bottom:14px;color:#065f46;font-size:0.92rem;">' +
-                '<div style="font-weight:800;margin:0 0 6px;">✅ Script + โครงสร้างชีตติดไปกับสำเนา</div>' +
-                '<div style="line-height:1.55;">แม่แบบผ่านการตรวจแล้วก่อนสร้างลิงก์ส่งต่อ:</div>' +
-                (ex.length ? ('<div style="line-height:1.55;"><strong>ไม่รวมข้อมูล:</strong> ' + ex.join(', ') + '</div>') : '') +
-              '</div>';
-          }
-          overlay.innerHTML = '<div style="background:#fff;padding:30px;border-radius:16px;max-width:560px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.2);font-family:sans-serif;">' +
-            '<h2 style="margin:0 0 8px;font-size:1.3rem;color:#1a73e8;">📦 ส่งออกระบบให้โรงเรียนอื่น</h2>' +
-            '<p style="color:#666;margin:0 0 16px;font-size:0.9rem;">ระบบจาก: <strong>' + result.schoolName + '</strong></p>' +
-            warn +
-            '<div style="background:#e8f0fe;border:2px solid #1a73e8;border-radius:12px;padding:16px;margin-bottom:16px;text-align:center;">' +
-              '<p style="margin:0 0 8px;font-size:0.85rem;color:#555;">ส่งลิงก์นี้ให้โรงเรียนอื่น:</p>' +
-              '<input type="text" id="copyUrlInput" value="' + result.copyUrl + '" readonly style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:0.85rem;text-align:center;background:#fff;" onclick="this.select()"/>' +
-              '<button onclick="document.getElementById(\'copyUrlInput\').select();document.execCommand(\'copy\');this.textContent=\'✅ คัดลอกแล้ว!\';setTimeout(function(){document.getElementById(\'copyBtn\').textContent=\'📋 คัดลอกลิงก์\'},2000)" id="copyBtn" style="margin-top:8px;padding:8px 20px;background:#1a73e8;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.9rem;">📋 คัดลอกลิงก์</button>' +
-            '</div>' +
-            templateMeta +
-            excludedMeta +
-            '<div style="background:#f8f9fa;border-radius:12px;padding:16px;margin-bottom:16px;">' +
-              '<p style="margin:0 0 8px;font-weight:bold;color:#333;">📋 โรงเรียนอื่นทำแค่ 3 ขั้นตอน:</p>' +
-              '<p style="margin:4px 0;color:#444;font-size:0.9rem;">✅ ' + result.steps[0] + '</p>' +
-              '<p style="margin:4px 0;color:#444;font-size:0.9rem;">✅ ' + result.steps[1] + '</p>' +
-              '<p style="margin:4px 0;color:#444;font-size:0.9rem;">✅ ' + result.steps[2] + '</p>' +
-            '</div>' +
-            '<div style="text-align:right;">' +
-              '<button onclick="document.getElementById(\'exportModal\').remove()" style="padding:8px 24px;background:#e0e0e0;color:#333;border:none;border-radius:8px;cursor:pointer;font-size:0.9rem;">ปิด</button>' +
-            '</div>' +
-          '</div>';
-          document.body.appendChild(overlay);
-          overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-        } else {
-          alert('❌ เกิดข้อผิดพลาด:\n\n' + (result.error || 'ไม่ทราบสาเหตุ'));
-        }
-      })
-      .withFailureHandler(function(err) {
-        endLoading_();
-        alert('❌ เกิดข้อผิดพลาด:\n\n' + err.message);
-      })
-      .exportProjectAsZip(token);
-  } else {
-    alert('❌ ไม่สามารถเชื่อมต่อกับ Google Apps Script ได้');
-  }
+  if (window.PP5InstallGuide?.open) window.PP5InstallGuide.open();
 };
 
 /* =========================
