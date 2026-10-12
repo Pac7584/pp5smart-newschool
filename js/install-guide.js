@@ -200,7 +200,8 @@
           'กลับไป <b>SQL Editor</b> → <b>New query</b> วางคำสั่งนี้แล้วกด <b>Run</b>'
         ], true) + code('makeAdmin', `select public.pp5_install_make_admin('${email.replace(/'/g, "''")}');`)
           + copyBtn('data-copy="makeAdmin"', 'คัดลอกคำสั่ง')
-          + done('<b>ตั้งเป็นผู้ดูแลระบบแล้ว: ' + esc(email) + '</b>');
+          + done('<b>ตั้งเป็นผู้ดูแลระบบแล้ว: ' + esc(email) + '</b>')
+          + note(`ผู้ดูแลคนแรกเข้าโปรแกรมด้วย<b>อีเมลเต็ม</b> <code>${esc(email)}</code> (พิมพ์ชื่อสั้นไม่ได้) ตรวจตัวสะกดอีเมลให้ดี`, 'warn');
       }
     },
     {
@@ -253,17 +254,23 @@
         '<b>ยืนยันอีเมล</b>ที่ Vercel ส่งมาก่อน (ถ้ายังไม่ยืนยัน กด Deploy แล้วจะขึ้น "An unexpected internal error occurred")',
         'ใต้ Import Git Repository กด <b>GitHub</b> → <b>Authorize Vercel</b> → <b>Install</b> (เลือก repo pp5smart-newschool)',
         'กด <b>Import</b> ที่ <code>pp5smart-newschool</code> → ช่อง <b>Project Name</b> ตั้งชื่อของโรงเรียนให้ไม่ซ้ำ เช่น <code>pp5-ชื่อย่อโรงเรียน</code> (อังกฤษพิมพ์เล็ก) → <b>Deploy</b>',
-        'รอประมาณ 1 นาทีจนขึ้น <b>Congratulations</b> แล้วจดที่อยู่เว็บ'
+        'รอประมาณ 1 นาทีจนขึ้น <b>Congratulations</b> → <b>Continue to Project</b>',
+        'ดูหัวข้อ <b>Domains</b> แล้วจด<b>ที่อยู่ถาวร</b> (สั้น ๆ เช่น <code>pp5-ชื่อย่อ.vercel.app</code>) '
+          + 'อย่าใช้ที่อยู่ยาวที่มีตัวอักษรสุ่มต่อท้าย เพราะเป็นของการ Deploy ครั้งนั้นครั้งเดียว',
+        'Supabase → <b>Authentication → URL Configuration</b> → <b>Site URL</b> ใส่ที่อยู่ถาวร → <b>Save</b> '
+          + '(ไม่ทำ ลิงก์ "ลืมรหัสผ่าน" ในอีเมลจะพาไปผิดที่)'
       ], true)
-        + field('siteUrl', '(ไม่บังคับ) ที่อยู่เว็บของโรงเรียน ใช้ทำลิงก์ให้ผู้ปกครอง', s.siteUrl, 'placeholder="https://xxxx.vercel.app"')
-        + note('ถ้ากรอกที่อยู่เว็บ ให้กลับไปแก้ <code>js/app-config.js</code> อีกครั้งด้วยไฟล์ใหม่ด้านล่าง')
+        + field('siteUrl', 'ที่อยู่ถาวรของเว็บโรงเรียน (ใช้ทำลิงก์ให้ผู้ปกครอง)', s.siteUrl, 'placeholder="https://pp5-xxxx.vercel.app"')
+        + note('กรอกที่อยู่แล้ว ให้กลับไปแก้ <code>js/app-config.js</code> อีกครั้งด้วยไฟล์ใหม่ด้านล่าง (ไม่บังคับ ทำทีหลังได้)')
         + code('appConfig', appConfig(s)) + copyBtn('data-copy="appConfig"', 'คัดลอก app-config.js ฉบับมีที่อยู่เว็บ'),
       check: (s) => (s.siteUrl.trim() && !/^https:\/\/[^\s'"]+$/.test(s.siteUrl.trim()) ? 'ที่อยู่เว็บต้องขึ้นต้นด้วย https://' : '')
     },
     {
       title: 'เริ่มใช้งานในโปรแกรม',
       body: (s) => list([
-        `เปิดเว็บของโรงเรียน เข้าระบบด้วย <b>${esc((s.adminEmail || s.schoolEmail || '').trim())}</b>`,
+        `เปิดเว็บของโรงเรียน เข้าระบบด้วยอีเมลเต็ม <b>${esc((s.adminEmail || s.schoolEmail || '').trim())}</b> `
+          + 'แล้ว <b>บัญชีผู้ใช้ → เปลี่ยนรหัสผ่าน</b> ถ้ารหัสเคยติดในภาพหน้าจอหรือแชต',
+        'กด <b>สำรองตอนนี้</b> ที่หน้าหลักหนึ่งครั้ง (แถบเตือนสีแดงจะหายไป)',
         `<b>ตั้งค่าระบบกลาง</b>: ชื่อโรงเรียน <b>${esc(s.school)}</b> สังกัด ผู้อำนวยการ โลโก้`
           + (s.levels === 'secondary' ? ' และตั้ง <b>ระดับชั้นที่เปิดสอน = ป.1–ม.3</b>' : ''),
         `<b>จัดการรายวิชา</b> → นำเข้า CSV/Excel: ${link(LINKS.catalogPrimary, 'รายวิชา ป.1–ป.6')}`
