@@ -65,8 +65,40 @@
       + '</div>';
   }
 
+  const TITLE = 'คู่มือติดตั้ง PP5Smart ให้โรงเรียนอื่น';
+
+  // Own dialog: the menu is reachable from every page, and window.openModal exists only on a few page templates
+  // (the first version relied on it, so the menu did nothing elsewhere).
   function open() {
-    if (typeof global.openModal === 'function') global.openModal('คู่มือติดตั้ง PP5Smart ให้โรงเรียนอื่น', html());
+    const doc = global.document;
+    if (!doc?.body) return null;
+    doc.getElementById('pp5InstallGuideModal')?.remove();
+    const overlay = doc.createElement('div');
+    overlay.id = 'pp5InstallGuideModal';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', TITLE);
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;'
+      + 'padding:16px;background:rgba(15,23,42,.55)';
+    overlay.innerHTML = '<div style="width:100%;max-width:760px;max-height:90vh;overflow:auto;border-radius:16px;'
+      + 'padding:18px 20px;background:var(--bs-body-bg,#fff);color:var(--bs-body-color,#111827);box-shadow:0 18px 50px rgba(0,0,0,.3)">'
+      + '<div style="display:flex;align-items:center;gap:12px;margin:0 0 12px">'
+      + `<h5 style="margin:0;flex:1;font-weight:700">📦 ${TITLE}</h5>`
+      + '<button type="button" class="btn btn-sm btn-outline-secondary" data-close aria-label="ปิด">✕</button></div>'
+      + html()
+      + '<div style="text-align:right;margin-top:12px"><button type="button" class="btn btn-secondary" data-close>ปิด</button></div>'
+      + '</div>';
+    const close = () => {
+      overlay.remove();
+      doc.removeEventListener('keydown', onKey);
+    };
+    const onKey = (event) => { if (event.key === 'Escape') close(); };
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay || event.target?.closest?.('[data-close]')) close();
+    });
+    doc.addEventListener('keydown', onKey);
+    doc.body.appendChild(overlay);
+    return overlay;
   }
 
   global.PP5InstallGuide = { open, html, LINKS };
