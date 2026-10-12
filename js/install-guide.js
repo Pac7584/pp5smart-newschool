@@ -216,8 +216,11 @@
       body: (s) => list([
         '<b>Project URL</b>: เมนู <b>Integrations → Data API</b> (หรือ Project Settings → Data API) คัดลอก API URL '
           + '(ถ้ามี <code>/rest/v1/</code> ต่อท้าย ตัวช่วยตัดออกให้เอง)',
-        '<b>Key</b>: รูปเฟือง <b>Project Settings → API Keys</b> → คัดลอก <b>Publishable key</b> (<code>sb_publishable_...</code>) '
+        '<b>Key</b>: รูปเฟือง ⚙️ ที่เมนูซ้ายล่าง → <b>Project Settings → API Keys</b> → คัดลอก <b>Publishable key</b> (<code>sb_publishable_...</code>) '
           + 'หรือแท็บ Legacy API keys → <b>anon public</b> (<code>eyJ...</code>)'
+          + (SUPABASE_URL.test(String(s.supabaseUrl || '').trim().replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, ''))
+            ? ` — ${link(`https://supabase.com/dashboard/project/${String(s.supabaseUrl).trim().replace(/^https:\/\/([a-z0-9-]+)\.supabase\.co.*$/, '$1')}/settings/api-keys`, 'เปิดหน้า API Keys ของโปรเจกต์นี้')}`
+            : ` — ${link('https://supabase.com/dashboard/project/_/settings/api-keys', 'เปิดหน้า API Keys (เลือกโปรเจกต์)')}`)
       ], true)
         + field('supabaseUrl', 'Project URL', s.supabaseUrl, 'placeholder="https://xxxxxxxx.supabase.co" autocomplete="off"')
         + field('anonKey', 'anon public / publishable key', s.anonKey, 'placeholder="sb_publishable_... หรือ eyJ..." autocomplete="off"')
