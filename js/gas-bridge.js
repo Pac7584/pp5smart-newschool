@@ -4793,8 +4793,8 @@
         teacher2Name: text(row.teacher_name_2)
       }));
     },
-    async getHomeroomTeacher(grade, classNo) {
-      return lookupHomeroomTeacher(grade, classNo);
+    async getHomeroomTeacher(grade, classNo, authToken, options) {
+      return lookupHomeroomTeacher(grade, classNo, options?.academicYear);
     },
     async saveTeacherList(list) {
       await requireAdmin();

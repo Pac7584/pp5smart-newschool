@@ -441,6 +441,7 @@ function setActivePage(page) {
   });
   document.body.setAttribute('data-current-page', page);
   document.getElementById('contentFrame')?.setAttribute('data-current-page', page);
+  window.PP5Permissions?.refreshMenu();
 
   try { updatePageIndicator_(page); } catch (_e) {}
   try { renderMobileQuickMenu_(); } catch (_e) {}
@@ -5026,6 +5027,9 @@ function renderMobileQuickMenu_() {
       return '<button class="quick-btn quick-more" type="button" onclick="document.getElementById(\'mobileSidebarToggle\').click();" aria-label="เมนูเพิ่มเติม"><span class="quick-ico"><i class="bi bi-three-dots"></i></span><span class="quick-label">เพิ่มเติม</span></button>';
     }
     const link = document.querySelector('.nav-link[data-page="' + page + '"]');
+    // A previous admin session can leave favorites whose sidebar entries were removed.
+    // Never recreate a menu entry from its saved page name without an allowed link.
+    if (!link || link.closest('.nav-item')?.hidden) return '';
     const iconHtml = link?.querySelector('i')?.outerHTML || '<i class="bi bi-grid"></i>';
     const shortLabels = { home_hub: 'หน้าหลัก', attendance_daily: 'เช็กชื่อ', score_table_viewer: 'คะแนน', studentList: 'นักเรียน' };
     const label = shortLabels[page] || link?.querySelector('.nav-label')?.dataset?.rawLabel || link?.textContent?.trim() || page;

@@ -35,6 +35,8 @@
     ['student_comments', [['id'], ['student_id', 'academic_year', 'semester']]],
     ['behavior_records', [['id']]],
     ['teacher_assignments', [['id'], ['academic_year', 'grade', 'room']]],
+    ['teacher_access_assignments', [['id']]],
+    ['teacher_scope_settings', [['id']]],
     ['teachers', [['id']]],
     ['holidays', [['id'], ['holiday_date']]],
     ['school_settings', [['id']]],
@@ -50,6 +52,12 @@
     ['student_import_snapshots', [['id'], ['import_id', 'student_id']]],
     ['audit_logs', [['id']]]
   ];
+
+  const SCOPE_TABLES = new Set(['teacher_access_assignments', 'teacher_scope_settings']);
+  async function installedTables() {
+    const installed = global.PP5Permissions ? (await global.PP5Permissions.context()).installed : false;
+    return TABLES.filter(([name]) => installed || !SCOPE_TABLES.has(name));
+  }
 
   const SCORE_FIELDS = [
     ['formative_score', 'คะแนนเก็บ'],
@@ -124,6 +132,7 @@
   async function createBackup(onProgress = () => {}) {
     const state = await requireAdmin();
     const { client } = pp5();
+    const tables = await installedTables();
     const started = new Date();
     let settings = {};
     try { settings = await pp5().settings.get(); } catch (_) { /* optional */ }
@@ -144,9 +153,9 @@
       warnings: []
     };
 
-    for (let i = 0; i < TABLES.length; i += 1) {
-      const [table, orders] = TABLES[i];
-      onProgress({ index: i, total: TABLES.length, table, phase: 'reading' });
+    for (let i = 0; i < tables.length; i += 1) {
+      const [table, orders] = tables[i];
+      onProgress({ index: i, total: tables.length, table, phase: 'reading' });
       let result;
       try { result = await readWholeTable(client, table, orders); } catch (error) { result = { error: error.message }; }
       if (result.error) {
@@ -158,7 +167,7 @@
         payload.tables[`public.${table}`] = { count: result.rows.length, expected: result.expected, verified: result.verified, orderedBy: result.orderedBy, rows: result.rows };
         if (result.verified === false) payload.warnings.push(`${table}: อ่านได้ ${result.rows.length} แถว แต่ระบบนับได้ ${result.expected} (อาจมีคนกำลังบันทึกอยู่)`);
       }
-      onProgress({ index: i, total: TABLES.length, table, phase: 'done', rows: payload.tables[`public.${table}`]?.count });
+      onProgress({ index: i, total: tables.length, table, phase: 'done', rows: payload.tables[`public.${table}`]?.count });
     }
     payload.finishedAt = new Date().toISOString();
 
@@ -215,7 +224,7 @@
   // parent links, signatures, audit logs and import/transition bookkeeping are left out.
   const YEAR_FORMAT = 'pp5-year-archive';
   // Rows that carry their own academic_year (or a date that falls inside the year).
-  const YEAR_ROW_TABLES = ['student_year_rosters', 'scores', 'assessments', 'student_comments', 'behavior_records', 'teacher_assignments',
+  const YEAR_ROW_TABLES = ['student_year_rosters', 'scores', 'assessments', 'student_comments', 'behavior_records', 'teacher_assignments', 'teacher_access_assignments',
     'attendance_daily', 'attendance_monthly', 'student_growth', 'holidays', 'academic_years', 'academic_year_report_snapshots'];
   const YEAR_DATE_FIELDS = ['attendance_date', 'holiday_date', 'measured_on'];
   // Rows kept for the year's students only.
@@ -307,7 +316,8 @@
     if (!/^\d{4}$/.test(y)) throw new Error('กรุณาเลือกปีการศึกษา');
     const { client } = pp5();
     const orders = new Map(TABLES);
-    const wanted = [...YEAR_ROW_TABLES, ...YEAR_STUDENT_TABLES, ...YEAR_REFERENCE_TABLES];
+    const available = new Set((await installedTables()).map(([name]) => name));
+    const wanted = [...YEAR_ROW_TABLES, ...YEAR_STUDENT_TABLES, ...YEAR_REFERENCE_TABLES].filter((name) => !SCOPE_TABLES.has(name) || available.has(name));
     const tables = {};
     const warnings = [];
     for (let i = 0; i < wanted.length; i += 1) {

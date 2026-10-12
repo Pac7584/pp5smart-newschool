@@ -37,6 +37,24 @@
     if (error) throw appError(`${context}: ${error.message || 'Supabase error'}`, error);
   }
 
+  // A failed Auth request is not always a password mismatch. Keep provider
+  // messages out of the UI; they may include request details. Use code/name
+  // first, with HTTP status as a fallback for transport and service failures.
+  function loginError(error) {
+    const code = asText(error?.code);
+    const status = Number(error?.status || 0);
+    if (code === 'invalid_credentials') return appError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', error, 'AUTH_INVALID');
+    if (code === 'email_not_confirmed') return appError('บัญชีนี้ยังไม่ได้ยืนยันอีเมล กรุณาตรวจอีเมลยืนยันบัญชี', error, 'AUTH_EMAIL_UNCONFIRMED');
+    if (code === 'user_banned') return appError('บัญชีนี้ถูกระงับ กรุณาติดต่อผู้ดูแลระบบ', error, 'AUTH_BANNED');
+    if (code === 'over_request_rate_limit' || status === 429) return appError('ลองเข้าสู่ระบบถี่เกินไป กรุณารอสักครู่แล้วลองใหม่', error, 'AUTH_RATE_LIMIT');
+    if (code === 'request_timeout') return appError('บริการเข้าสู่ระบบตอบกลับช้า กรุณาลองใหม่อีกครั้ง', error, 'AUTH_TIMEOUT');
+    if (code === 'captcha_failed') return appError('การตรวจสอบ CAPTCHA ไม่สำเร็จ กรุณาติดต่อผู้ดูแลระบบ', error, 'AUTH_CAPTCHA');
+    if (status >= 500) return appError('บริการเข้าสู่ระบบขัดข้อง กรุณาลองใหม่ภายหลัง', error, 'AUTH_SERVICE_UNAVAILABLE');
+    if (['AuthRetryableFetchError','TypeError','FunctionsFetchError','FunctionsRelayError'].includes(error?.name)) return appError('เชื่อมต่อบริการเข้าสู่ระบบไม่ได้ กรุณาตรวจอินเทอร์เน็ตแล้วลองใหม่', error, 'AUTH_CONNECTION');
+    const reference = /^[a-z0-9_]{1,60}$/.test(code) ? ` (รหัส: ${code})` : '';
+    return appError('เข้าสู่ระบบไม่สำเร็จ กรุณาติดต่อผู้ดูแลระบบ' + reference, error, 'AUTH_FAILED');
+  }
+
   function isOptionalSchemaError(error) {
     return !!error && (
       OPTIONAL_SCHEMA_CODES.has(error.code) ||
@@ -145,17 +163,36 @@
     global.__authTokenValidated = true;
   }
 
+  // ชื่อผู้ใช้ -> อีเมลบัญชีเข้าระบบจริง (owner 2026-10-12): บัญชีที่สร้างพร้อมอีเมลจริงใช้อีเมลนั้นเป็นบัญชี Auth
+  // จึงเข้าด้วย "ชื่อ@pp5smart.local" ไม่ได้  pp5_login_email (migration 202610120028) คืนอีเมลเฉพาะชื่อที่ตรงตัวเดียว
+  // ของครู/ผู้ดูแลที่ยังใช้งาน  การตรวจรหัสผ่านยังเกิดในเบราว์เซอร์ของผู้ใช้เอง (ไม่รวมทุกคนไว้ที่ IP เดียว)
+  // ยังไม่ลง migration / ไม่พบ / ผิดพลาด = ใช้ ชื่อ@pp5smart.local แบบเดิม
+  async function usernameEmail(username) {
+    if (typeof client.rpc !== 'function') return '';
+    try {
+      const { data, error } = await client.rpc('pp5_login_email', { p_username: username });
+      if (error) return '';
+      const email = asText(data).trim().toLowerCase();
+      return email.includes('@') ? email : '';
+    } catch (_) {
+      return '';
+    }
+  }
   const auth = {
     async signIn(loginName, password) {
       const input = asText(loginName).trim();
       if (!input || !password) throw appError('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน', null, 'AUTH_REQUIRED');
       const normalizedInput = input.toLowerCase();
       const configuredAlias = config.loginAliases?.[normalizedInput];
-      const email = input.includes('@')
+      let email = input.includes('@')
         ? normalizedInput
         : asText(configuredAlias, `${normalizedInput}@pp5smart.local`).trim().toLowerCase();
-      const { data, error } = await client.auth.signInWithPassword({ email, password });
-      if (error) throw appError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', error, 'AUTH_INVALID');
+      if (!input.includes('@') && !configuredAlias) email = (await usernameEmail(normalizedInput)) || email;
+      let response;
+      try { response = await client.auth.signInWithPassword({ email, password }); }
+      catch (error) { throw loginError(error); }
+      const { data, error } = response;
+      if (error) throw loginError(error);
       let profile;
       try {
         profile = await loadProfile(data.user);
@@ -596,7 +633,12 @@
         academic_year: academicYear || undefined,
         status: values.status || 'active', updated_at: new Date().toISOString()
       });
-      const { data, error } = await client.from('students').upsert(core).select().single();
+      const scopedTeacher = state.profile.role === 'teacher' && global.PP5Permissions
+        && (await global.PP5Permissions.context()).enabled;
+      const coreQuery = scopedTeacher
+        ? client.from('students').update(core).eq('id', studentId)
+        : client.from('students').upsert(core);
+      const { data, error } = await coreQuery.select().single();
       throwIfError(error, 'บันทึกข้อมูลนักเรียนไม่สำเร็จ');
       const savedAcademicYear = asText(data.academic_year || academicYear).trim();
       const roster = {
@@ -614,9 +656,10 @@
         updated_at: new Date().toISOString()
       };
       if (roster.academic_year) {
-        const rosterResult = await client.from('student_year_rosters')
-          .upsert(roster, { onConflict: 'academic_year,student_id' });
-        if (rosterResult.error && !isOptionalSchemaError(rosterResult.error)) {
+        const rosterResult = scopedTeacher
+          ? await client.from('student_year_rosters').update(roster).eq('academic_year', savedAcademicYear).eq('student_id', studentId)
+          : await client.from('student_year_rosters').upsert(roster, { onConflict: 'academic_year,student_id' });
+        if (rosterResult.error && (scopedTeacher || !isOptionalSchemaError(rosterResult.error))) {
           throwIfError(rosterResult.error, 'บันทึกทะเบียนนักเรียนรายปีไม่สำเร็จ');
         }
       }
@@ -668,7 +711,7 @@
       });
       if (Object.keys(detail).length > 2) {
         const result = await client.from('student_details').upsert(detail);
-        if (result.error && !isOptionalSchemaError(result.error)) {
+        if (result.error && (scopedTeacher || !isOptionalSchemaError(result.error))) {
           throwIfError(result.error, 'บันทึกรายละเอียดนักเรียนไม่สำเร็จ');
         }
       }
@@ -687,7 +730,7 @@
         };
         const growthResult = await client.from('student_growth')
           .upsert(growth, { onConflict: 'student_id,measured_on' });
-        if (growthResult.error && !isOptionalSchemaError(growthResult.error)) {
+        if (growthResult.error && (scopedTeacher || !isOptionalSchemaError(growthResult.error))) {
           throwIfError(growthResult.error, 'บันทึกน้ำหนักและส่วนสูงไม่สำเร็จ');
         }
       }

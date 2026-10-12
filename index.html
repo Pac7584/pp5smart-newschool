@@ -205,6 +205,7 @@
       <li class="nav-item admin-only" data-page="setup_wizard"><a href="#" class="nav-link" data-page="setup_wizard"><i class="bi bi-list-check"></i> เริ่มต้นใช้งานโรงเรียน</a></li>
       <li class="nav-item admin-only" data-page="teacher_editor"><a href="#" class="nav-link" data-page="teacher_editor"><i class="bi bi-person-video3"></i> ครูประจำชั้น</a></li>
       <li class="nav-item admin-only" data-page="admin_panel"><a href="#" class="nav-link" data-page="admin_panel"><i class="bi bi-person-gear"></i> ผู้ใช้และสิทธิ์</a></li>
+      <li class="nav-item admin-only" data-page="teacher_access"><a href="#" class="nav-link" data-page="teacher_access"><i class="bi bi-person-check"></i> มอบหมายงานครู</a></li>
       <li class="nav-item admin-only master-only"><a href="#" class="nav-link" onclick="AppNavigation.exportSystemZip();return false;"><i class="bi bi-box-arrow-up-right"></i> ส่งออกชุดติดตั้งโรงเรียนใหม่</a></li>
     </ul>
 
@@ -443,7 +444,7 @@
 <script src="js/academic-calendar-page.js?v=1"></script>
 
 <!-- Supabase data adapter (must load before compatibility bridge) -->
-<script src="js/supabaseClient.js?v=41"></script>
+<script src="js/supabaseClient.js?v=43"></script>
 
 <!-- ระดับชั้นที่เปิดสอน ป.1–ป.6 / ป.1–ม.3 (ต้องโหลดก่อน gas-bridge และ spa-main) -->
 <script src="js/grade-levels.js?v=2"></script>
@@ -452,11 +453,11 @@
 <script src="js/dmc-import.js?v=1"></script>
 
 <!-- GAS Bridge (Maps google.script.run to Supabase) -->
-  <script src="js/gas-bridge.js?v=154"></script>
+  <script src="js/gas-bridge.js?v=155"></script>
   <script src="js/growth-export.js?v=5"></script>
 
 <!-- สำรองข้อมูล / เปิดไฟล์สำรอง / เตือนก่อนงานเสี่ยง (ต้องโหลดหลัง gas-bridge) -->
-  <script src="js/data-backup.js?v=11"></script>
+  <script src="js/data-backup.js?v=12"></script>
   <link rel="stylesheet" href="css/academic-history.css?v=2">
   <script src="js/year-report-context.js?v=1"></script>
   <script src="js/academic-history.js?v=2"></script>
@@ -491,7 +492,8 @@
   <script src="js/student-list-autoload.js?v=1"></script>
   <!-- วิชารายภาค (ม.ต้น): หน้าบันทึกคะแนนเปิดเฉพาะแท็บภาคของวิชา -->
   <script src="js/semester-subjects.js?v=1"></script>
-  <script src="js/spa-main.js?v=143"></script>
+  <script src="js/teacher-permissions.js?v=8"></script>
+  <script src="js/spa-main.js?v=145"></script>
   <script src="js/exam-import.js?v=3"></script>
 
 <script>
