@@ -213,11 +213,21 @@
     },
     {
       title: 'คัดลอกค่าสำหรับเว็บ',
-      body: (s) => '<p><b>Project Settings</b> → <b>API</b> (หรือ <b>Data API</b>) แล้วคัดลอก 2 ค่ามาวางที่นี่</p>'
+      body: (s) => list([
+        '<b>Project URL</b>: เมนู <b>Integrations → Data API</b> (หรือ Project Settings → Data API) คัดลอก API URL '
+          + '(ถ้ามี <code>/rest/v1/</code> ต่อท้าย ตัวช่วยตัดออกให้เอง)',
+        '<b>Key</b>: รูปเฟือง <b>Project Settings → API Keys</b> → คัดลอก <b>Publishable key</b> (<code>sb_publishable_...</code>) '
+          + 'หรือแท็บ Legacy API keys → <b>anon public</b> (<code>eyJ...</code>)'
+      ], true)
         + field('supabaseUrl', 'Project URL', s.supabaseUrl, 'placeholder="https://xxxxxxxx.supabase.co" autocomplete="off"')
         + field('anonKey', 'anon public / publishable key', s.anonKey, 'placeholder="sb_publishable_... หรือ eyJ..." autocomplete="off"')
         + note('ใช้ <b>anon / publishable</b> เท่านั้น ห้ามใช้ <b>service_role</b> หรือ <b>secret</b> key (ตัวช่วยจะไม่ยอมรับ)', 'warn'),
-      check: (s) => (!SUPABASE_URL.test(s.supabaseUrl.trim()) ? 'Project URL ต้องเป็นรูปแบบ https://xxxx.supabase.co' : keyProblem(s.anonKey))
+      check: (s) => {
+        // the Data API page shows https://xxxx.supabase.co/rest/v1/ — keep only the project address
+        s.supabaseUrl = s.supabaseUrl.trim().replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+        s.anonKey = s.anonKey.trim();
+        return !SUPABASE_URL.test(s.supabaseUrl) ? 'Project URL ต้องเป็นรูปแบบ https://xxxx.supabase.co' : keyProblem(s.anonKey);
+      }
     },
     {
       title: 'สร้างเว็บของโรงเรียนบน GitHub',
