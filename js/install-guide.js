@@ -250,7 +250,9 @@
       title: 'เปิดเว็บด้วย Vercel',
       body: (s) => list([
         `เปิด ${link('https://vercel.com/signup', 'vercel.com')} → เลือก <b>Hobby</b> (ฟรี) → <b>Continue with GitHub</b>`,
-        '<b>Add New</b> → <b>Project</b> → เลือก <code>pp5smart-newschool</code> → <b>Import</b> → <b>Deploy</b>',
+        '<b>ยืนยันอีเมล</b>ที่ Vercel ส่งมาก่อน (ถ้ายังไม่ยืนยัน กด Deploy แล้วจะขึ้น "An unexpected internal error occurred")',
+        'ใต้ Import Git Repository กด <b>GitHub</b> → <b>Authorize Vercel</b> → <b>Install</b> (เลือก repo pp5smart-newschool)',
+        'กด <b>Import</b> ที่ <code>pp5smart-newschool</code> → ช่อง <b>Project Name</b> ตั้งชื่อของโรงเรียนให้ไม่ซ้ำ เช่น <code>pp5-ชื่อย่อโรงเรียน</code> (อังกฤษพิมพ์เล็ก) → <b>Deploy</b>',
         'รอประมาณ 1 นาทีจนขึ้น <b>Congratulations</b> แล้วจดที่อยู่เว็บ'
       ], true)
         + field('siteUrl', '(ไม่บังคับ) ที่อยู่เว็บของโรงเรียน ใช้ทำลิงก์ให้ผู้ปกครอง', s.siteUrl, 'placeholder="https://xxxx.vercel.app"')
