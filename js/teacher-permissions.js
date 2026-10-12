@@ -177,7 +177,7 @@
   async function admin() {
     const ctx = await context();
     if (ctx.role !== 'admin') fail('เฉพาะผู้ดูแลระบบ');
-    if (!ctx.installed) fail('กรุณาติดตั้ง SQL สิทธิ์ครูบนฐานทดสอบก่อน');
+    if (!ctx.installed) fail('กรุณาติดตั้ง SQL สิทธิ์ครู (202610110027) ในฐานข้อมูลของโรงเรียนก่อน');
     return ctx;
   }
   async function replace(userId, year, assignments) {
@@ -294,7 +294,7 @@
         '<div class="d-flex gap-2 flex-wrap my-3"><button class="btn btn-outline-primary" type="button" data-access-add>เพิ่มงาน</button>'+
         '<button class="btn btn-primary" type="submit">บันทึกการมอบหมาย</button></div></form>'+
         '<div data-access-status role="status" class="my-2"></div>'+
-        (!ctx.enabled?'<hr><p>เมื่อมอบหมายครบแล้ว เปิดใช้เพื่อเริ่มทดสอบบัญชีจริงบนโรงเรียนทดสอบ</p>'+
+        (!ctx.enabled?'<hr><p>เมื่อมอบหมายครูที่ใช้งานอยู่ครบทุกคนแล้ว เปิดใช้เพื่อให้ครูเห็นเฉพาะห้องและวิชาที่ได้รับมอบหมาย (ปิดกลับได้โดยผู้ดูแลฐานข้อมูล)</p>'+
           '<label>พิมพ์ ENABLE_TEACHER_SCOPE เพื่อยืนยัน<input class="form-control" data-access-confirm autocomplete="off"></label>'+
           '<button class="btn btn-warning mt-2" type="button" data-access-enable>เปิดใช้สิทธิ์ตามการมอบหมาย</button>':'');
       const form = box.querySelector('form'), status = box.querySelector('[data-access-status]');
