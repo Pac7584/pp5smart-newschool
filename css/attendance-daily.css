@@ -30,7 +30,8 @@ html body #mobileStickySaveBar.pp5-att-idle { display: none !important; }
   #contentFrame .attendance-controls-card .thai-date-button { gap: 4px; white-space: nowrap; }
   #contentFrame .attendance-controls-card .thai-date-button #attendanceDateText { overflow: hidden; text-overflow: ellipsis; }
 
-  /* ปุ่ม 2 แถว (ตาราง 6 ช่อง) */
+  /* ปุ่ม 2 แถว (ตาราง 6 ช่อง)  order:0 = ลำดับตามที่ออกแบบไว้ (css/button-system.css ย้ายปุ่มหลักไปท้ายแถวในหน้าอื่น) */
+  #contentFrame .attendance-controls-card .button-container > .btn { order: 0; }
   #contentFrame .attendance-controls-card .button-container {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -83,3 +84,42 @@ html body #mobileStickySaveBar.pp5-att-idle { display: none !important; }
   /* ไม่มี LINE: ชาย→หญิง กว้างขึ้นแทน */
   #contentFrame .attendance-controls-card .button-container:not(:has(#pp5LineAbsence:not([hidden]))) #btnAttSortToggle { grid-column: span 4; }
 }
+
+/* ===== กระชับหน้าเช็คชื่อ (owner 2026-10-14: "กินพื้นที่ที่จะใช้งานจริง") — หัวหน้า (รูปครู) คงเดิม =====
+   - มีปุ่มชั้นด่วน (#gcQuickBar ป.1/1 …) แล้ว: ไม่ต้องมีช่อง "ระดับชั้น" ซ้ำ  ช่อง "ห้อง" ซ่อนเมื่อชั้นนั้นมีห้องเดียว
+     (ช่องยังอยู่ในหน้า ปุ่มชั้นด่วนตั้งค่าให้เหมือนเดิม แค่ไม่แสดง)
+   - จอคอม: [ปุ่มชั้น ……][ห้อง?][วันที่] แถวเดียว แล้วตามด้วยแถวปุ่ม
+   - ยอด มา/ลา/ขาด เป็นแถบเล็กแถวเดียว (ทุกขนาดจอ) */
+#contentFrame .attendance-controls-card:has(#gcQuickBar > *) .form-row .form-group:has(#gradeSelect) { display: none; }
+#contentFrame .attendance-controls-card:has(#gcQuickBar > *) .form-row .form-group:has(#classSelect):not(:has(option:nth-child(3))) { display: none; }
+
+@media (min-width: 992px) {
+  #contentFrame .attendance-controls-card { padding: 14px 16px; }
+  #contentFrame .attendance-controls-card:has(#gcQuickBar > *) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+    align-items: center;
+  }
+  #contentFrame .attendance-controls-card:has(#gcQuickBar > *) > #gcQuickBarHost { grid-column: 1; min-width: 0; }
+  #contentFrame .attendance-controls-card:has(#gcQuickBar > *) #gcQuickBar { margin: 0 !important; padding-bottom: 0 !important; }
+  #contentFrame .attendance-controls-card:has(#gcQuickBar > *) > .form-row { grid-column: 2; display: flex; gap: 8px; align-items: center; }
+  #contentFrame .attendance-controls-card:has(#gcQuickBar > *) > .form-row .form-label { display: none; }
+  #contentFrame .attendance-controls-card:has(#gcQuickBar > *) > .form-row .form-control { height: 40px; min-width: 110px; }
+  #contentFrame .attendance-controls-card:has(#gcQuickBar > *) > .button-container { grid-column: 1 / -1; margin-top: 10px; padding-top: 10px; }
+  #contentFrame .attendance-controls-card .thai-date-button { height: 40px; min-height: 40px; }
+}
+
+/* js/attendance-daily-bar.js ย้ายยอดไปขวาของหัว "รายชื่อนักเรียน" (.pp5-att-summary-inline) แล้วซ่อนการ์ดเดิม */
+#contentFrame .attendance-summary-card[hidden] { display: none !important; }
+#contentFrame .student-list-card > .pp5-att-list-head { flex-wrap: wrap; gap: 8px 12px; margin-bottom: 10px !important; }
+#contentFrame .pp5-att-summary-inline { display: flex !important; flex-wrap: wrap; gap: 6px !important; margin: 0 !important; grid-template-columns: none !important; }
+#contentFrame .pp5-att-summary-inline .summary-card {
+  display: inline-flex !important; flex-direction: row-reverse; align-items: baseline; gap: 6px;
+  flex: 0 0 auto; min-width: 0; padding: 3px 12px !important; border-radius: 999px !important; box-shadow: none !important;
+  border: 1px solid var(--border-color, #e2e8f0) !important; background: #fff;
+}
+#contentFrame .pp5-att-summary-inline .summary-card::before,
+#contentFrame .pp5-att-summary-inline .summary-card::after { display: none !important; }
+#contentFrame .pp5-att-summary-inline .summary-number { font-size: 1.1rem !important; line-height: 1.2 !important; margin: 0 !important; }
+#contentFrame .pp5-att-summary-inline .summary-text { font-size: .85rem !important; font-weight: 600; margin: 0 !important; }

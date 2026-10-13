@@ -61,7 +61,22 @@
     return !state.daySaved && !isWeekend(pageValue('attendanceDate'));
   }
 
+  // ยอด มา/ลา/ขาด ไปอยู่ขวาของหัว "รายชื่อนักเรียน" แถวเดียวกัน (owner 2026-10-14: "จะได้เนื้อที่เยอะขึ้น")
+  // ย้ายกล่องเดิมทั้งกล่อง (id presentCount/leaveCount/absentCount เดิม หน้าเดิมยังอัปเดตตัวเลขได้) แล้วซ่อนการ์ดที่ว่าง
+  function mergeSummary() {
+    if (typeof doc.querySelector !== 'function') return;
+    const grid = doc.querySelector('#contentFrame .attendance-summary-card .summary-grid');
+    const head = doc.querySelector('#contentFrame .student-list-card > div:first-child');
+    if (!grid || !head || !head.querySelector('#studentCountLabel')) return;
+    grid.classList.add('pp5-att-summary-inline');
+    const card = grid.closest('.attendance-summary-card');
+    head.classList.add('pp5-att-list-head');
+    head.append(grid);
+    card.hidden = true;
+  }
+
   function update() {
+    mergeSummary();
     const bar = doc.getElementById('mobileStickySaveBar');
     if (!bar) return;
     const list = Array.isArray(global.dailyStudents) ? global.dailyStudents : [];

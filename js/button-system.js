@@ -3,13 +3,13 @@
 //   ปุ่มหลัก  = บันทึก / เพิ่ม / สร้าง / ยืนยัน / อัปโหลดและนำเข้า / เข้าสู่ระบบ   -> .pp5-btn-pri (ท้ายแถว)
 //   ปุ่มอันตราย = ลบ / ล้าง / จำหน่าย หรือไอคอนถังขยะ                          -> .pp5-btn-danger
 //   ที่เหลือ   = ปุ่มรอง                                                        -> .pp5-btn-sec
-// ไม่แตะ onclick / id / disabled / การซ่อนปุ่มของหน้า (เปลี่ยนเฉพาะคลาส) และไม่แตะแท็บ ลิงก์หน้า ปุ่มปิด
+// ไม่แตะ onclick / id / disabled / การซ่อนปุ่มของหน้า (เปลี่ยนเฉพาะคลาส) และไม่แตะแท็บ ลิงก์หน้า ปุ่มปิด ปุ่มเลือกชั้นด่วน (#gcQuickBar)
 // หน้ากรอกคะแนน (จอกว้าง): PDF / PDF รวม / CSV / ล้าง ย้ายเข้าปุ่ม "ส่งออก ▾" (ย้ายปุ่มเดิมทั้งปุ่ม ตัวจัดการเดิมยังทำงาน)
 // มือถือคงแบบกระเบื้องเดิมของหน้า
 (function initPP5ButtonSystem(global) {
   'use strict';
 
-  const SKIP = '.btn-close, .nav-link, .page-link, .dropdown-item, .btn-link, [data-pp5-btn-skip]';
+  const SKIP = '.btn-close, .nav-link, .page-link, .dropdown-item, .btn-link, [data-pp5-btn-skip], #gcQuickBar .btn';
   const PRIMARY = /^(บันทึก|เพิ่ม(?!เติม)|สร้าง|ยืนยัน(?!ลบ)|อัปโหลดและนำเข้า|เข้าสู่ระบบ)/;
   const DANGER = /^(ลบ|ล้าง|จำหน่าย|ยืนยันลบ)/;
   const TRASH_ICON = /(^|\s)(fa-trash|fa-trash-alt|bi-trash|bi-trash3|bi-trash-fill|bi-trash3-fill)(\s|$)/;
