@@ -9886,6 +9886,29 @@ function enhanceSupabaseSignaturesManager_() {
     </div>
   `;
 
+  // หน้าตั้งค่าระบบกลาง: ลายเซ็นเป็นแท็บของตัวเอง (owner 2026-10-14: "ส่วนลายเซ็นอยู่ทุกหน้าเลย")
+  // ไม่ต้องมีแบนเนอร์ "ไปที่ส่วนจัดการลายเซ็น" อีก เพราะแท็บอยู่ในแถบด้านบนแล้ว
+  const settingsNav = document.getElementById('settingsTab');
+  const settingsContent = document.getElementById('settingsTabContent');
+  if (settingsNav && settingsContent) {
+    const li = document.createElement('li');
+    li.className = 'nav-item';
+    li.setAttribute('role', 'presentation');
+    li.innerHTML = '<button class="nav-link" id="signatures-tab" data-bs-toggle="pill" data-bs-target="#signaturesTabPane" type="button" role="tab" aria-controls="signaturesTabPane" aria-selected="false">'
+      + '<i class="bi bi-pen"></i> ลายเซ็น & ตราประทับ</button>';
+    settingsNav.appendChild(li);
+    const pane = document.createElement('div');
+    pane.className = 'tab-pane fade';
+    pane.id = 'signaturesTabPane';
+    pane.setAttribute('role', 'tabpanel');
+    pane.setAttribute('aria-labelledby', 'signatures-tab');
+    card.classList.remove('mt-4');
+    pane.appendChild(card);
+    settingsContent.appendChild(pane);
+    initSignaturesManagerLogic_(card);
+    return;
+  }
+
   const targetParent = container.querySelector('.container') || container.querySelector('.settings-form') || container;
   const saveBar = targetParent.querySelector('.sticky-savebar') || container.querySelector('.sticky-savebar');
   if (saveBar) {

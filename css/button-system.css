@@ -1,0 +1,128 @@
+/* ระบบปุ่มใหม่ + แท็บด้านบน (owner 2026-10-14: "เปลี่ยนเฉพาะปุ่ม การจัดปุ่มเรียงใหม่ ให้ดูสวยเป็นมืออาชีพ" และ "บางหน้าอยากให้มีเมนูด้านบน" = หัวข้อย่อยของหน้านั้น)
+   js/button-system.js ติดป้ายบทบาทให้ปุ่ม .btn ใน #contentFrame:
+     .pp5-btn-pri    ปุ่มหลัก (บันทึก เพิ่ม สร้าง ยืนยัน) สีธีมโรงเรียน อยู่ท้ายแถว
+     .pp5-btn-sec    ปุ่มรอง พื้นการ์ด ขอบเทา
+     .pp5-btn-danger ปุ่มลบ/ล้าง ตัวแดง (ในหน้าต่างยืนยันเป็นพื้นแดง)
+   หน้าที่ของปุ่ม (onclick, id, disabled) ไม่เปลี่ยน เปลี่ยนเฉพาะหน้าตาและลำดับในแถวที่เป็น flex */
+:root {
+  --pp5-btn-h: 36px;
+  --pp5-btn-r: 8px;
+  --pp5-btn-bg: #ffffff;
+  --pp5-btn-fg: #1f2937;
+  --pp5-btn-line: #cfd4de;
+  --pp5-btn-hover: #f3f4f7;
+  --pp5-btn-danger: #c2362b;
+  --pp5-btn-danger-soft: #fdecea;
+  --pp5-tab-line: #e3e6ee;
+  --pp5-tab-muted: #5b6275;
+}
+[data-theme="dark"] {
+  --pp5-btn-bg: #1b2232;
+  --pp5-btn-fg: #e5e7eb;
+  --pp5-btn-line: #3a4458;
+  --pp5-btn-hover: #232c40;
+  --pp5-btn-danger: #ff8a80;
+  --pp5-btn-danger-soft: rgba(255, 138, 128, 0.12);
+  --pp5-tab-line: #2b3446;
+  --pp5-tab-muted: #a7afbd;
+}
+
+/* ---------- buttons (only those js/button-system.js has classified) ---------- */
+/* display WITHOUT !important: pages hide buttons with style="display:none" / .d-none and that must keep winning */
+#contentFrame .btn.pp5-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--pp5-btn-h);
+  padding: 0 14px !important;
+  border-radius: var(--pp5-btn-r) !important;
+  font-weight: 600 !important;
+  font-size: 0.9rem !important;
+  line-height: 1.2 !important;
+  box-shadow: none !important;
+  background-image: none !important;
+  transform: none !important;
+  white-space: nowrap;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+#contentFrame .btn.pp5-btn.btn-sm { min-height: 32px; padding: 0 11px !important; font-size: 0.84rem !important; }
+#contentFrame .btn.pp5-btn:focus-visible { outline: 2px solid var(--primary) !important; outline-offset: 2px; }
+#contentFrame .btn.pp5-btn:disabled,
+#contentFrame .btn.pp5-btn.disabled { opacity: .5; cursor: not-allowed; }
+
+#contentFrame .btn.pp5-btn-sec {
+  background-color: var(--pp5-btn-bg) !important;
+  color: var(--pp5-btn-fg) !important;
+  border: 1px solid var(--pp5-btn-line) !important;
+}
+#contentFrame .btn.pp5-btn-sec:hover:not(:disabled) { background-color: var(--pp5-btn-hover) !important; }
+
+#contentFrame .btn.pp5-btn-pri {
+  background-color: var(--primary) !important;
+  color: #fff !important;
+  border: 1px solid var(--primary) !important;
+  order: 20;
+}
+#contentFrame .btn.pp5-btn-pri:hover:not(:disabled) { filter: brightness(0.94); }
+
+#contentFrame .btn.pp5-btn-danger {
+  background-color: transparent !important;
+  color: var(--pp5-btn-danger) !important;
+  border: 1px solid transparent !important;
+  order: 19;
+}
+#contentFrame .btn.pp5-btn-danger:hover:not(:disabled) { background-color: var(--pp5-btn-danger-soft) !important; }
+/* in a confirm dialog the delete IS the main action */
+#contentFrame .modal .btn.pp5-btn-danger,
+body > .modal .btn.pp5-btn-danger,
+#contentFrame .btn.pp5-btn-danger.pp5-btn-solid {
+  background-color: var(--pp5-btn-danger) !important;
+  color: #fff !important;
+}
+/* small icon-only buttons in table rows (edit / delete) */
+#contentFrame td .btn.pp5-btn.pp5-btn-icon { min-height: 30px; width: 32px; padding: 0 !important; border-radius: 8px !important; }
+
+/* ---------- export menu (score entry page) ---------- */
+.pp5-export-menu { position: relative; display: inline-flex; order: 18; }
+.pp5-export-menu > .pp5-export-list {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 1060; min-width: 200px;
+  display: grid; gap: 2px; padding: 6px; border-radius: 10px;
+  background: var(--pp5-btn-bg); border: 1px solid var(--pp5-btn-line); box-shadow: 0 12px 28px rgba(15, 18, 40, .18);
+}
+.pp5-export-menu > .pp5-export-list[hidden] { display: none !important; }
+#contentFrame .pp5-export-list .btn.pp5-btn { justify-content: flex-start; width: 100%; border-color: transparent !important; background: transparent !important; }
+#contentFrame .pp5-export-list .btn.pp5-btn:hover:not(:disabled) { background: var(--pp5-btn-hover) !important; }
+#contentFrame .pp5-export-list .btn.pp5-btn-danger { border-top: 1px solid var(--pp5-btn-line) !important; border-radius: 0 0 8px 8px !important; margin-top: 4px; }
+.pp5-export-caret { font-size: .7rem; opacity: .7; }
+
+/* ---------- top tabs = the page's OWN sections (owner 2026-10-14: "เมนูด้านบนเป็นเนื้อหาเฉพาะของหน้านั้น ไม่ใช่เมนูซ้าย") ----------
+   ตั้งค่าระบบกลาง: ข้อมูลทั่วไป · การพิมพ์ · เปลี่ยนปี · หน้าตา · สำรอง · ลายเซ็น (แท็บเดิมของหน้า #settingsTab เปลี่ยนเฉพาะหน้าตา) */
+#contentFrame #settingsTab.custom-tabs {
+  display: flex; flex-wrap: nowrap; justify-content: flex-start !important; gap: 2px; overflow-x: auto; overscroll-behavior-x: contain;
+  margin: 0 0 16px; padding: 6px 6px 0 !important; border: 1px solid var(--pp5-tab-line) !important; border-radius: 12px !important;
+  background: var(--bg-card, #fff) !important; box-shadow: 0 2px 10px rgba(15, 18, 40, .08) !important;
+  backdrop-filter: none; -webkit-backdrop-filter: none; scrollbar-width: thin;
+}
+#contentFrame #settingsTab.custom-tabs .nav-item { flex: none; max-width: none; }
+#contentFrame #settingsTab.custom-tabs .nav-link {
+  display: inline-flex; align-items: center; gap: 7px; height: 100%;
+  padding: 10px 15px !important; border: 0 !important; border-radius: 9px 9px 0 0 !important;
+  background: transparent !important; color: var(--pp5-tab-muted) !important; box-shadow: none !important; transform: none !important;
+  font: 600 .92rem/1.2 'Sarabun', sans-serif; white-space: nowrap; transition: color .15s ease, background-color .15s ease;
+}
+#contentFrame #settingsTab.custom-tabs .nav-link .bi {
+  width: auto !important; height: auto !important; background: none !important; color: inherit !important;
+  box-shadow: none !important; transform: none !important; font-size: 1rem !important;
+}
+#contentFrame #settingsTab.custom-tabs .nav-link:hover { color: var(--primary) !important; }
+#contentFrame #settingsTab.custom-tabs .nav-link.active {
+  color: var(--primary) !important; background: color-mix(in srgb, var(--primary) 8%, transparent) !important;
+  box-shadow: inset 0 -3px 0 var(--primary) !important;
+}
+#contentFrame #settingsTab.custom-tabs .nav-link:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+@media (max-width: 640px) {
+  #contentFrame #settingsTab.custom-tabs { border-radius: 10px !important; }
+  #contentFrame #settingsTab.custom-tabs .nav-link { padding: 9px 11px !important; font-size: .85rem; }
+}
+@media (prefers-reduced-motion: reduce) { #contentFrame .btn.pp5-btn { transition: none; } }
