@@ -20,6 +20,8 @@
     // รอบ 2 (owner 2026-10-08): หน้าที่ใช้บ่อยที่เหลือ  ไม่ใส่หน้าที่หัวเดิมมีปุ่ม/ช่องกรอกอยู่ข้างใน
     // (ตรวจ ปพ.5, ส่งงาน/อนุมัติ, น้ำหนัก-ส่วนสูง 2 หน้า) เพราะซ่อนหัวแล้วปุ่มจะหายไปด้วย
     attendance_monthly: { icon: 'bi-calendar3', title: 'บันทึกเวลาเรียนรายเดือน', sub: 'สรุปการมาเรียนของนักเรียนแต่ละเดือน', hide: '.att-header-card' },
+    // owner 2026-10-14: "หน้านี้ไม่มีรูป"
+    attendance_table: { icon: 'bi-calendar-range', title: 'รายงานเวลาเรียนรายเดือน', sub: 'ตารางการมาเรียนของนักเรียนทั้งเดือน และส่งออก PDF', hide: '.page-header-bar' },
     semester_attendance_summary: { icon: 'bi-bar-chart-steps', title: 'สรุปการมาเรียน', sub: 'รายงานเวลาเรียนรายภาคเรียนและรายปี', hide: '.header-main' },
     student_scores_summary: { icon: 'bi-trophy-fill', title: 'สรุปผลการเรียนรายชั้น', sub: 'คะแนนและเกรดทุกวิชาของทั้งห้อง', hide: '.container-wrapper > .page-header' },
     class_assessment_summary: { icon: 'bi-clipboard-data-fill', title: 'สรุปการประเมินรายชั้น', sub: 'คุณลักษณะ สมรรถนะ อ่านคิดเขียน และกิจกรรมของทั้งห้อง', hide: '.cas-header' },

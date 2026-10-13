@@ -1,0 +1,69 @@
+/* ===== รายงานเวลาเรียนรายเดือน (gas-pages attendance_table) กระชับ (owner 2026-10-14: "ยังไม่ค่อยกระชับเกี่ยวกับปุ่ม") =====
+   ทุกกฎผูกกับ .page-shell ที่มี #table-grade (มีเฉพาะหน้านี้) ไม่แตะ HTML ของหน้าเดิม ช่องเดิมยังอยู่ครบ:
+   - ตัดคำอธิบายที่ไม่จำเป็น: หัว "ตัวเลือกการแสดงตาราง", "เลือกชั้น-ห้องเร็ว", "หรือเลือกรายละเอียด", สถานะ "พร้อมใช้งาน"
+     (สถานะยังขึ้นเมื่อไม่ใช่ "พร้อม" เช่น กำลังโหลด/ผิดพลาด)
+   - มีปุ่มชั้นด่วนแล้ว: ซ่อนช่อง "ชั้น" และซ่อน "ห้อง" เมื่อชั้นนั้นมีห้องเดียว
+   - จอคอม: [ปุ่มชั้น ……][โหลดอัตโนมัติ] / [เดือน][ปี][แสดงผล][เช็คชื่อ] เป็น 2 แถวสั้น
+   - "การดำเนินการด่วน" จากการ์ดใหญ่ 5 ใบ เป็นปุ่มเล็กแถวเดียว (ชื่อปุ่มเดิม ซ่อนคำอธิบายย่อย)
+   หัวหน้า (รูปโรงเรียน) มาจาก js/page-banner.js */
+.page-shell:has(#table-grade) .att-filter-card { padding: 12px 16px !important; }
+.page-shell:has(#table-grade) .att-filter-card > div:first-child { margin-bottom: 6px !important; }
+.page-shell:has(#table-grade) .att-filter-card > div:first-child > h6,
+.page-shell:has(#table-grade) .att-filter-quick-label,
+.page-shell:has(#table-grade) .filter-or-hint,
+.page-shell:has(#table-grade) #system-status:has(.status-ready) { display: none !important; }
+.page-shell:has(#table-grade) .att-filter-card:has(#gcQuickBar > *) .att-filter-toolbar > div:has(#table-grade) { display: none !important; }
+.page-shell:has(#table-grade) .att-filter-card:has(#gcQuickBar > *) .att-filter-toolbar > div:has(#table-class):not(:has(option:nth-child(3))) { display: none !important; }
+.page-shell:has(#table-grade) #gcQuickBar { margin: 0 !important; padding-bottom: 0 !important; }
+.page-shell:has(#table-grade) .att-filter-toolbar { margin-top: 8px !important; margin-bottom: 0 !important; }
+
+@media (min-width: 768px) {
+  .page-shell:has(#table-grade) .att-filter-card {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+    align-items: center;
+  }
+  .page-shell:has(#table-grade) .att-filter-card > * { grid-column: 1 / -1; }
+  .page-shell:has(#table-grade) .att-filter-card > #gcQuickBarHost { grid-column: 1; grid-row: 1; min-width: 0; }
+  .page-shell:has(#table-grade) .att-filter-card > div:first-child { grid-column: 2; grid-row: 1; margin: 0 !important; }
+  /* เดือน ปี แสดงผล เช็คชื่อ: แถวเดียวชิดซ้าย ไม่ยืดเต็มจอ */
+  .page-shell:has(#table-grade) .att-filter-toolbar { display: flex !important; flex-wrap: wrap; gap: 8px !important; align-items: center !important; }
+  .page-shell:has(#table-grade) .att-filter-toolbar > [class*="col-"] { flex: 0 0 auto !important; width: auto !important; max-width: none !important; padding: 0 !important; margin: 0 !important; }
+  .page-shell:has(#table-grade) .att-filter-toolbar .form-label { display: none !important; }
+  .page-shell:has(#table-grade) .att-filter-toolbar .form-select { min-width: 140px; height: 38px; }
+  .page-shell:has(#table-grade) .att-filter-toolbar .btn-group-custom .btn { flex: 0 0 auto !important; }
+}
+
+/* การดำเนินการด่วน: ปุ่มเล็กแถวเดียว */
+.page-shell:has(#table-grade) .quick-actions { padding: 10px 16px !important; }
+.page-shell:has(#table-grade) .quick-actions .section-heading,
+.page-shell:has(#table-grade) .quick-actions .quick-action-group-title,
+.page-shell:has(#table-grade) .quick-actions .action-subtitle { display: none !important; }
+.page-shell:has(#table-grade) .quick-actions > .row,
+.page-shell:has(#table-grade) .quick-actions .quick-action-group > .row {
+  display: flex !important; flex-wrap: wrap; gap: 8px; margin: 0 !important; --bs-gutter-x: 0; --bs-gutter-y: 0;
+}
+.page-shell:has(#table-grade) .quick-actions [class*="col-"] { flex: 0 0 auto !important; width: auto !important; max-width: none !important; padding: 0 !important; margin: 0 !important; }
+.page-shell:has(#table-grade) .quick-actions .quick-action-group { display: contents; }
+.page-shell:has(#table-grade) .quick-actions .quick-action-card {
+  display: inline-flex !important; align-items: center; gap: 6px; width: auto !important; min-height: 34px !important;
+  padding: 0 12px !important; border-radius: 8px !important; box-shadow: none !important; transform: none !important;
+  background: var(--pp5-btn-bg, #fff) !important; border: 1px solid var(--pp5-btn-line, #cfd4de) !important; color: var(--pp5-btn-fg, #1f2937) !important;
+}
+.page-shell:has(#table-grade) .quick-actions .quick-action-card:hover { background: var(--pp5-btn-hover, #f3f4f7) !important; }
+.page-shell:has(#table-grade) .quick-actions .quick-action-card .action-icon {
+  width: auto !important; height: auto !important; background: none !important; box-shadow: none !important; color: inherit !important; font-size: 1rem !important;
+}
+.page-shell:has(#table-grade) .quick-actions .quick-action-card .action-title { font-size: .88rem !important; font-weight: 600 !important; margin: 0 !important; }
+.page-shell:has(#table-grade) .quick-actions .quick-action-danger { color: var(--pp5-btn-danger, #c2362b) !important; border-color: transparent !important; background: transparent !important; }
+/* ส่งออก PDF / ZIP ไปอยู่ท้ายแถว */
+.page-shell:has(#table-grade) .quick-actions .col-lg-5 { margin-left: auto !important; }
+
+@media (max-width: 767.98px) {
+  /* มือถือ: ปุ่มด่วนขึ้นบรรทัดใหม่ได้ ไม่ล้นจอ  แสดงผล | เช็คชื่อ คู่กันแถวเดียว */
+  .page-shell:has(#table-grade) .quick-actions > .row > [class*="col-"] { flex: 1 1 100% !important; width: 100% !important; margin-left: 0 !important; }
+  .page-shell:has(#table-grade) .att-filter-toolbar .btn-group-custom { flex-direction: row !important; }
+  .page-shell:has(#table-grade) .att-filter-toolbar .btn-group-custom .btn { flex: 1 1 0 !important; width: auto !important; }
+  .page-shell:has(#table-grade) .att-filter-toolbar .form-label { display: none !important; }
+}
