@@ -8,6 +8,19 @@
   const doc = global.document;
   const APP_LOGO = 'assets/brand/pp5smart-icon-192.png?v=1';
 
+  function normalizeSchoolLogo(logo) {
+    const raw = logo.getAttribute('src') || '';
+    if (!raw) return;
+    try {
+      const url = new global.URL(raw, doc.baseURI);
+      if (url.hostname !== 'drive.google.com') return;
+      const id = url.searchParams.get('id') || url.pathname.match(/\/d\/([-\w]+)/)?.[1];
+      if (!/^[-\w]{20,}$/.test(id || '')) return;
+      // Keep the same image element and its original load/error handlers.
+      logo.src = 'https://lh3.googleusercontent.com/d/' + id;
+    } catch (_) { /* Leave other image sources unchanged. */ }
+  }
+
   function apply() {
     const box = doc.querySelector('#contentFrame .login-container');
     const header = box && box.querySelector(':scope > .header');
@@ -15,6 +28,10 @@
     const logo = header.querySelector('#school-logo');
     const placeholder = header.querySelector('#logo-placeholder');
     if (!logo) return;
+    if (typeof global.MutationObserver === 'function') {
+      new global.MutationObserver(() => normalizeSchoolLogo(logo)).observe(logo, { attributes: true, attributeFilter: ['src'] });
+    }
+    normalizeSchoolLogo(logo);
 
     const app = doc.createElement('img');
     app.className = 'pp5-login-app-logo';
@@ -29,7 +46,21 @@
     school.className = 'pp5-login-school';
     if (placeholder) school.append(placeholder);
     school.append(logo);
-    header.after(school);
+
+    // หัวฝั่งฟอร์ม (owner 2026-10-14 แบบ "ฟ้าใส กระจกบาง")
+    const welcome = doc.createElement('div');
+    welcome.className = 'pp5-login-welcome';
+    const title = doc.createElement('h2');
+    title.textContent = 'ยินดีต้อนรับกลับ';
+    const sub = doc.createElement('p');
+    sub.textContent = 'เข้าสู่ระบบเพื่อจัดการข้อมูลผลการเรียน';
+    welcome.append(title, sub);
+    header.after(school, welcome);
+
+    // ป้ายช่อง "ชื่อผู้ใช้:" -> "ชื่อผู้ใช้" (ตัดโคลอนท้าย)
+    box.querySelectorAll('#loginForm label').forEach((label) => {
+      label.textContent = label.textContent.replace(/\s*:\s*$/, '');
+    });
   }
 
   function watch() {
