@@ -1,0 +1,99 @@
+/* เมนูย่อย (flyout) แบบ "01 สดใส" + โหมดมืดแบบ "03 พรีเมียม" (owner 2026-10-14 เลือกจากภาพตัวอย่าง 3 แบบ)
+   js/menu-flyout.js เติมหัวเมนู (ไอคอน + ชื่อหมวด), ลูกศร › และสีไอคอนรายการ (--mi) ให้ #submenuFlyout ทุกครั้งที่เปิด
+   หน้าที่เปิดอยู่ได้ .is-current  — การทำงานของเมนู (data-page / onclick) ไม่เปลี่ยน */
+#submenuFlyout.pp5-fly {
+  min-width: 300px;
+  max-width: 340px;
+  padding: 12px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid #e6eaf3;
+  box-shadow: 0 18px 40px -12px rgba(30, 41, 89, 0.22), 0 4px 12px -6px rgba(30, 41, 89, 0.12);
+}
+#submenuFlyout .pp5-fly-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 12px;
+  margin-bottom: 4px;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #1e2a4a;
+  border-bottom: 1px solid #eef1f7;
+}
+#submenuFlyout .pp5-fly-head i {
+  font-size: 1.25rem;
+  color: var(--primary, #4f46e5);
+}
+#submenuFlyout.pp5-fly .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 10px;
+  margin: 2px 0;
+  border-radius: 14px;
+  color: #26314f;
+  font-weight: 500;
+  transform: none;
+}
+#submenuFlyout.pp5-fly .nav-link span { flex: 1; min-width: 0; }
+#submenuFlyout.pp5-fly .nav-link i:not(.pp5-fly-arrow) {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  border-radius: 12px;
+  font-size: 1.15rem;
+  background: color-mix(in srgb, var(--mi, var(--primary)) 14%, #ffffff) !important;
+  color: var(--mi, var(--primary)) !important;
+  transition: transform .15s ease, background .15s ease;
+}
+/* ลูกศร › ไม่ใช่ไอคอนในกรอบ: ล้างสไตล์ไอคอนเดิมของ spa-main.css (.submenu-flyout .nav-link i ทั้งปกติและ hover) */
+#submenuFlyout .nav-link i.pp5-fly-arrow {
+  flex: none;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 0 0 4px !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  font-size: .85rem !important;
+  color: #9aa3b8 !important;
+  transition: transform .15s ease, color .15s ease;
+}
+#submenuFlyout.pp5-fly .nav-link:hover {
+  background: #f3f5fb;
+  transform: none;
+}
+#submenuFlyout.pp5-fly .nav-link:hover i:not(.pp5-fly-arrow) { transform: scale(1.06); }
+#submenuFlyout.pp5-fly .nav-link:hover i.pp5-fly-arrow { transform: translateX(2px) scale(1); color: var(--primary, #4f46e5) !important; }
+#submenuFlyout.pp5-fly .nav-link.is-current {
+  background: color-mix(in srgb, var(--primary, #4f46e5) 10%, #ffffff);
+  color: #1e2a4a;
+  font-weight: 700;
+}
+#submenuFlyout.pp5-fly .nav-link.is-current i.pp5-fly-arrow { color: var(--primary, #4f46e5) !important; }
+#submenuFlyout.pp5-fly .nav-link:focus-visible { outline: 2px solid var(--primary, #4f46e5); outline-offset: 1px; }
+
+/* ---- โหมดมืด: "03 พรีเมียม" ---- */
+[data-theme="dark"] #submenuFlyout.pp5-fly {
+  background: linear-gradient(180deg, #111a33 0%, #0c1428 100%);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.08), 0 20px 45px -10px rgba(0, 0, 0, 0.65), 0 0 24px -6px rgba(56, 189, 248, 0.25);
+}
+[data-theme="dark"] #submenuFlyout .pp5-fly-head { color: #f1f5ff; border-bottom-color: rgba(148, 163, 184, 0.18); }
+[data-theme="dark"] #submenuFlyout .pp5-fly-head i { color: #e2e8f0; }
+[data-theme="dark"] #submenuFlyout.pp5-fly .nav-link { color: #dbe4ff; }
+[data-theme="dark"] #submenuFlyout.pp5-fly .nav-link i:not(.pp5-fly-arrow) {
+  background: transparent !important;
+  color: color-mix(in srgb, var(--mi, #60a5fa) 70%, #ffffff) !important;
+  font-size: 1.35rem;
+}
+[data-theme="dark"] #submenuFlyout .nav-link i.pp5-fly-arrow { color: #8ea0c4 !important; }
+[data-theme="dark"] #submenuFlyout.pp5-fly .nav-link:hover i.pp5-fly-arrow { color: #ffffff !important; }
+[data-theme="dark"] #submenuFlyout.pp5-fly .nav-link:hover { background: rgba(59, 130, 246, 0.12); }
+[data-theme="dark"] #submenuFlyout.pp5-fly .nav-link.is-current {
+  background: rgba(59, 130, 246, 0.22);
+  color: #ffffff;
+  box-shadow: inset 3px 0 0 #22d3ee;
+}
+[data-theme="dark"] #submenuFlyout.pp5-fly .nav-link.is-current i.pp5-fly-arrow { color: #ffffff !important; }

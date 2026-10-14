@@ -1,10 +1,13 @@
-// หน้า "ปก ปพ.5" (pp5_cover_page): เลือกรูปแบบ "รวมวิชา (รายชั้น)" แบบเดิม หรือ "รายวิชา" (owner 2026-10-14:
-// "ตอนนี้บางโรงเรียนเขามีแบบรายวิชา") — แบบรายวิชาเลือกวิชาเดียว หรือ "ทุกวิชาในห้องนี้" (หน้าละวิชา)
-// แบบรวมวิชาใช้ปุ่มและการทำงานเดิมของหน้าทั้งหมด  แบบรายวิชาเรียก GasServer.exportPp5SubjectCoverPDF
-// (gas-bridge computePp5SubjectSheets -> pdf-export createPp5SubjectCover)
+// หน้า "ปก ปพ.5" (pp5_cover_page) กับ "ปพ.5 แบบรายวิชา" (pp5_subject_book) ใช้แม่แบบหน้าเดียวกัน
+// (owner 2026-10-14: "ป้องกันความสับสน ... ในเมนูการใช้งานควรแยก" + "พิมพ์ ปพ.5 รายวิชารวมเล่มด้วย ไม่ใช่พิมพ์ได้แค่ปก")
+//   - ทั้งสองหน้า: ซ่อนชั้นอนุบาล, ชั้นกับห้องอยู่แถวเดียวกัน
+//   - ปก ปพ.5: แบบรวมชั้นอย่างเดียว ใช้ปุ่มและการทำงานเดิมของแม่แบบ
+//   - ปพ.5 แบบรายวิชา: เลือกวิชา (หรือทุกวิชา วิชาละเล่ม) + ครูผู้สอนแยกห้อง + ส่วนของเล่ม แล้วเรียก
+//     GasServer.exportPp5SubjectBookPDF (gas-bridge computePp5SubjectSheets -> pdf-export createPp5SubjectCover)
 (function initPp5SubjectCover(global) {
   'use strict';
   const doc = global.document;
+  const text = (value) => (value === null || value === undefined ? '' : String(value).trim());
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   const KINDERGARTEN = /^อ\.\s*[123]$/;
@@ -27,23 +30,15 @@
 [data-theme="dark"] .pp5sc{--sc-line:#2b3446;--sc-muted:#a7afbd;--sc-soft:#161d2b;--sc-card:#1b2232;--sc-text:#e5e7eb;
   --sc-warn:#ffc46b;--sc-warn-bg:rgba(255,196,107,.12);--sc-ok:#6fe0b4;--sc-ok-bg:rgba(111,224,180,.12)}
 .pp5sc-label{display:flex;align-items:center;gap:.4rem;font-weight:600;margin-bottom:.5rem}
-.pp5sc-modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:.6rem}
-.pp5sc-mode{position:relative;display:flex;gap:.7rem;align-items:flex-start;padding:.75rem 2rem .75rem .85rem;border:1.5px solid var(--sc-line);
-  border-radius:12px;background:var(--sc-card);cursor:pointer;transition:border-color .15s,box-shadow .15s,background .15s}
-.pp5sc-mode:hover{border-color:color-mix(in srgb,var(--sc-accent) 45%,var(--sc-line))}
-.pp5sc-mode input{position:absolute;opacity:0;pointer-events:none}
-.pp5sc-mode:has(input:checked){border-color:var(--sc-accent);background:color-mix(in srgb,var(--sc-accent) 7%,var(--sc-card));
-  box-shadow:0 0 0 3px color-mix(in srgb,var(--sc-accent) 16%,transparent)}
-.pp5sc-mode:has(input:focus-visible){outline:2px solid var(--sc-accent);outline-offset:2px}
-.pp5sc-ico{flex:0 0 36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:1.1rem;
-  background:var(--sc-soft);color:var(--sc-muted)}
-.pp5sc-mode:has(input:checked) .pp5sc-ico{background:var(--sc-accent);color:#fff}
-.pp5sc-mode b{display:block;font-size:.95rem;line-height:1.3}
-.pp5sc-mode small{display:block;color:var(--sc-muted);font-size:.8rem;line-height:1.35;margin-top:.15rem}
-.pp5sc-check{position:absolute;top:.5rem;right:.6rem;color:var(--sc-accent);opacity:0}
-.pp5sc-mode:has(input:checked) .pp5sc-check{opacity:1}
+.pp5sc-parts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:.5rem}
+.pp5sc-part{display:flex;gap:.6rem;align-items:flex-start;padding:.6rem .75rem;border:1.5px solid var(--sc-line);border-radius:12px;
+  background:var(--sc-card);cursor:pointer;transition:border-color .15s,background .15s}
+.pp5sc-part input{margin-top:.25rem;width:1.05rem;height:1.05rem;accent-color:var(--sc-accent);flex:none}
+.pp5sc-part:has(input:checked){border-color:var(--sc-accent);background:color-mix(in srgb,var(--sc-accent) 6%,var(--sc-card))}
+.pp5sc-part:has(input:disabled){opacity:.55;cursor:not-allowed}
+.pp5sc-part b{display:block;font-size:.92rem;line-height:1.3}
+.pp5sc-part small{display:block;color:var(--sc-muted);font-size:.78rem;line-height:1.35;margin-top:.1rem}
 .pp5sc-subject{margin-top:.2rem}
-#pp5CoverMode{margin-bottom:1.1rem}
 .pp5sc-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;margin-bottom:1rem}
 .pp5sc-pair>.mb-3{margin-bottom:0!important}
 .pp5sc-teachers{margin-top:.9rem;border:1px solid var(--sc-line);border-radius:12px;background:var(--sc-card);overflow:hidden}
@@ -75,39 +70,19 @@
 .pp5sc-state{font-size:.8rem}
 .pp5sc-state.is-ok{color:var(--sc-ok)} .pp5sc-state.is-err{color:#c2362b}
 .pp5sc-empty{padding:.8rem .85rem;font-size:.85rem;color:var(--sc-muted)}
-@media (max-width:520px){.pp5sc-row{grid-template-columns:1fr;gap:.3rem}.pp5sc-modes{grid-template-columns:1fr}}`;
+@media (max-width:520px){.pp5sc-row{grid-template-columns:1fr;gap:.3rem}.pp5sc-parts{grid-template-columns:1fr}}`;
     doc.head.appendChild(style);
   }
 
-  function mount(frame) {
+  function mount(frame, page) {
     injectStyles();
     const exportBtn = frame.querySelector('#exportBtn');
     const gradeSelect = frame.querySelector('#gradeSelect');
     const classSelect = frame.querySelector('#classSelect');
     const card = exportBtn.closest('.card') || frame;
-    const box = doc.createElement('div');
-    box.id = 'pp5CoverMode';
-    box.className = 'pp5sc';
-    box.innerHTML = `<div class="pp5sc-label"><i class="bi bi-files"></i>รูปแบบปก ปพ.5</div>
-<div class="pp5sc-modes" role="radiogroup" aria-label="รูปแบบปก ปพ.5">
-  <label class="pp5sc-mode"><input type="radio" name="pp5CoverMode" value="class" checked>
-    <span class="pp5sc-ico"><i class="bi bi-journal-text"></i></span>
-    <span><b>รวมทุกวิชา (รายชั้น)</b><small>ปกเดียว สรุปผลทุกวิชาของห้อง</small></span><i class="bi bi-check-circle-fill pp5sc-check"></i></label>
-  <label class="pp5sc-mode"><input type="radio" name="pp5CoverMode" value="subject">
-    <span class="pp5sc-ico"><i class="bi bi-journals"></i></span>
-    <span><b>แบบบันทึกผลการเรียนประจำรายวิชา</b><small>หน้าละวิชา มีผลการเรียน คุณลักษณะ และช่องลงนาม</small></span><i class="bi bi-check-circle-fill pp5sc-check"></i></label>
-</div>`;
-    // ช่องเลือกรายวิชา + ครูผู้สอน อยู่ใต้ชั้น/ห้อง เหนือปุ่มสร้าง (ต้องเลือกห้องก่อน)
-    const subjectRow = doc.createElement('div');
-    subjectRow.id = 'pp5CoverSubjectBox';
-    subjectRow.className = 'pp5sc';
-    subjectRow.hidden = true;
-    subjectRow.innerHTML = `
-  <div class="pp5sc-subject">
-    <label for="pp5CoverSubject" class="pp5sc-label"><i class="bi bi-book"></i>รายวิชาที่จะพิมพ์</label>
-    <select id="pp5CoverSubject" class="form-select"><option value="all">ทุกวิชาในห้องนี้ (หน้าละวิชา)</option></select>
-  </div>
-  <div id="pp5CoverTeachers"></div>`;
+    const book = page === 'pp5_subject_book';
+    frame.dataset.pp5SubjectMounted = page;
+
     // ปพ.5 ไม่ใช้กับอนุบาล (owner 2026-10-14 "ตัวกรองก็ยังมี อนุบาล"): ซ่อน อ.1–อ.3 จากตัวเลือกชั้นของหน้านี้เท่านั้น
     // (หน้าเติมรายการชั้นภายหลังจาก getAvailableGrades ซึ่งหน้าอื่นใช้ร่วม จึงกรองที่นี่ ไม่แก้ที่ต้นทาง)
     const dropKindergarten = () => {
@@ -115,8 +90,6 @@
     };
     dropKindergarten();
     if (typeof global.MutationObserver === 'function') new global.MutationObserver(dropKindergarten).observe(gradeSelect, { childList: true });
-    // รูปแบบปกอยู่ใต้แถบรูปของหน้า (owner 2026-10-14 "นำไปไว้ใต้แถบรูปครับ"): แถบรูปวางก่อนหัวเรื่องเดิม (h4 ที่ถูกซ่อน)
-    // จึงวางการ์ดรูปแบบต่อจากหัวเรื่องนั้น — ไม่มีหัวเรื่องก็วางเหนือปุ่มสร้างเหมือนเดิม
     // ชั้นกับห้องอยู่แถวเดียวกัน (owner 2026-10-14 "ชั้นกับห้องควรอยู่แถวเดียวกัน"): ย้ายกล่องเดิมทั้งกล่อง (ป้าย+ช่อง)
     // เข้าแถวเดียว ช่องเลือกเป็นตัวเดิม การทำงานของหน้าไม่เปลี่ยน
     const gradeField = gradeSelect.closest('.mb-3');
@@ -127,15 +100,36 @@
       gradeField.before(pair);
       pair.append(gradeField, classField);
     }
-    const buttonRow = exportBtn.closest('.d-grid');
-    const title = [...frame.querySelectorAll('h4')].find((h) => h.textContent.includes('(ปพ.5)'));
-    if (title) title.after(box); else if (buttonRow) buttonRow.before(box); else exportBtn.before(box);
-    if (buttonRow) buttonRow.before(subjectRow); else exportBtn.before(subjectRow);
-    const subjectSelect = subjectRow.querySelector('#pp5CoverSubject');
-    const originalLabel = exportBtn.innerHTML;
-    const mode = () => box.querySelector('input[name="pp5CoverMode"]:checked')?.value || 'class';
+    // แยกเมนู (owner 2026-10-14 "ป้องกันความสับสน ... ควรแยก"): หน้า "ปก ปพ.5" (pp5_cover_page) = แบบรวมชั้นอย่างเดียว
+    // หน้า "ปพ.5 แบบรายวิชา" (pp5_subject_book) ใช้แม่แบบเดียวกันแต่เป็นแบบรายวิชาเสมอ + เลือกส่วนของเล่มได้
+    if (!book) return;
 
-    const teacherBox = subjectRow.querySelector('#pp5CoverTeachers');
+    const box = doc.createElement('div');
+    box.id = 'pp5SubjectBook';
+    box.className = 'pp5sc';
+    box.innerHTML = `
+  <div class="pp5sc-subject">
+    <label for="pp5CoverSubject" class="pp5sc-label"><i class="bi bi-book"></i>รายวิชาที่จะพิมพ์</label>
+    <select id="pp5CoverSubject" class="form-select"><option value="all">ทุกวิชาในห้องนี้ (วิชาละเล่ม ต่อกัน)</option></select>
+  </div>
+  <div class="pp5sc-label mt-3"><i class="bi bi-journal-check"></i>ส่วนที่จะพิมพ์ในเล่ม</div>
+  <div class="pp5sc-parts">
+    <label class="pp5sc-part"><input type="checkbox" data-part="cover" checked><span><b>ปก + เวลาเรียน</b><small>แบบบันทึกผลการเรียนประจำรายวิชา · สรุปเวลาเรียนรายคน</small></span></label>
+    <label class="pp5sc-part"><input type="checkbox" data-part="monthly" checked><span><b>บันทึกเวลาเรียนรายเดือน</b><small>หน้าละเดือน ✓ ล ข ตามวันที่สอน (ต้องเลือกปก + เวลาเรียน)</small></span></label>
+    <label class="pp5sc-part"><input type="checkbox" data-part="scores" checked><span><b>บันทึกคะแนนรายครั้ง</b><small>ภาคละหน้า คะแนนครั้งที่ 1–9 ระหว่างภาค ปลายภาค เกรด + สรุปทั้งปี</small></span></label>
+    <label class="pp5sc-part"><input type="checkbox" data-part="rtw" checked><span><b>อ่าน คิดวิเคราะห์ และเขียน</b><small>ผลรายคนของกลุ่มสาระวิชานี้</small></span></label>
+    <label class="pp5sc-part"><input type="checkbox" data-part="character" checked><span><b>คุณลักษณะอันพึงประสงค์</b><small>8 ข้อ รายคน + สรุปผล</small></span></label>
+  </div>
+  <div id="pp5CoverTeachers"></div>`;
+    const buttonRow = exportBtn.closest('.d-grid');
+    if (buttonRow) buttonRow.before(box); else exportBtn.before(box);
+    const subjectSelect = box.querySelector('#pp5CoverSubject');
+    const teacherBox = box.querySelector('#pp5CoverTeachers');
+    const partBox = (name) => box.querySelector(`[data-part="${name}"]`);
+    const syncMonthly = () => { partBox('monthly').disabled = !partBox('cover').checked; };
+    partBox('cover').addEventListener('change', syncMonthly);
+    const bookLabel = '<i class="bi bi-file-earmark-pdf me-2"></i>สร้าง PDF ปพ.5 แบบรายวิชา';
+    exportBtn.innerHTML = bookLabel;
     let loadToken = 0;
 
     // ครูผู้สอนแยกตามห้อง (owner 2026-10-14 "เลือกแยกได้"): ค่าเริ่มต้นคือครูผู้สอนในหน้ารายวิชา  เลือกจากรายชื่อครู
@@ -177,7 +171,7 @@
       const grade = gradeSelect.value;
       const room = classSelect.value;
       const token = ++loadToken;
-      subjectSelect.innerHTML = '<option value="all">ทุกวิชาในห้องนี้ (หน้าละวิชา)</option>';
+      subjectSelect.innerHTML = '<option value="all">ทุกวิชาในห้องนี้ (วิชาละเล่ม ต่อกัน)</option>';
       teacherBox.innerHTML = '';
       if (!grade || !global.GasServer?.getPp5CoverSubjects) return;
       try {
@@ -211,19 +205,13 @@
     });
     teacherBox.addEventListener('input', updateTeacherSummary);
     subjectSelect.addEventListener('change', updateTeacherSummary);
-    const applyMode = () => {
-      const subject = mode() === 'subject';
-      subjectRow.hidden = !subject;
-      exportBtn.innerHTML = subject ? '<i class="bi bi-file-earmark-pdf me-2"></i>สร้าง PDF แบบรายวิชา' : originalLabel;
-      if (subject) loadSubjects();
-    };
-    box.querySelectorAll('input[name="pp5CoverMode"]').forEach((radio) => radio.addEventListener('change', applyMode));
-    gradeSelect.addEventListener('change', () => { if (mode() === 'subject') loadSubjects(); });
-    classSelect.addEventListener('change', () => { if (mode() === 'subject') loadSubjects(); });
+    gradeSelect.addEventListener('change', loadSubjects);
+    classSelect.addEventListener('change', loadSubjects);
+    loadSubjects();
 
-    // แบบรายวิชา: รับการกดปุ่มก่อนตัวจัดการเดิมของหน้า (capture ที่การ์ดซึ่งอยู่เหนือปุ่ม)
+    // รับการกดปุ่มก่อนตัวจัดการเดิมของแม่แบบ (capture ที่การ์ดซึ่งอยู่เหนือปุ่ม) — แม่แบบเดิมสร้างปกรวมชั้น
     card.addEventListener('click', async (event) => {
-      if (mode() !== 'subject' || !event.target.closest('#exportBtn')) return;
+      if (!event.target.closest('#exportBtn')) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       event.stopPropagation();
@@ -237,10 +225,12 @@
         if (status) status.innerHTML = `<div class="status-${type || 'processing'}${type ? '' : ' pulse'}">${html}</div>`;
       };
       if (!gradeSelect.value || !classSelect.value) { say('<i class="bi bi-exclamation-triangle me-1"></i>กรุณาเลือกระดับชั้นและห้องก่อน', 'warning'); return; }
+      const parts = { cover: partBox('cover').checked, scores: partBox('scores').checked, rtw: partBox('rtw').checked, character: partBox('character').checked };
+      if (!Object.values(parts).some(Boolean)) { say('<i class="bi bi-exclamation-triangle me-1"></i>เลือกอย่างน้อย 1 ส่วนที่จะพิมพ์', 'warning'); return; }
       if (exportBtn.dataset.busy === '1') return;
       const all = (subjectSelect.value || 'all') === 'all';
       const what = all ? `ทุกวิชา (${Math.max(0, subjectSelect.options.length - 1)} วิชา)` : subjectSelect.options[subjectSelect.selectedIndex]?.textContent || '';
-      const message = `กำลังสร้าง PDF แบบรายวิชา ${what} ห้อง ${gradeSelect.value}/${classSelect.value} กรุณารอสักครู่…`;
+      const message = `กำลังสร้าง PDF ปพ.5 แบบรายวิชา ${what} ห้อง ${gradeSelect.value}/${classSelect.value} กรุณารอสักครู่…`;
       exportBtn.dataset.busy = '1';
       exportBtn.disabled = true;
       exportBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>กำลังสร้าง…';
@@ -248,7 +238,8 @@
       if (overlay) overlay.style.display = 'flex';
       say(`<i class="bi bi-hourglass-split me-1"></i>${esc(message)}`);
       try {
-        const url = await global.GasServer.exportPp5SubjectCoverPDF(gradeSelect.value, classSelect.value, subjectSelect.value || 'all', teacherOverrides());
+        const url = await global.GasServer.exportPp5SubjectBookPDF(gradeSelect.value, classSelect.value, subjectSelect.value || 'all', teacherOverrides(),
+          { parts, monthly: partBox('monthly').checked });
         if (!url) throw new Error('ไม่ได้รับไฟล์ PDF');
         say(`<i class="bi bi-check-circle-fill me-1"></i>สร้าง PDF สำเร็จ · <a href="${esc(url)}" target="_blank" class="text-success fw-bold">คลิกเพื่อเปิดไฟล์ PDF</a>`, 'success');
         global.open(url, '_blank');
@@ -257,17 +248,30 @@
       } finally {
         delete exportBtn.dataset.busy;
         exportBtn.disabled = false;
-        exportBtn.innerHTML = mode() === 'subject' ? '<i class="bi bi-file-earmark-pdf me-2"></i>สร้าง PDF แบบรายวิชา' : originalLabel;
+        exportBtn.innerHTML = bookLabel;
         if (overlay) overlay.style.display = 'none';
         if (overlayText && overlayOriginal) overlayText.textContent = overlayOriginal;
       }
     }, true);
   }
 
+  const currentPage = () => text(global.AppNavigation?.currentPage || doc.body?.getAttribute('data-current-page'));
   function apply() {
     const frame = doc.getElementById('contentFrame');
-    if (!frame || frame.querySelector('#pp5CoverMode') || !isCoverPage(frame)) return;
-    mount(frame);
+    if (!frame || !isCoverPage(frame)) return;
+    const page = currentPage() === 'pp5_subject_book' ? 'pp5_subject_book' : 'pp5_cover_page';
+    if (frame.dataset.pp5SubjectMounted === page && frame.querySelector('.pp5sc-pair')) return;
+    mount(frame, page);
+  }
+
+  // หน้า "ปพ.5 แบบรายวิชา" ใช้แม่แบบหน้าปก (ช่องชั้น/ห้อง ม่านโหลด สถานะ) + แถบรูปของตัวเอง
+  global.GAS_PAGES = global.GAS_PAGES || {};
+  if (global.GAS_PAGES.pp5_cover_page && !global.GAS_PAGES.pp5_subject_book) global.GAS_PAGES.pp5_subject_book = global.GAS_PAGES.pp5_cover_page;
+  if (global.PP5PageBanner?.PAGES && !global.PP5PageBanner.PAGES.pp5_subject_book) {
+    global.PP5PageBanner.PAGES.pp5_subject_book = {
+      icon: 'bi-journals', title: 'ปพ.5 แบบรายวิชา',
+      sub: 'ปก + เวลาเรียน · บันทึกคะแนนรายครั้ง · อ่านคิดเขียน · คุณลักษณะ — วิชาละเล่ม', hide: '.card.p-4 > h4.text-primary'
+    };
   }
   function watch() {
     const frame = doc.getElementById('contentFrame');

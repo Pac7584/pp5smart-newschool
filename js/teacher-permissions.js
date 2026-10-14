@@ -12,11 +12,12 @@
   const PUBLIC_AUTH_METHODS = new Set(['requestPasswordReset','clearLoginSession','getDeploymentUrl','getLoginPageHtml','getGlobalSettings']);
   // club_management: club advisors teach across rooms (ระบบชุมนุม 2026-10-14) — writes still go through pp5_club_set_member
   const COMMON = new Set(['home_hub','dashboard','change_password','academic_calendar','club_management']);
-  const SUBJECT = new Set(['create_score_sheet','score_table_viewer','subject_score_viewer','exam_analysis']);
+  // subject_attendance / pp5_subject_book: เช็คชื่อรายวิชา (รายชั่วโมง) และ ปพ.5 แบบรายวิชา ของครูผู้สอน — สิทธิ์เขียนจริงตรวจที่ pp5_save_subject_attendance (SQL 031)
+  const SUBJECT = new Set(['create_score_sheet','score_table_viewer','subject_score_viewer','exam_analysis','subject_attendance','pp5_subject_book']);
   const HOMEROOM = new Set(['studentList','export_pdf_page','behavior_records','student_growth_entry','student_growth_report',
     'attendance_daily','attendance_monthly','attendance_table','semester_attendance_summary','student_scores_summary',
     'read_think_write_form','rtw5_assessment','characteristic_assessment','activity_assessment','competency_assessment',
-    'teacher_comment_form_backup','report_card_generator','report_card_scores','one_page_report','pp5_full_book','schoolmis_sync']);
+    'teacher_comment_form_backup','report_card_generator','report_card_scores','one_page_report','pp5_full_book','pp5_cover_page','schoolmis_sync']);
   const PARENT = new Set(['parent_portal','change_password']);
   const ADMIN_METHODS = /^(?:getAllUsers|addUser|updateUser|deleteUser|createUser|saveTeacher|saveSingleTeacher|getTeacherListForEditor|saveSystem|setGlobal|saveGlobal|setLogo|uploadLogo|saveSchoolSignatures|markPp5Reviewed|approvePp5Class|returnPp5ForCorrection|.*Transition|.*Rollback|importStudent|.*Dmc|.*DMC|.*ProjectAsZip|.*SchoolSar|.*SarAnalytics|.*Warehouse)/;
   const HOMEROOM_METHODS = /(?:Pp6|ReportCard|OnePage|StudentReport|StudentFullData|ParentInfo|Growth|Competency|Characteristic|Assessment|ReadThink|Pp5Full|Pp5Cover|Comment|Attendance|Behavior)/i;

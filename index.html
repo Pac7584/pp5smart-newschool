@@ -66,6 +66,7 @@
   <link rel="stylesheet" href="css/homeroom-roadmap.css?v=2">
   <!-- ระบบปุ่มใหม่ + แท็บด้านบน (owner 2026-10-14) ต้องอยู่หลังสไตล์อื่นทั้งหมด -->
   <link rel="stylesheet" href="css/button-system.css?v=1">
+  <link rel="stylesheet" href="css/menu-flyout.css?v=1">
   <link rel="stylesheet" href="css/login-split.css?v=7">
   <link rel="stylesheet" href="css/auth-pages.css?v=5">
 
@@ -233,6 +234,7 @@
     <ul class="menu-group" aria-label="เวลาเรียน">
       <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout"><i class="bi bi-calendar-check me-2"></i>เวลาเรียน<span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
       <li class="nav-item teacher-only" data-page="attendance_daily"><a href="#" class="nav-link" data-page="attendance_daily"><i class="bi bi-calendar-check"></i> เช็คชื่อรายวัน</a></li>
+      <li class="nav-item teacher-only" data-page="subject_attendance"><a href="#" class="nav-link" data-page="subject_attendance"><i class="bi bi-clock-history"></i> เช็คชื่อรายวิชา (รายชั่วโมง)</a></li>
       <li class="nav-item teacher-only" data-page="attendance_monthly"><a href="#" class="nav-link" data-page="attendance_monthly"><i class="bi bi-calendar3"></i> เช็คชื่อรายเดือน</a></li>
       <li class="nav-item teacher-only" data-page="attendance_table"><a href="#" class="nav-link" data-page="attendance_table"><i class="bi bi-calendar-range"></i> รายงานเวลาเรียนรายเดือน</a></li>
       <li class="nav-item teacher-only" data-page="semester_attendance_summary"><a href="#" class="nav-link" data-page="semester_attendance_summary"><i class="bi bi-calendar2-week-fill"></i> สรุปเวลาเรียนรายภาค</a></li>
@@ -332,16 +334,16 @@
           <span>ศูนย์ส่งออกรายงาน</span>
         </a>
       </li>
-      <li class="nav-item" data-page="pp5_cover_page">
-        <a href="#" class="nav-link" data-page="pp5_cover_page">
-          <i class="bi bi-journal-album"></i>
-          <span>พิมพ์ปก ปพ.5</span>
-        </a>
-      </li>
       <li class="nav-item" data-page="pp5_full_book">
         <a href="#" class="nav-link" data-page="pp5_full_book">
           <i class="bi bi-journal-bookmark-fill"></i>
-          <span>พิมพ์ ปพ.5 รวมเล่ม</span>
+          <span>ปพ.5 แบบประจำชั้น</span>
+        </a>
+      </li>
+      <li class="nav-item" data-page="pp5_subject_book">
+        <a href="#" class="nav-link" data-page="pp5_subject_book">
+          <i class="bi bi-journals"></i>
+          <span>ปพ.5 แบบรายวิชา</span>
         </a>
       </li>
       <li class="nav-item teacher-only" data-page="pp5_readiness">
@@ -439,7 +441,7 @@
   <!-- Direct PDF exporter with bundled Sarabun fonts -->
   <script src="vendor/jspdf.umd.min.js"></script>
   <script src="vendor/jspdf.plugin.autotable.min.js"></script>
-  <script src="js/pdf-export.js?v=46"></script>
+  <script src="js/pdf-export.js?v=49"></script>
   <script src="js/growth-nutrition.js?v=1"></script>
 
   <!-- ============ MAIN APP SCRIPT ============ -->
@@ -459,7 +461,7 @@
 <script src="js/dmc-import.js?v=1"></script>
 
 <!-- GAS Bridge (Maps google.script.run to Supabase) -->
-  <script src="js/gas-bridge.js?v=160"></script>
+  <script src="js/gas-bridge.js?v=164"></script>
   <script src="js/growth-export.js?v=5"></script>
 
 <!-- สำรองข้อมูล / เปิดไฟล์สำรอง / เตือนก่อนงานเสี่ยง (ต้องโหลดหลัง gas-bridge) -->
@@ -487,7 +489,7 @@
   <!-- หน้าตาโรงเรียน: ธีมสี + แบนเนอร์หน้าหลัก + แท็บตั้งค่า (หลัง supabaseClient, ก่อน spa-main) -->
   <script src="js/school-branding.js?v=4"></script>
   <!-- แถบหัวหน้าแบบแบนเนอร์หน้าหลัก (ใช้ PP5SchoolBranding จึงต้องโหลดหลัง school-branding) -->
-  <script src="js/page-banner.js?v=8"></script>
+  <script src="js/page-banner.js?v=10"></script>
   <!-- ธีมสีส่วนตัว: ปุ่มจานสีที่หัวเว็บ (ใช้ PP5SchoolBranding จึงโหลดหลัง school-branding) -->
   <script src="js/user-theme.js?v=1"></script>
   <!-- หน้ากรอกคะแนนบนมือถือ: กรอกทีละครั้ง -->
@@ -498,14 +500,18 @@
   <script src="js/student-list-autoload.js?v=1"></script>
   <!-- วิชารายภาค (ม.ต้น): หน้าบันทึกคะแนนเปิดเฉพาะแท็บภาคของวิชา -->
   <script src="js/semester-subjects.js?v=1"></script>
-  <script src="js/teacher-permissions.js?v=10"></script>
+  <script src="js/teacher-permissions.js?v=13"></script>
   <script src="js/install-guide.js?v=8"></script>
   <script src="js/button-system.js?v=2"></script>
   <script src="js/login-layout.js?v=5"></script>
   <script src="js/logo-manager.js?v=1"></script>
   <script src="js/self-register.js?v=1"></script>
   <script src="js/clubs.js?v=7"></script>
-  <script src="js/pp5-subject-cover.js?v=7"></script>
+  <script src="js/pp5-subject-cover.js?v=9"></script>
+  <script src="js/subject-attendance.js?v=1"></script>
+  <script src="js/pp5-format.js?v=6"></script>
+  <script src="js/menu-flyout.js?v=1"></script>
+  <script src="js/settings-layout.js?v=2"></script>
   <script src="js/spa-main.js?v=147"></script>
   <script src="js/exam-import.js?v=3"></script>
 
