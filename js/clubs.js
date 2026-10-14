@@ -165,7 +165,8 @@ ${state.isAdmin ? `<form class="pp5-club-form" data-form>
       });
     }
 
-    // ครูที่ปรึกษา: เลือกจากครูประจำชั้น / ครูประจำวิชา / รายชื่อครู / บัญชีครู (owner 2026-10-14) ยังพิมพ์ชื่อเองได้ (วิทยากร)
+    // ครูที่ปรึกษา: เลือกจากรายชื่อครูของโรงเรียน = ครูประจำชั้น / ครูประจำวิชา / รายชื่อครู (owner 2026-10-14)
+    // ไม่ใช้ชื่อบัญชีผู้ใช้ในระบบ (owner: "เอามาจากรายชื่อครู ไม่ต้องเอามาจากรายชื่อในระบบ") · ยังพิมพ์ชื่อเองได้ (วิทยากร)
     async function fillTeacherChoices(list) {
       if (!list) return;
       const names = new Map(); // ชื่อ -> ที่มา
@@ -178,16 +179,14 @@ ${state.isAdmin ? `<form class="pp5-club-form" data-form>
         const { data, error } = await query;
         return error ? [] : (data || []);
       };
-      const [homeroom, subjects, teachers, profiles] = await Promise.all([
+      const [homeroom, subjects, teachers] = await Promise.all([
         read('teacher_assignments', 'teacher_name,teacher_name_2,grade,room', (q) => q.eq('academic_year', state.year)),
         read('subjects', 'teacher_name,name,grade'),
-        read('teachers', 'name'),
-        read('user_profiles', 'display_name,role,active', (q) => q.in('role', ['teacher', 'admin']))
+        read('teachers', 'name')
       ]);
       homeroom.forEach((r) => { add(r.teacher_name, `ครูประจำชั้น ${r.grade}/${r.room}`); add(r.teacher_name_2, `ครูประจำชั้น ${r.grade}/${r.room}`); });
       subjects.forEach((r) => add(r.teacher_name, `ครูประจำวิชา ${r.name}`));
       teachers.forEach((r) => add(r.name, 'รายชื่อครู'));
-      profiles.filter((r) => r.active !== false).forEach((r) => add(r.display_name, 'บัญชีครูในระบบ'));
       list.innerHTML = [...names.entries()].sort((a, b) => a[0].localeCompare(b[0], 'th'))
         .map(([name, from]) => `<option value="${esc(name)}">${esc(from)}</option>`).join('');
     }
