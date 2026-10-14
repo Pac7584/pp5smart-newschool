@@ -85,6 +85,14 @@
       state.year = String(settings.academicYear || settings.academic_year || '');
       state.semester = Number(settings.semester) || 1;
       state.window = settings.settings_json?.club_registration || {};
+      // หัวกระดาษเอกสารทางการ (โลโก้ ชื่อโรงเรียน สังกัด ผู้บริหาร)
+      state.school = {
+        name: settings.school_name || settings.schoolName || '',
+        logo: String(settings.logo_base64 || '').trim(),
+        affiliation: settings.affiliation || '',
+        director: settings.director_name || settings.directorName || '',
+        directorPosition: settings.director_position || ''
+      };
     } catch (error) { say(error.message || String(error), 'err'); return; }
     $('[data-term]').textContent = `ภาคเรียนที่ ${state.semester}/${state.year}`;
 
@@ -116,6 +124,7 @@
   </div></td></tr>`;
       }).join('');
       body.innerHTML = `
+${state.clubs.length ? '<div class="pp5-club-row-actions" style="margin-bottom:6px"><button type="button" class="btn btn-sm" data-print-all><i class="bi bi-printer"></i> พิมพ์ทุกชุมนุม (หน้าละชุมนุม)</button></div>' : ''}
 <table><thead><tr><th>ชุมนุม</th><th class="pp5-club-hide-sm">ครูที่ปรึกษา</th><th class="num">รับ</th><th class="num">สมัครแล้ว</th><th></th></tr></thead>
 <tbody>${rows || '<tr><td colspan="5" class="pp5-club-hint">ยังไม่มีชุมนุมในภาคเรียนนี้</td></tr>'}</tbody></table>
 ${state.isAdmin ? `<form class="pp5-club-form" data-form>
@@ -127,6 +136,9 @@ ${state.isAdmin ? `<form class="pp5-club-form" data-form>
   <div class="wide pp5-club-row-actions" style="justify-content:flex-start"><button type="submit" class="btn" data-save>เพิ่มชุมนุม</button><button type="button" class="btn" data-cancel hidden>ยกเลิกแก้ไข</button></div>
 </form>` : '<div class="pp5-club-hint" style="margin-top:10px">เพิ่ม/แก้ไขชุมนุมได้เฉพาะผู้ดูแลระบบ</div>'}`;
 
+      body.querySelector('[data-print-all]')?.addEventListener('click', () => {
+        printClubs(state.clubs.map((club) => ({ club, list: state.members.filter((m) => m.club_id === club.id) })));
+      });
       body.querySelectorAll('tr[data-id]').forEach((tr) => {
         const club = state.clubs.find((c) => c.id === tr.dataset.id);
         tr.querySelector('[data-members]').addEventListener('click', () => toggleMembers(tr, club));
@@ -218,17 +230,65 @@ ${state.isAdmin ? `<form class="pp5-club-form" data-form>
       }));
     }
 
-    function printList(club, list) {
+    // เรียงสมาชิก: ชั้น > ห้อง > เลขที่
+    const sortMembers = (list) => [...list].sort((a, b) => {
+      const key = (m) => `${m.students?.grade || ''}|${String(m.students?.room || '').padStart(3, '0')}|${String(m.students?.student_number ?? '').padStart(4, '0')}`;
+      return key(a).localeCompare(key(b), 'th');
+    });
+
+    // เอกสารทางการ (owner 2026-10-14: "ควรออกแบบเอกสารที่เป็นทางการ ที่มีโลโก้ ชื่อโรงเรียน หัวข้อชุมนุมแต่ละชุมนุม
+    // มีลำดับชื่อ ครูประจำชุมนุม") A4 หนึ่งหน้าต่อชุมนุม · ช่องลงนามครูที่ปรึกษาชุมนุมและผู้อำนวยการ
+    function clubSheet(club, list) {
+      const sc = state.school || {};
+      const rows = sortMembers(list).map((m, i) => `<tr><td class="c">${i + 1}</td><td class="c">${esc(m.student_id)}</td>
+<td>${esc(nameOf(m.students))}</td><td class="c">${esc(m.students?.grade)}/${esc(m.students?.room)}</td><td></td></tr>`).join('');
+      const advisor = String(club.advisor || '').trim();
+      return `<section class="sheet">
+<header>${sc.logo ? `<img class="logo" src="${esc(sc.logo)}" alt="">` : ''}
+  <div class="school">${esc(sc.name)}</div>${sc.affiliation ? `<div class="aff">${esc(sc.affiliation)}</div>` : ''}</header>
+<h1>รายชื่อนักเรียนชุมนุม${/^[A-Za-z0-9]/.test(club.name) ? ' ' : ''}${esc(club.name)}</h1>
+<div class="term">ภาคเรียนที่ ${state.semester} ปีการศึกษา ${esc(state.year)}</div>
+<div class="advisor">ครูที่ปรึกษาชุมนุม ${esc(advisor || '................................................')}</div>
+<table><thead><tr><th class="c w1">ที่</th><th class="c w2">เลขประจำตัว</th><th>ชื่อ - นามสกุล</th><th class="c w3">ชั้น</th><th class="c w4">หมายเหตุ</th></tr></thead>
+<tbody>${rows || '<tr><td colspan="5" class="c">ยังไม่มีสมาชิก</td></tr>'}</tbody></table>
+<div class="total">รวมทั้งสิ้น ${list.length} คน (รับ ${club.capacity} คน)</div>
+<div class="signs">
+  <div class="sign">ลงชื่อ.................................................<br>(${esc(advisor || '................................................')})<br>ครูที่ปรึกษาชุมนุม</div>
+  <div class="sign">ลงชื่อ.................................................<br>(${esc(sc.director || '................................................')})<br>${esc(sc.directorPosition || `ผู้อำนวยการ${sc.name || 'โรงเรียน'}`)}</div>
+</div></section>`;
+    }
+
+    function printClubs(items) {
       const win = global.open('', '_blank');
       if (!win) return say('เบราว์เซอร์บล็อกหน้าต่างพิมพ์ กรุณาอนุญาตป๊อปอัป', 'err');
-      win.document.write(`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>รายชื่อชุมนุม ${esc(club.name)}</title>
-<style>body{font-family:'Sarabun',sans-serif;padding:24px}h2{margin:0}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #999;padding:6px 8px}th{background:#eee}.c{text-align:center}</style></head><body>
-<h2>รายชื่อสมาชิกชุมนุม ${esc(club.name)}</h2><div>ภาคเรียนที่ ${state.semester}/${esc(state.year)} · ครูที่ปรึกษา ${esc(club.advisor || '-')} · ${list.length} คน</div>
-<table><thead><tr><th class="c">ที่</th><th>ชื่อ-นามสกุล</th><th class="c">ชั้น</th><th class="c">ลงชื่อ</th></tr></thead><tbody>
-${list.map((m, i) => `<tr><td class="c">${i + 1}</td><td>${esc(nameOf(m.students))}</td><td class="c">${esc(m.students?.grade)}/${esc(m.students?.room)}</td><td></td></tr>`).join('')}
-</tbody></table><script>window.onload=function(){window.print();}<\/script></body></html>`);
+      const title = items.length === 1 ? `รายชื่อนักเรียนชุมนุม${items[0].club.name}` : `รายชื่อนักเรียนชุมนุม ภาคเรียนที่ ${state.semester}/${state.year}`;
+      const endScript = '<' + '/script>';
+      win.document.write(`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>${esc(title)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+@page{size:A4;margin:14mm 16mm}
+*{box-sizing:border-box}body{margin:0;font-family:'Sarabun',sans-serif;font-size:15px;color:#111}
+.sheet{page-break-after:always;break-after:page;padding:0}
+.sheet:last-child{page-break-after:auto;break-after:auto}
+header{text-align:center;margin-bottom:6px}
+.logo{height:78px;max-width:180px;object-fit:contain;display:block;margin:0 auto 4px}
+.school{font-size:19px;font-weight:700}.aff{font-size:14px}
+h1{font-size:18px;text-align:center;margin:10px 0 2px}
+.term,.advisor{text-align:center;font-size:15px}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{border:1px solid #333;padding:4px 7px;line-height:1.35}
+th{background:#f1f1f1;font-weight:700}
+.c{text-align:center}.w1{width:7%}.w2{width:16%}.w3{width:11%}.w4{width:18%}
+.total{margin-top:6px;font-weight:600}
+.signs{display:flex;justify-content:space-around;gap:24px;margin-top:34px;text-align:center;line-height:1.9}
+.sign{min-width:40%}
+@media screen{body{background:#e5e7eb;padding:16px}.sheet{background:#fff;width:210mm;max-width:100%;min-height:297mm;margin:0 auto 16px;padding:14mm 16mm;box-shadow:0 2px 10px rgba(0,0,0,.15)}}
+</style></head><body>
+${items.map(({ club, list }) => clubSheet(club, list)).join('')}
+<script>(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(function(){setTimeout(function(){window.print();},300);});${endScript}</body></html>`);
       win.document.close();
     }
+    const printList = (club, list) => printClubs([{ club, list }]);
 
     // ลงให้นักเรียน: เลือกให้ครบทั้งห้องก่อน แล้วกด "บันทึกทั้งหมด" ครั้งเดียว (owner 2026-10-14: "ลงครบแล้วค่อยบันทึกจะเร็วกว่า")
     // ตัวเลข (n/รับ) ในรายการคิดรวมรายการที่ยังไม่บันทึกแล้ว ชุมนุมที่จะเต็มจึงเลือกเกินไม่ได้ตั้งแต่ตอนเลือก
