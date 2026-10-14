@@ -65,6 +65,7 @@
         doc.addFont('Sarabun-Bold.ttf', 'Sarabun', 'bold');
         doc.addFont('Sarabun-Bold.ttf', 'Sarabun', 'bolditalic');
         doc.setFont('Sarabun', 'normal');
+        liftThaiToneMarks(doc);
       }
     } catch (error) {
       console.warn('โหลดฟอนต์ Sarabun TTF ไม่สำเร็จ (ใช้ฟอนต์มาตรฐานแทน):', error.message);
@@ -2205,21 +2206,29 @@
     });
     return { base, marks };
   }
+  // ใช้กับทุก PDF ผ่าน installFonts (owner 2026-10-14 "ไล่เลยทีละข้อ": วรรณยุกต์ทับสระใน PDF อื่นด้วย) — เรียกซ้ำไม่ซ้อน
+  // ข้อความที่ส่ง maxWidth มา (ตัดบรรทัดตามความกว้าง) ตัดบรรทัดเองก่อนแล้ววาดทีละบรรทัด ยกเว้นจัดเต็มแนว (justify) และ
+  // ข้อความเอียง (angle เช่น ลายน้ำ) ซึ่งส่งต่อให้ jsPDF ตามเดิม
   function liftThaiToneMarks(doc) {
+    if (!doc || doc.__pp5LiftedThai) return doc;
+    doc.__pp5LiftedThai = true;
     const original = doc.text.bind(doc);
     doc.text = function liftedText(value, x, y, options, ...rest) {
-      const lines = Array.isArray(value) ? value.map((v) => String(v ?? '')) : [String(value ?? '')];
       const opts = options && typeof options === 'object' ? options : {};
-      if (typeof x !== 'number' || typeof y !== 'number' || opts.angle || opts.maxWidth
+      let lines = Array.isArray(value) ? value.map((v) => String(v ?? '')) : [String(value ?? '')];
+      if (typeof x !== 'number' || typeof y !== 'number' || opts.angle || opts.align === 'justify'
         || !lines.some((line) => splitLiftedThaiMarks(line).marks.length)) {
         return original(value, x, y, options, ...rest);
       }
+      if (opts.maxWidth) lines = lines.flatMap((line) => doc.splitTextToSize(line, opts.maxWidth));
       const scale = doc.internal.scaleFactor;
       const fontSize = doc.getFontSize();
-      const lineHeight = (fontSize * (doc.getLineHeightFactor ? doc.getLineHeightFactor() : 1.15)) / scale;
+      const factor = Number(opts.lineHeightFactor) || (doc.getLineHeightFactor ? doc.getLineHeightFactor() : 1.15);
+      const lineHeight = (fontSize * factor) / scale;
       const rise = (fontSize / scale) * 0.24;
       const align = opts.align === 'center' || opts.align === 'right' ? opts.align : 'left';
       const plain = { ...opts, align: 'left' };
+      delete plain.maxWidth;
       lines.forEach((line, row) => {
         const { base, marks } = splitLiftedThaiMarks(line);
         const width = doc.getTextWidth(base);
@@ -2681,7 +2690,6 @@
     const jsPDF = getJsPdf();
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true, putOnlyUsedFonts: true });
     await installFonts(doc);
-    liftThaiToneMarks(doc);
     const meta = officialMeta(options || {});
     const logo = await loadOfficialLogo(meta.logo);
     const sheets = report?.sheets || [];
@@ -3645,7 +3653,8 @@
           ? String(Math.round(Number(sub.score) * 10) / 10) : '';
         return [
           sub.no !== undefined && sub.no !== '' ? sub.no : (isAct ? '' : (i + 1)),
-          sub.code || '',
+          // กิจกรรมพัฒนาผู้เรียนไม่แสดงรหัสวิชา (owner 2026-10-14: "ใน ปพ.6 ไม่ต้องแสดง รหัสวิชา ประเภทกิจกรรม ปล่อยว่างเลย")
+          isAct ? '' : (sub.code || ''),
           sub.name || '',
           sub.type || '',
           sub.hours !== undefined && sub.hours !== null && sub.hours !== '' ? String(sub.hours) : '',

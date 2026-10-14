@@ -12,6 +12,12 @@
   function decorate(fly) {
     // แต่งแล้ว = มีหัวเมนูที่เราเติม (openFlyout() เขียน innerHTML ใหม่ทุกครั้ง หัวเมนูจึงหายไปเมื่อเปิดหมวดใหม่)
     if (!fly || fly.querySelector(':scope > .pp5-fly-head')) return;
+    // รายการที่ระบบสิทธิ์ซ่อนในเมนูข้าง (teacher-permissions refreshMenu: .nav-item hidden) ต้องไม่โผล่ในเมนูเด้ง —
+    // spa-main openFlyout() คัดลอกทุกรายการ (owner 2026-10-14: ครู rkt1 กดเจอ "ตรวจผลการเรียนผู้ปกครอง" แล้วเปิดไม่ได้)
+    fly.querySelectorAll(':scope > .nav-link[data-page]').forEach((link) => {
+      const source = doc.querySelector(`.sidebar .nav-item[data-page="${link.getAttribute('data-page')}"]`);
+      if (source && (source.hidden || source.style.display === 'none')) link.remove();
+    });
     const links = [...fly.querySelectorAll(':scope > .nav-link')];
     if (!links.length) return;
     fly.classList.add('pp5-fly');
@@ -41,7 +47,26 @@
     });
   }
 
+  // เมนูบนมือถือ (กางลงในแถบข้าง) แต่งแบบเดียวกัน (owner 2026-10-14 ข้อ 4): สีไอคอนรายการ + ลูกศร
+  // CSS ใช้เฉพาะจอแคบ (css/menu-flyout.css) จอคอมยังใช้เมนูเด้งข้างเหมือนเดิม  หน้าที่เปิดอยู่ใช้ .nav-item.active ของ spa-main
+  function decorateSidebar() {
+    doc.querySelectorAll('#sidebar .menu-group, .sidebar .menu-group').forEach((group) => {
+      if (group.dataset.pp5Mobile) return;
+      group.dataset.pp5Mobile = '1';
+      [...group.querySelectorAll('.nav-item > .nav-link')].forEach((link, index) => {
+        link.style.setProperty('--mi', PALETTE[index % PALETTE.length]);
+        if (!link.querySelector('.pp5-fly-arrow')) {
+          const arrow = doc.createElement('i');
+          arrow.className = 'bi bi-chevron-right pp5-fly-arrow';
+          arrow.setAttribute('aria-hidden', 'true');
+          link.appendChild(arrow);
+        }
+      });
+    });
+  }
+
   function watch() {
+    decorateSidebar();
     const fly = doc.getElementById('submenuFlyout');
     if (!fly || fly.__pp5Fly) return;
     fly.__pp5Fly = true;
@@ -53,5 +78,5 @@
   }
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', watch, { once: true });
   else watch();
-  global.PP5MenuFlyout = { decorate, PALETTE, HEAD_NAMES };
+  global.PP5MenuFlyout = { decorate, decorateSidebar, PALETTE, HEAD_NAMES };
 })(window);

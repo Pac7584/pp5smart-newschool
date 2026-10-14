@@ -14,12 +14,6 @@
   const TAB_LABELS = { 'general-tab': ['bi-house-door-fill', 'ข้อมูลทั่วไป'], 'printing-tab': ['bi-printer', 'การพิมพ์และ PDF'], 'signatures-tab': ['bi-pen', 'ลายเซ็นและตราประทับ'] };
 
   const STYLE = `
-body[data-current-page="new_settings_editor"] .pp5-page-banner-wrap .pp5-page-banner{min-height:0;padding:14px 20px;border-radius:18px}
-body[data-current-page="new_settings_editor"] .pp5-page-banner-wrap .pp5-page-banner::before,
-body[data-current-page="new_settings_editor"] .pp5-page-banner-wrap .pp5-page-banner::after{display:none}
-body[data-current-page="new_settings_editor"] .pp5-page-banner-wrap .pp5-pb-icon{width:52px;height:52px;font-size:1.5rem}
-body[data-current-page="new_settings_editor"] .pp5-page-banner-wrap .pp5-pb-title{font-size:1.45rem;margin:0}
-body[data-current-page="new_settings_editor"] .pp5-page-banner-wrap .pp5-pb-sub{font-size:.92rem}
 .pp5set{--s-line:#dfe6f1;--s-card:#fff;--s-text:#1e2a4a;--s-muted:#56627a;--s-accent:var(--primary,#4f46e5);display:grid;gap:14px}
 [data-theme="dark"] .pp5set{--s-line:#2b3446;--s-card:#1b2232;--s-text:#e5e7eb;--s-muted:#a7afbd}
 .pp5set-card{background:var(--s-card);border:1px solid var(--s-line);border-radius:16px;padding:18px 20px;color:var(--s-text)}
