@@ -121,7 +121,7 @@
 ${state.isAdmin ? `<form class="pp5-club-form" data-form>
   <input type="hidden" name="id">
   <label>ชื่อชุมนุม *<input class="form-control" name="name" required maxlength="120" placeholder="เช่น คอมพิวเตอร์"></label>
-  <label>ครูที่ปรึกษา<input class="form-control" name="advisor" maxlength="160" placeholder="เช่น ครูสุมาวดี"></label>
+  <label>ครูที่ปรึกษา<input class="form-control" name="advisor" maxlength="160" list="pp5ClubTeachers" autocomplete="off" placeholder="เลือกจากรายชื่อครู หรือพิมพ์เอง"><datalist id="pp5ClubTeachers"></datalist></label>
   <label>รับ (คน) *<input class="form-control" name="capacity" type="number" min="1" max="500" value="30" required></label>
   <label class="wide">คำอธิบาย (ไม่บังคับ)<input class="form-control" name="description" maxlength="500" placeholder="กิจกรรมที่ทำ / สถานที่"></label>
   <div class="wide pp5-club-row-actions" style="justify-content:flex-start"><button type="submit" class="btn" data-save>เพิ่มชุมนุม</button><button type="button" class="btn" data-cancel hidden>ยกเลิกแก้ไข</button></div>
@@ -147,6 +147,7 @@ ${state.isAdmin ? `<form class="pp5-club-form" data-form>
         });
       });
       const form = body.querySelector('[data-form]');
+      if (form) fillTeacherChoices(form.querySelector('#pp5ClubTeachers'));
       form?.querySelector('[data-cancel]').addEventListener('click', () => renderClubs());
       form?.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -162,6 +163,33 @@ ${state.isAdmin ? `<form class="pp5-club-form" data-form>
         say(form.id.value ? `บันทึก ${row.name} แล้ว` : `เพิ่มชุมนุม ${row.name} แล้ว`, 'ok');
         await refresh();
       });
+    }
+
+    // ครูที่ปรึกษา: เลือกจากครูประจำชั้น / ครูประจำวิชา / รายชื่อครู / บัญชีครู (owner 2026-10-14) ยังพิมพ์ชื่อเองได้ (วิทยากร)
+    async function fillTeacherChoices(list) {
+      if (!list) return;
+      const names = new Map(); // ชื่อ -> ที่มา
+      // ชื่อเรียกบัญชีทั่วไป (เช่น "ผู้ดูแลระบบ") ไม่ใช่ชื่อคน: ไม่ใส่ในรายการ (owner 2026-10-14)
+      const ACCOUNT_LABEL = /^(ผู้ดูแล(ระบบ)?|แอดมิน|admin(istrator)?|ครู|teacher|test|ทดสอบ)$/i;
+      const add = (name, from) => { const n = String(name || '').replace(/\s+/g, ' ').trim(); if (n && !ACCOUNT_LABEL.test(n) && !names.has(n)) names.set(n, from); };
+      const read = async (table, columns, configure) => {
+        let query = client().from(table).select(columns);
+        if (configure) query = configure(query);
+        const { data, error } = await query;
+        return error ? [] : (data || []);
+      };
+      const [homeroom, subjects, teachers, profiles] = await Promise.all([
+        read('teacher_assignments', 'teacher_name,teacher_name_2,grade,room', (q) => q.eq('academic_year', state.year)),
+        read('subjects', 'teacher_name,name,grade'),
+        read('teachers', 'name'),
+        read('user_profiles', 'display_name,role,active', (q) => q.in('role', ['teacher', 'admin']))
+      ]);
+      homeroom.forEach((r) => { add(r.teacher_name, `ครูประจำชั้น ${r.grade}/${r.room}`); add(r.teacher_name_2, `ครูประจำชั้น ${r.grade}/${r.room}`); });
+      subjects.forEach((r) => add(r.teacher_name, `ครูประจำวิชา ${r.name}`));
+      teachers.forEach((r) => add(r.name, 'รายชื่อครู'));
+      profiles.filter((r) => r.active !== false).forEach((r) => add(r.display_name, 'บัญชีครูในระบบ'));
+      list.innerHTML = [...names.entries()].sort((a, b) => a[0].localeCompare(b[0], 'th'))
+        .map(([name, from]) => `<option value="${esc(name)}">${esc(from)}</option>`).join('');
     }
 
     function toggleMembers(tr, club) {
