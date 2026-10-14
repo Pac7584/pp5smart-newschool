@@ -1,0 +1,235 @@
+/* ===== หน้าเข้าสู่ระบบ 2 ฝั่ง (owner 2026-10-14: "มีแถบเดียว อยากได้แบบ 2 ฝั่ง") =====
+   ซ้าย = โลโก้ ชื่อระบบ ชื่อโรงเรียน บนสีธีมโรงเรียน   ขวา = ฟอร์มเข้าสู่ระบบเดิม (ช่อง ปุ่ม การทำงาน ไม่เปลี่ยน)
+   ไม่แตะ HTML ของหน้า (gas-pages login) จัดด้วย grid ล้วน  มือถือ/จอแคบ: การ์ดเดียว มีแถบสีธีมด้านบนแทนฝั่งซ้าย
+   ต้องโหลดหลัง css/spa-main.css */
+
+/* ช่องกรอก: ไอคอนคน / แม่กุญแจ ด้านซ้าย */
+body.pp5-login-page .login-container #username,
+body.pp5-login-page .login-container #password {
+  padding-left: 42px !important;
+  background-repeat: no-repeat !important;
+  background-position: 14px center !important;
+  background-size: 18px 18px !important;
+}
+body.pp5-login-page .login-container #username {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2394a3b8'%3E%3Cpath d='M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m-5 6s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1z'/%3E%3C/svg%3E") !important;
+}
+body.pp5-login-page .login-container #password {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2394a3b8'%3E%3Cpath d='M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2'/%3E%3C/svg%3E") !important;
+}
+
+/* ฝั่งซ้าย / แถบบน: สีธีมโรงเรียน ตัวหนังสือขาว */
+body.pp5-login-page .login-container .header {
+  background:
+    radial-gradient(circle at 85% 12%, rgba(255, 255, 255, .18) 0, transparent 38%),
+    radial-gradient(circle at 10% 95%, rgba(255, 255, 255, .12) 0, transparent 40%),
+    linear-gradient(150deg, var(--primary) 0%, var(--primary-light, var(--primary)) 100%);
+  color: #fff;
+}
+body.pp5-login-page .login-container .header h1 { color: #fff !important; }
+body.pp5-login-page .login-container .header #school-name { color: rgba(255, 255, 255, .92) !important; }
+body.pp5-login-page .login-container .header .logo-placeholder,
+body.pp5-login-page .login-container .header #school-logo.loaded {
+  background: #fff !important;
+  border-radius: 50% !important;
+  padding: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .18) !important;
+  opacity: 1 !important;
+}
+body.pp5-login-page .login-container .header #school-logo.loaded { object-fit: contain; }
+
+/* หัวฝั่งฟอร์ม */
+body.pp5-login-page .login-container::after {
+  content: "ยินดีต้อนรับ";
+  display: block;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #0f172a;
+  text-align: center;
+}
+
+@media (min-width: 900px) {
+  body.pp5-login-page #contentFrame { max-width: 920px !important; }
+  body.pp5-login-page .login-container {
+    max-width: 920px;
+    min-height: 520px;
+    padding: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: 1fr auto auto auto auto auto 1fr;
+    text-align: left;
+  }
+  body.pp5-login-page .login-container::before { display: none; }
+  body.pp5-login-page .login-container > .header {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    margin: 0;
+    padding: 48px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  body.pp5-login-page .login-container .header .logo-placeholder,
+  body.pp5-login-page .login-container .header #school-logo.loaded { width: 132px !important; height: 132px !important; max-height: none !important; margin: 0 auto 22px !important; }
+  body.pp5-login-page .login-container .header h1 { font-size: 1.8rem !important; margin-bottom: 8px !important; }
+  body.pp5-login-page .login-container .header #school-name { font-size: 1.05rem !important; margin: 0 !important; }
+  /* เส้นสั้นใต้ชื่อโรงเรียน */
+  body.pp5-login-page .login-container .header::after {
+    content: "";
+    width: 72px;
+    height: 2px;
+    margin-top: 22px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, .7);
+  }
+  body.pp5-login-page .login-container::after { grid-column: 2; grid-row: 2; padding: 0 48px 18px; }
+  body.pp5-login-page .login-container > #offlineWarn { grid-column: 2; grid-row: 3; margin: 0 48px 10px; }
+  body.pp5-login-page .login-container > #errorBox { grid-column: 2; grid-row: 4; margin: 0 48px 10px; }
+  body.pp5-login-page .login-container > #okBox { grid-column: 2; grid-row: 5; margin: 0 48px 10px; }
+  body.pp5-login-page .login-container > #loginForm { grid-column: 2; grid-row: 6; padding: 0 48px 8px; }
+  body.pp5-login-page .login-container #loginBtn { border-radius: 999px !important; min-height: 48px; }
+}
+
+@media (max-width: 899.98px) {
+  /* การ์ดเดียว: แถบสีธีมเต็มขอบด้านบน (padding ข้างคงที่ 22px เพื่อให้แถบชนขอบพอดี) */
+  body.pp5-login-page .login-container { padding: 0 22px 18px !important; }
+  body.pp5-login-page .login-container::before { display: none; }
+  body.pp5-login-page .login-container > .header { margin: 0 -22px 18px; padding: 24px 20px 20px; }
+  body.pp5-login-page .login-container::after { display: none; }
+}
+
+/* ===== รอบ 2 (owner 2026-10-14: "ให้มีสีสันบ้าง ไม่เรียบเกินไป") =====
+   พื้นไล่สีธีม -> ฟ้าอมเขียว + คลื่นสีขาวโปร่ง (ใช้ได้กับทุกสีธีม)  ฝั่งฟอร์มเป็นการ์ดขาวมุมมนลอยบนพื้นสี
+   ช่องกรอกพื้นสีอ่อนตามธีม ทรงแคปซูล */
+body.pp5-login-page .login-container .header,
+body.pp5-login-page .login-container {
+  --pp5-login-wave: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600' preserveAspectRatio='none'%3E%3Cpath d='M0 120 C120 60 220 190 360 130 S560 40 600 90 V0 H0Z' fill='%23fff' fill-opacity='.16'/%3E%3Cpath d='M0 200 C150 120 260 260 420 190 S560 120 600 170 V0 H0Z' fill='%23fff' fill-opacity='.10'/%3E%3Cpath d='M0 520 C140 470 250 580 400 520 S560 450 600 500 V600 H0Z' fill='%23fff' fill-opacity='.14'/%3E%3Cpath d='M0 440 C170 400 280 520 440 455 S560 400 600 430 V600 H0Z' fill='%23fff' fill-opacity='.08'/%3E%3C/svg%3E");
+  --pp5-login-grad: linear-gradient(150deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 45%, #22d3ee) 100%);
+}
+body.pp5-login-page .login-container .header {
+  background: var(--pp5-login-wave) center / 100% 100% no-repeat, var(--pp5-login-grad);
+}
+body.pp5-login-page .login-container #username,
+body.pp5-login-page .login-container #password {
+  border-radius: 999px !important;
+  border: 1.5px solid color-mix(in srgb, var(--primary) 16%, #fff) !important;
+  background-color: color-mix(in srgb, var(--primary) 7%, #fff) !important;
+}
+body.pp5-login-page .login-container #username:focus,
+body.pp5-login-page .login-container #password:focus {
+  border-color: var(--primary) !important;
+  background-color: #fff !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 14%, transparent) !important;
+}
+body.pp5-login-page .login-container .toggle-pass { right: 14px; }
+body.pp5-login-page .login-container #loginBtn {
+  border-radius: 999px !important;
+  border: 0 !important;
+  background: var(--pp5-login-grad) !important;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--primary) 30%, transparent) !important;
+}
+body.pp5-login-page .login-container::after { color: var(--primary) !important; }
+
+@media (min-width: 900px) {
+  /* ทั้งการ์ดเป็นพื้นสี ฝั่งซ้ายโปร่งให้เห็นคลื่น ฝั่งขวาเป็นการ์ดขาว (::before) มุมซ้ายโค้งมน */
+  body.pp5-login-page .login-container {
+    background: var(--pp5-login-wave) center / 100% 100% no-repeat, var(--pp5-login-grad) !important;
+    border: 0 !important;
+  }
+  body.pp5-login-page .login-container > .header { background: transparent; }
+  body.pp5-login-page .login-container::before {
+    display: block;
+    content: "";
+    position: relative;
+    inset: auto;
+    height: auto;
+    grid-column: 2;
+    grid-row: 1 / -1;
+    margin: 14px 14px 14px 0;
+    border-radius: 28px;
+    background: #fff;
+    box-shadow: -12px 0 30px rgba(15, 23, 42, .12);
+  }
+  body.pp5-login-page .login-container > :not(.header) { position: relative; z-index: 1; margin-right: 14px !important; }
+  body.pp5-login-page .login-container::after { position: relative; z-index: 1; margin-right: 14px; }
+}
+
+/* ===== รอบ 3 (owner 2026-10-14: "ให้ดูใส ไม่ทึบเกินไป" + รูปตัวอย่างพื้นฟ้าใสมีฟองอากาศ) =====
+   พื้นฟ้าอมเขียวสว่าง (ผสมสีธีมเล็กน้อย) + แสงเรือง + ฟองอากาศ  การ์ดฟอร์มเป็นกระจกฝ้า (โปร่ง เบลอพื้นหลัง) */
+body.pp5-login-page {
+  --pp5-login-sky: linear-gradient(140deg, color-mix(in srgb, var(--primary) 38%, #0ea5e9) 0%, color-mix(in srgb, var(--primary) 18%, #38bdf8) 48%, color-mix(in srgb, var(--primary) 10%, #67e8f9) 100%);
+  --pp5-login-bubbles:
+    radial-gradient(circle at 18% 22%, rgba(255,255,255,.75) 0 2px, rgba(255,255,255,.35) 3px 9px, transparent 10px),
+    radial-gradient(circle at 26% 70%, rgba(255,255,255,.10) 0 13px, rgba(255,255,255,.55) 14px 15px, transparent 16px),
+    radial-gradient(circle at 8% 52%, rgba(255,255,255,.08) 0 7px, rgba(255,255,255,.5) 8px 9px, transparent 10px),
+    radial-gradient(circle at 42% 14%, rgba(255,255,255,.10) 0 9px, rgba(255,255,255,.5) 10px 11px, transparent 12px),
+    radial-gradient(circle at 36% 88%, rgba(255,255,255,.08) 0 18px, rgba(255,255,255,.45) 19px 20px, transparent 21px),
+    radial-gradient(circle at 92% 12%, rgba(255,255,255,.10) 0 11px, rgba(255,255,255,.5) 12px 13px, transparent 14px),
+    radial-gradient(circle at 96% 80%, rgba(255,255,255,.08) 0 16px, rgba(255,255,255,.45) 17px 18px, transparent 19px),
+    radial-gradient(circle at 24% 30%, rgba(255,255,255,.55) 0, rgba(255,255,255,0) 22%),
+    radial-gradient(ellipse at 70% 110%, rgba(255,255,255,.35) 0, rgba(255,255,255,0) 45%);
+  background: var(--pp5-login-bubbles), var(--pp5-login-sky) !important;
+  background-attachment: fixed !important;
+}
+body.pp5-login-page .login-container,
+body.pp5-login-page .login-container .header {
+  --pp5-login-grad: linear-gradient(140deg, color-mix(in srgb, var(--primary) 55%, #0ea5e9) 0%, color-mix(in srgb, var(--primary) 25%, #22d3ee) 100%);
+}
+/* การ์ดทั้งใบโปร่ง เห็นพื้นฟ้าด้านหลัง */
+body.pp5-login-page .login-container {
+  background: var(--pp5-login-wave) center / 100% 100% no-repeat, rgba(255, 255, 255, .14) !important;
+  border: 1px solid rgba(255, 255, 255, .55) !important;
+  box-shadow: 0 24px 60px rgba(8, 47, 73, .22), inset 0 1px 0 rgba(255, 255, 255, .6) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+body.pp5-login-page .login-container > .header { background: transparent !important; text-shadow: 0 2px 10px rgba(8, 47, 73, .25); }
+body.pp5-login-page .login-container .header .logo-placeholder,
+body.pp5-login-page .login-container .header #school-logo.loaded {
+  background: rgba(255, 255, 255, .85) !important;
+  box-shadow: 0 0 0 8px rgba(255, 255, 255, .22), 0 12px 30px rgba(8, 47, 73, .2) !important;
+}
+/* กระจกฝ้า */
+body.pp5-login-page .login-container #username,
+body.pp5-login-page .login-container #password {
+  background-color: rgba(255, 255, 255, .7) !important;
+  border-color: rgba(255, 255, 255, .9) !important;
+}
+@media (min-width: 900px) {
+  body.pp5-login-page .login-container::before {
+    background: rgba(255, 255, 255, .62) !important;
+    border: 1px solid rgba(255, 255, 255, .8);
+    backdrop-filter: blur(18px) saturate(1.3);
+    -webkit-backdrop-filter: blur(18px) saturate(1.3);
+    box-shadow: 0 10px 40px rgba(8, 47, 73, .14), inset 0 1px 0 rgba(255, 255, 255, .9) !important;
+  }
+}
+@media (max-width: 899.98px) {
+  /* มือถือ: แถบบนโปร่งเห็นพื้น ส่วนฟอร์มเป็นกระจกฝ้า */
+  body.pp5-login-page .login-container { background: rgba(255, 255, 255, .62) !important; backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3); }
+  body.pp5-login-page .login-container > .header { background: var(--pp5-login-wave) center / 100% 100% no-repeat, color-mix(in srgb, var(--primary) 30%, rgba(14, 165, 233, .55)) !important; }
+}
+
+/* ไอคอนคน/แม่กุญแจ: เบราว์เซอร์ที่จำรหัสผ่าน (autofill) ลบรูปพื้นหลังของช่อง จึงวางไอคอนไว้ที่กล่องของช่องแทน */
+body.pp5-login-page .login-container #username,
+body.pp5-login-page .login-container #password { background-image: none !important; }
+body.pp5-login-page .login-container .form-group:has(#username)::after,
+body.pp5-login-page .login-container .form-group:has(#password)::after {
+  content: "";
+  position: absolute;
+  left: 15px;
+  bottom: 13px;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-size: 18px 18px;
+}
+body.pp5-login-page .login-container .form-group:has(#username)::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2364748b'%3E%3Cpath d='M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m-5 6s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1z'/%3E%3C/svg%3E");
+}
+body.pp5-login-page .login-container .form-group:has(#password)::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2364748b'%3E%3Cpath d='M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2'/%3E%3C/svg%3E");
+}
