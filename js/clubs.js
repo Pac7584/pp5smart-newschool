@@ -172,7 +172,10 @@ ${state.isAdmin ? `<form class="pp5-club-form" data-form>
       const names = new Map(); // ชื่อ -> ที่มา
       // ชื่อเรียกบัญชีทั่วไป (เช่น "ผู้ดูแลระบบ") ไม่ใช่ชื่อคน: ไม่ใส่ในรายการ (owner 2026-10-14)
       const ACCOUNT_LABEL = /^(ผู้ดูแล(ระบบ)?|แอดมิน|admin(istrator)?|ครู|teacher|test|ทดสอบ)$/i;
-      const add = (name, from) => { const n = String(name || '').replace(/\s+/g, ' ').trim(); if (n && !ACCOUNT_LABEL.test(n) && !names.has(n)) names.set(n, from); };
+      // ต้องเป็นชื่อคน: มีตัวอักษรไทยหรืออังกฤษอย่างน้อย 2 ตัว — รหัสตัวเลขล้วน (เช่น "764" จากข้อมูลเก่า
+      // ในตาราง teachers ของโรงเรียนเจ้าของ) ไม่ขึ้น (owner 2026-10-14: "เว็บจริงไม่ควรมีชื่อแบบนี้ขึ้น")
+      const PERSON_NAME = /[A-Za-zก-ฮ].*[A-Za-zก-ฮ]/;
+      const add = (name, from) => { const n = String(name || '').replace(/\s+/g, ' ').trim(); if (n && PERSON_NAME.test(n) && !ACCOUNT_LABEL.test(n) && !names.has(n)) names.set(n, from); };
       const read = async (table, columns, configure) => {
         let query = client().from(table).select(columns);
         if (configure) query = configure(query);
