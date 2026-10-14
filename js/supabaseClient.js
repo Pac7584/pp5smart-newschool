@@ -86,6 +86,9 @@
 
   function extractDriveFileId(value) {
     const input = asText(value).trim();
+    // รูปที่ฝังเป็นข้อมูล (data:/blob:) ไม่ใช่ลิงก์ Drive: ตัวอักษร base64 บังเอิญมี "/d/" ตามด้วย 20 ตัวได้
+    // (owner 2026-10-14: โลโก้วัดก้านเหลืองถูกบันทึกเป็นลิงก์ Google ปลอมแทนรูป)
+    if (/^(?:data:|blob:)/i.test(input)) return '';
     const fromUrl = input.match(/(?:\/d\/|[?&]id=)([-\w]{20,})/i);
     if (fromUrl) return fromUrl[1];
     return /^[-\w]{20,}$/.test(input) ? input : '';
@@ -513,7 +516,7 @@
         school_name: asText(submittedSchoolName).trim() || current?.school_name,
         school_address: submitted(['school_address', 'schoolAddress', 'ที่อยู่โรงเรียน'], current?.school_address),
         director_name: submitted(['director_name', 'directorName', 'ชื่อผู้อำนวยการ'], current?.director_name),
-        logo_base64: asText(submittedLogo).trim() ? normalizeLogoValue(submittedLogo) : current?.logo_base64,
+        logo_base64: submittedLogo === null ? null : (asText(submittedLogo).trim() ? normalizeLogoValue(submittedLogo) : current?.logo_base64),
         academic_year: submitted(['academic_year', 'academicYear', 'ปีการศึกษา'], current?.academic_year),
         semester: submitted(['semester', 'ภาคเรียน'], current?.semester),
         affiliation: submitted(['affiliation', 'สังกัด'], current?.affiliation),

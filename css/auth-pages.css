@@ -114,3 +114,16 @@ body.pp5-public-auth-page:not(.pp5-login-page) #contentFrame .container:has(#fpF
 #logoutOverlay .spinner-border { width: 2.2rem !important; height: 2.2rem !important; margin-bottom: 14px !important; color: #9af5ff !important; }
 #logoutOverlay h4 { color: #f2fbff !important; font-weight: 700; }
 #logoutOverlay p { color: #d3edf8 !important; }
+
+/* ---------- หน้าเข้าสู่ระบบ: สังกัด (เขตพื้นที่) ตัวเล็กใต้ชื่อโรงเรียน (js/login-layout.js) ---------- */
+body.pp5-login-page .login-container .header .pp5-login-affiliation {
+  margin: 6px auto 0 !important;
+  max-width: 340px;
+  color: var(--pp5-lg-muted) !important;
+  font-size: .84rem !important;
+  line-height: 1.45;
+  opacity: .92;
+}
+@media (max-width: 899.98px) {
+  body.pp5-login-page .login-container .header .pp5-login-affiliation { font-size: .78rem !important; }
+}

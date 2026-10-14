@@ -61,6 +61,47 @@
     box.querySelectorAll('#loginForm label').forEach((label) => {
       label.textContent = label.textContent.replace(/\s*:\s*$/, '');
     });
+
+    showUploadedLogo(logo, placeholder);
+  }
+
+  // สังกัด (สำนักงานเขตพื้นที่การศึกษา) ตัวเล็กใต้ชื่อโรงเรียนฝั่งซ้าย (owner 2026-10-14)
+  // ค่าจากตั้งค่าระบบกลาง > สังกัด  ไม่ได้กรอก = ไม่แสดงบรรทัดนี้
+  function showAffiliation(settings) {
+    const text = String(settings?.affiliation || settings?.['สังกัด'] || '').replace(/\s+/g, ' ').trim();
+    const name = doc.querySelector('#contentFrame .login-container .header #school-name');
+    if (!text || !name || name.parentElement.querySelector('.pp5-login-affiliation')) return;
+    const line = doc.createElement('p');
+    line.className = 'pp5-login-affiliation';
+    line.textContent = text;
+    name.after(line);
+  }
+
+  // ตราที่อัปโหลดจากหน้า "ตราโรงเรียน" (js/logo-manager.js) เก็บเป็นรูป data:image ในฐานข้อมูล
+  // สคริปต์หน้า login เดิมรับเฉพาะลิงก์ http(s) จึงซ่อนตรา: อ่านค่าเดียวกัน (getGlobalSettings) แล้วแสดงเอง
+  // (owner 2026-10-14: "ใส่โลโก้ผ่านแล้ว แต่ไม่แสดงโลโก้ฝั่งขวา")
+  function showUploadedLogo(logo, placeholder, attempt = 0) {
+    const server = global.GasServer;
+    // on a slow connection the data client may not be ready yet: ask again a few times
+    const retry = () => { if (attempt < 6 && logo.isConnected) global.setTimeout(() => showUploadedLogo(logo, placeholder, attempt + 1), 700); };
+    if (!server || typeof server.getGlobalSettings !== 'function') { retry(); return; }
+    Promise.resolve(server.getGlobalSettings(false)).then((settings) => {
+      showAffiliation(settings);
+      const picture = String(settings?.loginLogo || settings?.logo || '').trim();
+      if (!picture) { retry(); return; }
+      if (!/^data:image\//i.test(picture)) return;
+      const show = () => {
+        if (!logo.isConnected || logo.classList.contains('loaded')) return;
+        logo.src = picture;
+        logo.classList.add('loaded');
+        if (placeholder) placeholder.style.display = 'none';
+      };
+      show();
+      // the page's own script may hide it again after its settings call: show it once more
+      if (typeof global.MutationObserver === 'function') {
+        new global.MutationObserver(show).observe(logo, { attributes: true, attributeFilter: ['class'] });
+      }
+    }).catch(retry);
   }
 
   function watch() {

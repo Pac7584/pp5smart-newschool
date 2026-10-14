@@ -763,6 +763,9 @@
 
   function extractDriveFileId(value) {
     const input = text(value).trim();
+    // รูปที่ฝังเป็นข้อมูล (data:/blob:) ไม่ใช่ลิงก์ Drive: ตัวอักษร base64 บังเอิญมี "/d/" ตามด้วย 20 ตัวได้
+    // (owner 2026-10-14: โลโก้วัดก้านเหลืองถูกบันทึกเป็นลิงก์ Google ปลอมแทนรูป)
+    if (/^(?:data:|blob:)/i.test(input)) return '';
     const fromUrl = input.match(/(?:\/d\/|[?&]id=)([-\w]{20,})/i);
     if (fromUrl) return fromUrl[1];
     return /^[-\w]{20,}$/.test(input) ? input : '';
