@@ -2172,6 +2172,169 @@
     return { blobUrl, dataUri };
   }
 
+  // ---- ปก ปพ.5 แบบรายวิชา "แบบบันทึกผลการเรียนประจำรายวิชา" (owner 2026-10-14, ตามตัวอย่างที่เจ้าของส่งมา)
+  // หน้าละ 1 วิชา: หัวกระดาษ + ข้อมูลวิชา (ช่องจุด) + ตารางสรุปผลการเรียน + ตารางคุณลักษณะ/อ่านคิดวิเคราะห์ฯ + ลงนาม
+  // ข้อมูลมาจาก gas-bridge computePp5SubjectSheets  หัวหน้างานวัดผล = หัวหน้าฝ่ายวิชาการ (ช่องลงนามเดียว)
+  function pp5GradeFullName(grade) {
+    const g = text(grade);
+    const n = g.replace(/[^\d]/g, '');
+    if (g.startsWith('ม.')) return `มัธยมศึกษาปีที่ ${n}`;
+    if (g.startsWith('อ.')) return `อนุบาลปีที่ ${n}`;
+    if (g.startsWith('ป.')) return `ประถมศึกษาปีที่ ${n}`;
+    return g;
+  }
+
+  function drawPp5SubjectSheet(doc, report, sheet, meta, logo) {
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const left = 16;
+    const right = pageWidth - 16;
+    const blank = '...................................';
+    doc.setTextColor(0, 0, 0);
+    if (logo) {
+      try { doc.addImage(logo, 'PNG', left, 9, 16, 16, undefined, 'FAST'); } catch (_) {}
+    }
+    doc.setFont('Sarabun', 'bold');
+    doc.setFontSize(15);
+    doc.text('แบบบันทึกผลการเรียนประจำรายวิชา', pageWidth / 2, 19, { align: 'center' });
+
+    // ช่องข้อมูล: ป้าย + ค่า + เส้นจุดถึงปลายช่อง
+    doc.setFontSize(11);
+    const field = (label, value, x, y, x2) => {
+      doc.setFont('Sarabun', 'normal');
+      doc.text(label, x, y);
+      const start = x + doc.getTextWidth(label) + 2;
+      doc.setLineDashPattern([0.4, 0.8], 0);
+      doc.setLineWidth(0.2);
+      doc.line(start, y + 1.2, x2, y + 1.2);
+      doc.setLineDashPattern([], 0);
+      if (text(value)) doc.text(text(value), start + 2, y);
+    };
+    const hours = text(sheet.hours) ? `${text(sheet.hours)} ชั่วโมง/${sheet.semester ? 'ภาคเรียน' : 'ปี'}` : '';
+    let y = 34;
+    const step = 7.2;
+    const mid = left + (right - left) * 0.58;
+    field('โรงเรียน', meta.schoolName, left, y, right); y += step;
+    field('ที่ตั้ง', report.schoolAddress, left, y, right); y += step;
+    field('ชั้น', pp5GradeFullName(report.grade), left, y, left + 62);
+    field('ห้อง', text(report.classNo), left + 66, y, mid + 4);
+    field('ปีการศึกษา', report.academicYear, mid + 10, y, right); y += step;
+    field('รายวิชา', sheet.name, left, y, mid + 4);
+    field('รหัสวิชา', sheet.code, mid + 10, y, right); y += step;
+    field('กลุ่มสาระการเรียนรู้', sheet.group, left, y, right); y += step;
+    field('ประเภทวิชา', sheet.type, left, y, mid + 4);
+    field('เวลาเรียน', hours, mid + 10, y, right); y += step;
+    field('ครูผู้สอน', sheet.teacher, left, y, right); y += step;
+    field('ครูประจำชั้น', meta.classTeacher, left, y, right); y += 4;
+
+    const total = number(report.studentCount, 0);
+    const pct = (n) => (total > 0 ? ((Number(n) || 0) / total * 100).toFixed(1) : '');
+    const show = (n) => (Number(n) ? String(n) : '');
+    const g = sheet.grades || {};
+    const gradeKeys = ['4', '3.5', '3', '2.5', '2', '1.5', '1', '0', 'ร', 'มส'];
+    const passGrades = ['4', '3.5', '3', '2.5', '2', '1.5', '1'].reduce((s, k) => s + (Number(g[k]) || 0), 0);
+    const failGrades = ['0', 'ร', 'มส'].reduce((s, k) => s + (Number(g[k]) || 0), 0);
+    const tableStyle = {
+      margin: { left, right: 16, bottom: 4 },
+      styles: { font: 'Sarabun', fontSize: 9.5, cellPadding: 1.6, halign: 'center', valign: 'middle', textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2 },
+      headStyles: { font: 'Sarabun', fontStyle: 'bold', fontSize: 9.5, fillColor: [255, 255, 255], textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2 }
+    };
+    // ช่องผลการเรียน/ผลการประเมินกว้างเท่ากันทุกช่อง (ไม่ยืดตามความยาวข้อความ)
+    const cellWidth = (doc.internal.pageSize.getWidth() - left - 16 - 17) / 12;
+    const equalColumns = { 0: { cellWidth: 17 } };
+    for (let i = 1; i <= 12; i += 1) equalColumns[i] = { cellWidth };
+    runAutoTable(doc, tableDefaults({
+      ...tableStyle,
+      startY: y + 2,
+      head: [
+        [{ content: 'จำนวน\nนักเรียน', rowSpan: 3 }, { content: 'สรุปผลการเรียน', colSpan: 12 }],
+        [{ content: 'จำนวนนักเรียนที่ได้ระดับผลการเรียน', colSpan: 10 }, { content: 'ผ่านการ\nประเมิน', rowSpan: 2 }, { content: 'ไม่ผ่านการ\nประเมิน', rowSpan: 2 }],
+        gradeKeys
+      ],
+      body: [
+        [String(total), ...gradeKeys.map((k) => show(g[k])), show(passGrades), show(failGrades)],
+        ['ร้อยละ', ...gradeKeys.map((k) => (Number(g[k]) ? pct(g[k]) : '')), passGrades ? pct(passGrades) : '', failGrades ? pct(failGrades) : '']
+      ],
+      columnStyles: equalColumns
+    }));
+
+    const c = sheet.character || {};
+    const r = sheet.reading || {};
+    const levelKeys = ['3', '2', '1', '0'];
+    const passOf = (o) => ['3', '2', '1'].reduce((s, k) => s + (Number(o[k]) || 0), 0);
+    runAutoTable(doc, tableDefaults({
+      ...tableStyle,
+      startY: (doc.lastAutoTable?.finalY || y) + 5,
+      head: [
+        [{ content: 'จำนวน\nนักเรียน', rowSpan: 3 }, { content: 'สรุปผลการประเมิน', colSpan: 12 }],
+        [{ content: 'คุณลักษณะอันพึงประสงค์ของสถานศึกษา', colSpan: 6 }, { content: 'การอ่าน คิดวิเคราะห์และเขียนสื่อความ', colSpan: 6 }],
+        [...levelKeys, 'ผ่าน', 'ไม่ผ่าน', ...levelKeys, 'ผ่าน', 'ไม่ผ่าน']
+      ],
+      body: [
+        [String(total), ...levelKeys.map((k) => show(c[k])), show(passOf(c)), show(c['0']), ...levelKeys.map((k) => show(r[k])), show(passOf(r)), show(r['0'])],
+        ['ร้อยละ', ...levelKeys.map((k) => (Number(c[k]) ? pct(c[k]) : '')), passOf(c) ? pct(passOf(c)) : '', Number(c['0']) ? pct(c['0']) : '',
+          ...levelKeys.map((k) => (Number(r[k]) ? pct(r[k]) : '')), passOf(r) ? pct(passOf(r)) : '', Number(r['0']) ? pct(r['0']) : '']
+      ],
+      columnStyles: equalColumns
+    }));
+
+    let noteY = (doc.lastAutoTable?.finalY || y) + 4.5;
+    doc.setFont('Sarabun', 'normal');
+    doc.setFontSize(8);
+    const notes = [];
+    if (Number(g.pending)) notes.push(`ยังไม่มีผลการเรียนครบ ${g.pending} คน`);
+    if (Number(c.pending)) notes.push(`ยังไม่ได้ประเมินคุณลักษณะ ${c.pending} คน`);
+    if (Number(r.pending)) notes.push(sheet.group ? `ยังไม่ได้ประเมินการอ่านฯ ของกลุ่มสาระนี้ ${r.pending} คน` : 'ไม่พบกลุ่มสาระของวิชานี้ จึงไม่มีผลการอ่านฯ');
+    if (notes.length) { doc.text(`* ${notes.join(' · ')}`, left, noteY); noteY += 3; }
+    doc.text('* คุณลักษณะอันพึงประสงค์ใช้ผลการประเมินรวมของนักเรียน (ดีเยี่ยม = 3, ดี = 2, ผ่าน = 1, ไม่ผ่าน = 0)', left, noteY);
+
+    // ลงนาม: ครูผู้สอน | หัวหน้าฝ่ายวิชาการ/งานวัดผล  แล้วผู้อำนวยการ (อนุมัติ/ไม่อนุมัติ + วันที่)
+    const signs = meta?.includeSignatures !== false;
+    const colL = pageWidth * 0.28;
+    const colR = pageWidth * 0.72;
+    let sy = Math.max(noteY + 22, 196);
+    doc.setFont('Sarabun', 'normal');
+    doc.setFontSize(10.5);
+    doc.text('ลงชื่อ ..........................................', colL, sy, { align: 'center' });
+    doc.text(`( ${text(sheet.teacher) || blank} )`, colL, sy + 6.5, { align: 'center' });
+    doc.text('ครูผู้สอน', colL, sy + 13, { align: 'center' });
+    if (signs && meta?.academicHeadSignature) { try { doc.addImage(meta.academicHeadSignature, 'PNG', colR - 15, sy - 9, 30, 9.5); } catch (_) {} }
+    doc.text('ลงชื่อ ..........................................', colR, sy, { align: 'center' });
+    doc.text(`( ${text(meta.academicHead) || blank} )`, colR, sy + 6.5, { align: 'center' });
+    doc.text('หัวหน้าฝ่ายวิชาการ / งานวัดผล', colR, sy + 13, { align: 'center' });
+
+    sy += 27;
+    const cx = pageWidth / 2;
+    doc.text('อนุมัติ', cx - 17, sy, { align: 'right' });
+    doc.setLineWidth(0.25);
+    doc.rect(cx - 15, sy - 3.4, 4, 4);
+    doc.text('/ ไม่อนุมัติ', cx - 9, sy);
+    doc.rect(cx + 8, sy - 3.4, 4, 4);
+    sy += 12;
+    if (signs && meta?.schoolStamp) { try { doc.addImage(meta.schoolStamp, 'PNG', cx + 14, sy - 14, 17, 17); } catch (_) {} }
+    if (signs && meta?.directorSignature) { try { doc.addImage(meta.directorSignature, 'PNG', cx - 15, sy - 9, 30, 9.5); } catch (_) {} }
+    doc.text('ลงชื่อ ..........................................', cx, sy, { align: 'center' });
+    doc.text(`( ${text(meta.directorName) || blank} )`, cx, sy + 6.5, { align: 'center' });
+    doc.text(text(meta.directorPosition) || `ผู้อำนวยการ${meta.schoolName || 'โรงเรียน'}`, cx, sy + 13, { align: 'center' });
+    doc.text('วันที่ .......... เดือน ............................ พ.ศ. ..............', cx, sy + 20, { align: 'center' });
+  }
+
+  async function createPp5SubjectCover(report, options) {
+    const jsPDF = getJsPdf();
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true, putOnlyUsedFonts: true });
+    await installFonts(doc);
+    const meta = officialMeta(options || {});
+    const logo = await loadOfficialLogo(meta.logo);
+    const sheets = report?.sheets || [];
+    sheets.forEach((sheet, index) => {
+      if (index > 0) doc.addPage();
+      drawPp5SubjectSheet(doc, report, sheet, meta, logo);
+    });
+    doc.setProperties({ title: 'แบบบันทึกผลการเรียนประจำรายวิชา', subject: meta.meta, author: meta.schoolName, creator: 'ระบบ ปพ.5 ออนไลน์' });
+    const blobUrl = finish(doc, meta);
+    const dataUri = doc.output('datauristring');
+    return { blobUrl, dataUri };
+  }
+
   async function createPp5FullBook(report, options) {
     const jsPDF = getJsPdf();
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true, putOnlyUsedFonts: true });
@@ -4140,6 +4303,7 @@
     createCompetencyReport,
     createCompetencySummaryReport,
     createPp5Cover,
+    createPp5SubjectCover,
     createPp5FullBook,
     createPp6Report,
     createOnePageReport,

@@ -25,6 +25,7 @@
     semester_attendance_summary: { icon: 'bi-bar-chart-steps', title: 'สรุปการมาเรียน', sub: 'รายงานเวลาเรียนรายภาคเรียนและรายปี', hide: '.header-main' },
     student_scores_summary: { icon: 'bi-trophy-fill', title: 'สรุปผลการเรียนรายชั้น', sub: 'คะแนนและเกรดทุกวิชาของทั้งห้อง', hide: '.container-wrapper > .page-header' },
     class_assessment_summary: { icon: 'bi-clipboard-data-fill', title: 'สรุปการประเมินรายชั้น', sub: 'คุณลักษณะ สมรรถนะ อ่านคิดเขียน และกิจกรรมของทั้งห้อง', hide: '.cas-header' },
+    pp5_cover_page: { icon: 'bi-file-earmark-bar-graph-fill', title: 'ปก ปพ.5', sub: 'แบบรายงานผลการพัฒนาคุณภาพผู้เรียน · รวมทุกวิชาหรือรายวิชา', hide: '.card.p-4 > h4.text-primary' },
     pp5_full_book: { icon: 'bi-journal-bookmark-fill', title: 'ปพ.5 รวมเล่ม', sub: 'พิมพ์แบบรายงานผลการพัฒนาคุณภาพผู้เรียนทั้งเล่ม', hide: '.pp5fb-header' },
     export_reports: { icon: 'bi-file-earmark-arrow-down-fill', title: 'ศูนย์รวมส่งออกรายงาน', sub: 'เลือกรายงานที่ต้องการพิมพ์หรือดาวน์โหลด', hide: '.er-header' },
     holiday_form: { icon: 'bi-calendar-x-fill', title: 'จัดการวันหยุดประจำปี', sub: 'วันหยุดราชการและวันหยุดของโรงเรียน', hide: '.card > .card-header.text-center', anchor: '.container.py-5 > .card' },

@@ -1866,6 +1866,22 @@
     return classPrintResult('สรุปสมรรถนะ', grade, classNo);
   }
 
+  // ลำดับวิชาของปก ปพ.5 (ภาษาไทย คณิต … การป้องกันการทุจริต) ใช้ร่วมกับตัวเลือกรายวิชาของปกแบบรายวิชา
+  const PP5_COVER_ORDER = ['ภาษาไทย', 'คณิตศาสตร์', 'วิทยาศาสตร์', 'เทคโนโลยี', 'สังคมศึกษา', 'ประวัติศาสตร์', 'สุขศึกษา', 'ศิลปะ', 'การงาน', 'ภาษาอังกฤษ', 'หน้าที่พลเมือง', 'การป้องกัน'];
+  function comparePp5CoverSubjects(a, b) {
+    const na = text(a.name || a.subjectName);
+    const nb = text(b.name || b.subjectName);
+    let ia = -1, ib = -1;
+    for (let k = 0; k < PP5_COVER_ORDER.length; k++) {
+      if (na.includes(PP5_COVER_ORDER[k])) ia = k;
+      if (nb.includes(PP5_COVER_ORDER[k])) ib = k;
+    }
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return na.localeCompare(nb, 'th');
+  }
+
   async function computePp5CoverSummary(grade, classNo, students, requestedYear) {
     const studentCount = students.length;
     const studentIds = students.map((s) => text(s.id));
@@ -1876,21 +1892,7 @@
     let allSubjects = [];
     try { allSubjects = await data.subjects.list(grade); } catch (e) { allSubjects = []; }
     const actKeywords = ['กิจกรรม', 'แนะแนว', 'ลูกเสือ', 'เนตรนารี', 'ชุมนุม', 'เพื่อสังคม', 'ชมรม'];
-    const coverOrder = ['ภาษาไทย', 'คณิตศาสตร์', 'วิทยาศาสตร์', 'เทคโนโลยี', 'สังคมศึกษา', 'ประวัติศาสตร์', 'สุขศึกษา', 'ศิลปะ', 'การงาน', 'ภาษาอังกฤษ', 'หน้าที่พลเมือง', 'การป้องกัน'];
-
-    const filteredSubjects = (allSubjects || []).filter((s) => !actKeywords.some((k) => text(s.name || s.subjectName).includes(k))).sort((a, b) => {
-      const na = text(a.name || a.subjectName);
-      const nb = text(b.name || b.subjectName);
-      let ia = -1, ib = -1;
-      for (let k = 0; k < coverOrder.length; k++) {
-        if (na.includes(coverOrder[k])) ia = k;
-        if (nb.includes(coverOrder[k])) ib = k;
-      }
-      if (ia !== -1 && ib !== -1) return ia - ib;
-      if (ia !== -1) return -1;
-      if (ib !== -1) return 1;
-      return na.localeCompare(nb, 'th');
-    });
+    const filteredSubjects = (allSubjects || []).filter((s) => !actKeywords.some((k) => text(s.name || s.subjectName).includes(k))).sort(comparePp5CoverSubjects);
 
     const subjectSummary = [];
     for (const sub of filteredSubjects) {
@@ -1997,6 +1999,161 @@
       return typeof result === 'object' && result?.blobUrl ? result.blobUrl : (typeof result === 'object' && result?.dataUri ? result.dataUri : result);
     }
     return classPrintResult('ปก ปพ.5', grade, classNo);
+  }
+
+  // ---- ปก ปพ.5 แบบรายวิชา "แบบบันทึกผลการเรียนประจำรายวิชา" (owner 2026-10-14: บางโรงเรียนใช้แบบรายวิชา)
+  // ข้อตกลง: คุณลักษณะ = ผลรวมของนักเรียน (ระบบไม่ได้ประเมินแยกวิชา) ดีเยี่ยม 3 / ดี 2 / ผ่าน 1 / ไม่ผ่าน 0
+  //          อ่าน คิดวิเคราะห์ฯ = คะแนนของกลุ่มสาระของวิชานั้น (ตัวอักษรแรกของรหัสวิชา หรือชื่อวิชา)
+  //          หัวหน้างานวัดผล = หัวหน้าฝ่ายวิชาการ (ลงนามช่องเดียว "หัวหน้าฝ่ายวิชาการ / งานวัดผล")
+  // วิชาและลำดับเดียวกับปก ปพ.5 รวมวิชา (computePp5CoverSummary) ผลการเรียน = ผลสิ้นปี (วิชารายภาคของ ม. = ภาคของวิชา)
+  const PP5_SUBJECT_GROUPS = [
+    { key: 'thai', code: 'ท', name: 'ภาษาไทย', words: ['ภาษาไทย'] },
+    { key: 'math', code: 'ค', name: 'คณิตศาสตร์', words: ['คณิต'] },
+    { key: 'science', code: 'ว', name: 'วิทยาศาสตร์และเทคโนโลยี', words: ['วิทยาศาสตร์', 'เทคโนโลยี', 'วิทยาการคำนวณ'] },
+    { key: 'social', code: 'ส', name: 'สังคมศึกษา ศาสนา และวัฒนธรรม', words: ['สังคม', 'ประวัติศาสตร์', 'หน้าที่พลเมือง', 'ศาสนา', 'การป้องกัน'] },
+    { key: 'health', code: 'พ', name: 'สุขศึกษาและพลศึกษา', words: ['สุขศึกษา', 'พลศึกษา'] },
+    { key: 'art', code: 'ศ', name: 'ศิลปะ', words: ['ศิลปะ', 'ดนตรี', 'นาฏศิลป์'] },
+    { key: 'work', code: 'ง', name: 'การงานอาชีพ', words: ['การงาน'] },
+    { key: 'english', code: 'อ', name: 'ภาษาต่างประเทศ', words: ['ภาษาอังกฤษ', 'ภาษาต่างประเทศ', 'ภาษาจีน', 'ภาษาญี่ปุ่น'] }
+  ];
+  function pp5SubjectGroup(subject) {
+    const code = text(subject?.code || subject?.subjectCode).trim();
+    const name = text(subject?.name || subject?.subjectName);
+    return PP5_SUBJECT_GROUPS.find((g) => code.startsWith(g.code))
+      || PP5_SUBJECT_GROUPS.find((g) => g.words.some((w) => name.includes(w))) || null;
+  }
+
+  // ครูผู้สอนแยกตามห้อง (owner 2026-10-14 "เลือกแยกได้"): settings_json.pp5_subject_teachers =
+  // { ปีการศึกษา: { 'ชั้น|ห้อง|รหัสวิชา': ชื่อ } } เก็บเฉพาะห้องที่ไม่ใช้ครูผู้สอนในหน้ารายวิชา
+  const roomTeacherKey = (grade, classNo, subjectId) => [text(grade), text(classNo || '1'), text(subjectId)].join('|');
+  const cleanTeacherName = (value) => text(value).replace(/\s+/g, ' ').trim().slice(0, 80);
+  function savedRoomTeachers(settings, academicYear) {
+    const all = settings?.settings_json?.pp5_subject_teachers;
+    const year = all && typeof all === 'object' ? all[text(academicYear)] : null;
+    return year && typeof year === 'object' ? year : {};
+  }
+
+  async function computePp5SubjectSheets(grade, classNo, students, subjectId, requestedYear, teacherOverrides) {
+    const settings = await data.settings.get();
+    const academicYear = text(requestedYear || settings.academicYear || settings.academic_year || '');
+    const roomTeachers = savedRoomTeachers(settings, academicYear);
+    const overrides = teacherOverrides && typeof teacherOverrides === 'object' ? teacherOverrides : {};
+    const summary = await computePp5CoverSummary(grade, classNo, students, academicYear);
+    const wanted = text(subjectId || 'all');
+    const chosen = summary.subjectSummary.filter((s) => wanted === 'all' || text(s.id) === wanted);
+    if (!chosen.length) throw new Error('ไม่พบรายวิชานี้ในชั้นที่เลือก');
+    const details = new Map((await data.subjects.list(grade)).map((s) => [text(s.id), s]));
+    const studentIds = students.map((s) => text(s.id));
+    const assessed = await loadPp5YearAssessments(grade, classNo, academicYear);
+    const studentCount = students.length;
+
+    // คุณลักษณะ (ผลรวมของนักเรียน) เหมือนกันทุกวิชาในห้อง
+    const character = { '3': 0, '2': 0, '1': 0, '0': 0, pending: 0 };
+    assessed.characteristic.students.forEach((s) => {
+      const valid = (s.scores || []).filter((v) => v !== '' && v !== null && !isNaN(Number(v))).map(Number);
+      if (valid.length !== 8) { character.pending++; return; }
+      const avg = valid.reduce((a, b) => a + b, 0) / 8;
+      character[avg >= 2.5 ? '3' : avg >= 2.0 ? '2' : avg >= 1.0 ? '1' : '0']++;
+    });
+    character.pending += Math.max(0, studentCount - assessed.characteristic.students.length);
+
+    const sheets = [];
+    for (const item of chosen) {
+      const subject = details.get(text(item.id)) || item;
+      const group = pp5SubjectGroup(subject);
+      const grades = { '4': 0, '3.5': 0, '3': 0, '2.5': 0, '2': 0, '1.5': 0, '1': 0, '0': 0, 'ร': 0, 'มส': 0, pending: 0 };
+      const rows = await scoreRowsForSubject(item.id, academicYear, studentIds);
+      const rowMap = {};
+      rows.forEach((r) => { rowMap[`${text(r.student_id || r.studentId)}_${r.semester}`] = r; });
+      studentIds.forEach((sid) => {
+        const result = pp5YearEndResult(rowMap[`${sid}_1`], rowMap[`${sid}_2`], subject);
+        if ((result.status === 'complete' || result.status === 'special') && grades[result.grade] !== undefined) grades[result.grade]++;
+        else grades.pending++;
+      });
+      const reading = { '3': 0, '2': 0, '1': 0, '0': 0, pending: 0 };
+      if (group) {
+        assessed.rtw.students.forEach((s) => {
+          const v = s.scores?.[group.key];
+          if (v === '' || v === null || v === undefined || isNaN(Number(v))) reading.pending++;
+          else if (reading[String(Math.max(0, Math.min(3, Math.round(Number(v)))))] !== undefined) reading[String(Math.max(0, Math.min(3, Math.round(Number(v)))))]++;
+        });
+        reading.pending += Math.max(0, studentCount - assessed.rtw.students.length);
+      } else reading.pending = studentCount;
+      sheets.push({
+        id: text(item.id),
+        code: text(subject.code || item.code),
+        name: text(subject.name || item.name),
+        group: group ? group.name : '',
+        type: text(subject.subject_type || subject.subjectType || 'พื้นฐาน'),
+        hours: subject.hours_per_year ?? subject.hoursPerYear ?? '',
+        semester: subjectSemester_(subject) || 0,
+        teacher: cleanTeacherName(overrides[text(item.id)]) || cleanTeacherName(roomTeachers[roomTeacherKey(grade, classNo, item.id)])
+          || text(subject.teacher_name || subject.teacherName),
+        grades, reading, character
+      });
+    }
+    return { academicYear, studentCount, sheets };
+  }
+
+  async function generatePp5SubjectCoverPdf(grade, classNo, subjectId, teacherOverrides) {
+    const students = await data.students.list({ grade, room: classNo });
+    if (!students.length) throw new Error('ไม่พบข้อมูลนักเรียน');
+    const report = await computePp5SubjectSheets(grade, classNo, students, subjectId, '', teacherOverrides);
+    const options = await attendancePrintOptions(grade, classNo, 'แบบบันทึกผลการเรียนประจำรายวิชา');
+    const settings = await data.settings.get();
+    if (!global.PP5PDF?.createPp5SubjectCover) throw new Error('ยังโหลดตัวสร้าง PDF ไม่ครบ กรุณารีเฟรชหน้า');
+    const result = await global.PP5PDF.createPp5SubjectCover({ grade, classNo, schoolAddress: text(settings.schoolAddress || settings.school_address), ...report }, options);
+    return typeof result === 'object' && result?.blobUrl ? result.blobUrl : (typeof result === 'object' && result?.dataUri ? result.dataUri : result);
+  }
+
+  async function listPp5CoverSubjects(grade) {
+    const actKeywords = ['กิจกรรม', 'แนะแนว', 'ลูกเสือ', 'เนตรนารี', 'ชุมนุม', 'เพื่อสังคม', 'ชมรม'];
+    const subjects = await data.subjects.list(grade);
+    return subjects.filter((s) => !actKeywords.some((k) => text(s.name || s.subjectName).includes(k))).sort(comparePp5CoverSubjects)
+      .map((s) => ({ id: text(s.id), code: text(s.code || s.subjectCode), name: text(s.name || s.subjectName), defaultTeacher: text(s.teacher_name || s.teacherName) }));
+  }
+
+  // รายวิชาของห้อง + ครูผู้สอนของห้องนั้น + รายชื่อครูให้เลือก (ครูประจำชั้น + ครูผู้สอนในหน้ารายวิชา เหมือนหน้าชุมนุม
+  // ไม่ใช้บัญชีผู้ใช้ และไม่ใช้ชื่อเรียกบัญชีหรือรหัสตัวเลข)
+  async function listPp5SubjectRoomTeachers(grade, classNo) {
+    const settings = await data.settings.get();
+    const academicYear = text(settings.academicYear || settings.academic_year);
+    const saved = savedRoomTeachers(settings, academicYear);
+    const subjects = (await listPp5CoverSubjects(grade)).map((s) => ({ ...s, roomTeacher: cleanTeacherName(saved[roomTeacherKey(grade, classNo, s.id)]) }));
+    const ACCOUNT_LABEL = /^(ผู้ดูแล(ระบบ)?|แอดมิน|admin(istrator)?|ครู|teacher|test|ทดสอบ)$/i;
+    const PERSON_NAME = /[A-Za-zก-ฮ].*[A-Za-zก-ฮ]/;
+    const names = new Map();
+    const add = (name, from) => { const n = cleanTeacherName(name); if (n && PERSON_NAME.test(n) && !ACCOUNT_LABEL.test(n) && !names.has(n)) names.set(n, from); };
+    const homeroom = await optionalTable('teacher_assignments', (query) => query.eq('academic_year', academicYear));
+    homeroom.forEach((r) => { add(r.teacher_name, `ครูประจำชั้น ${text(r.grade)}/${text(r.room)}`); add(r.teacher_name_2, `ครูประจำชั้น ${text(r.grade)}/${text(r.room)}`); });
+    (await data.subjects.list()).forEach((r) => add(r.teacher_name || r.teacherName, `ครูประจำวิชา ${text(r.name || r.subjectName)}`));
+    let canSave = false;
+    try { canSave = (await data.auth.requireUser())?.profile?.role === 'admin'; } catch (_) { canSave = false; }
+    return {
+      academicYear, subjects, canSave,
+      names: [...names.entries()].sort((a, b) => a[0].localeCompare(b[0], 'th')).map(([name, from]) => ({ name, from }))
+    };
+  }
+
+  // บันทึกครูผู้สอนของห้องนี้ (ผู้ดูแลระบบ): ชื่อที่ว่างหรือตรงกับครูในหน้ารายวิชาไม่ต้องเก็บ  เก็บไว้แค่ปีนี้กับปีก่อน
+  async function savePp5SubjectRoomTeachers(grade, classNo, teachers) {
+    await requireAdmin();
+    const settings = await data.settings.get();
+    const academicYear = text(settings.academicYear || settings.academic_year);
+    const subjects = await listPp5CoverSubjects(grade);
+    const current = settings.settings_json?.pp5_subject_teachers;
+    const all = current && typeof current === 'object' ? current : {};
+    const prefix = roomTeacherKey(grade, classNo, '');
+    const year = Object.fromEntries(Object.entries(all[academicYear] || {}).filter(([key]) => !key.startsWith(prefix)));
+    subjects.forEach((s) => {
+      const name = cleanTeacherName(teachers?.[s.id]);
+      if (name && name !== cleanTeacherName(s.defaultTeacher)) year[roomTeacherKey(grade, classNo, s.id)] = name;
+    });
+    const keep = {};
+    Object.keys(all).filter((y) => Number(y) >= Number(academicYear) - 1 && y !== academicYear).forEach((y) => { keep[y] = all[y]; });
+    keep[academicYear] = year;
+    await data.settings.patchSettingsJson('pp5_subject_teachers', keep, 'บันทึกครูผู้สอนไม่สำเร็จ');
+    return listPp5SubjectRoomTeachers(grade, classNo);
   }
 
   async function loadAllMonthlyDailyAttendance(grade, classNo, academicYear, students) {
@@ -7985,6 +8142,11 @@
     async generateSubjectScoreAssessmentPDF(grade, classNo, sortMode) { return generateSubjectScorePdf(grade, classNo, sortMode); },
     async generateParentInfoPDF(grade, classNo) { return parentInfoPdfUrl(grade, classNo); },
     async exportPp5CoverPDF(grade, classNo) { return generatePp5CoverPdf(grade, classNo); },
+    // ปก ปพ.5 แบบรายวิชา (subjectId = รหัสรายการวิชา หรือ 'all' = ทุกวิชาในห้อง หน้าละวิชา)
+    async exportPp5SubjectCoverPDF(grade, classNo, subjectId, teacherOverrides) { return generatePp5SubjectCoverPdf(grade, classNo, subjectId, teacherOverrides); },
+    async getPp5CoverSubjects(grade) { return listPp5CoverSubjects(grade); },
+    async getPp5SubjectRoomTeachers(grade, classNo) { return listPp5SubjectRoomTeachers(grade, classNo); },
+    async savePp5SubjectRoomTeachers(grade, classNo, teachers) { return savePp5SubjectRoomTeachers(grade, classNo, teachers); },
     async exportPp5FullBookPDF(grade, classNo, academicYear) { return generatePp5FullBookPdf(grade, classNo, null, academicYear); },
     async exportPp5FullBookSheets(grade, classNo, parts) { return generatePp5FullBookPdf(grade, classNo, parts); },
     async exportPp6PDF(grade, classNo) { return generatePp6Pdf(grade, classNo); },
