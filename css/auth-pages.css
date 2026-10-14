@@ -127,3 +127,33 @@ body.pp5-login-page .login-container .header .pp5-login-affiliation {
 @media (max-width: 899.98px) {
   body.pp5-login-page .login-container .header .pp5-login-affiliation { font-size: .78rem !important; }
 }
+
+/* ---------- "กำลังเข้าสู่ระบบ..." (#pp5LoginTransition จาก spa-main.js) ----------
+   owner 2026-10-14: "ไม่ต้องการให้แสดงหน้าขาว ๆ" — การ์ด 2 ฝั่งเป็น grid กฎ "> :not(.header)" ทำให้กล่องนี้กลายเป็นกล่องขาว
+   ในคอลัมน์ขวา: ให้คลุมทั้งการ์ดเป็นกระจกฟ้าโปร่ง ตัวหนังสือขาว */
+body.pp5-login-page .login-container > #pp5LoginTransition {
+  position: absolute !important;
+  inset: 0 !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
+  margin: 0 !important;
+  z-index: 30 !important;
+  border-radius: inherit;
+  background: linear-gradient(140deg, rgba(9, 110, 180, .9), rgba(7, 128, 170, .86)) !important;
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  color: #f2fbff !important;
+}
+body.pp5-login-page .login-container > #pp5LoginTransition strong { color: #f2fbff; font-size: 1.15rem; }
+body.pp5-login-page .login-container > #pp5LoginTransition small { color: #d3edf8 !important; }
+body.pp5-login-page .login-container > #pp5LoginTransition .pp5-login-transition-spinner {
+  border-color: rgba(220, 249, 255, .3) !important;
+  border-top-color: #9af5ff !important;
+}
+
+/* รูปมือเมื่อชี้ปุ่มและลิงก์ (owner 2026-10-14: "เอาเมาส์ไปชี้ไม่ขึ้นรูปมือ") */
+body.pp5-public-auth-page #loginBtn:not(:disabled),
+body.pp5-public-auth-page .toggle-pass,
+body.pp5-public-auth-page .forgot-password-link a,
+body.pp5-public-auth-page #fpBtn:not(:disabled),
+body.pp5-public-auth-page .container:has(#fpForm) .link { cursor: pointer !important; }
