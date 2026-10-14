@@ -233,3 +233,51 @@ body.pp5-login-page .login-container .form-group:has(#username)::after {
 body.pp5-login-page .login-container .form-group:has(#password)::after {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%2364748b'%3E%3Cpath d='M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2m3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2'/%3E%3C/svg%3E");
 }
+
+/* ===== รอบ 4 (owner 2026-10-14): ซ้าย = โลโก้โปรแกรม, โลโก้โรงเรียนอยู่เหนือฟอร์ม ขนาดตามสัดส่วนจริง (ไม่ยืด) =====
+   js/login-layout.js ใส่ .pp5-login-app-logo ใน .header และย้ายโลโก้โรงเรียนไป .pp5-login-school */
+body.pp5-login-page .login-container .pp5-login-app-logo {
+  display: block;
+  width: 132px;
+  height: 132px;
+  margin: 0 auto 22px;
+  object-fit: contain;
+  border-radius: 30px;
+  box-shadow: 0 0 0 8px rgba(255, 255, 255, .22), 0 14px 34px rgba(8, 47, 73, .25);
+}
+body.pp5-login-page .login-container > .pp5-login-school { text-align: center; }
+body.pp5-login-page .login-container > .pp5-login-school #school-logo.loaded {
+  display: inline-block !important;
+  width: auto !important;
+  height: 84px !important;
+  max-width: 220px !important;
+  max-height: 84px !important;
+  margin: 0 auto 8px !important;
+  padding: 0 !important;
+  object-fit: contain !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  filter: drop-shadow(0 4px 10px rgba(8, 47, 73, .15));
+}
+body.pp5-login-page .login-container > .pp5-login-school .logo-placeholder {
+  width: 72px !important;
+  height: 72px !important;
+  margin: 0 auto 8px !important;
+  border-radius: 18px !important;
+  background: rgba(255, 255, 255, .8) !important;
+  box-shadow: none !important;
+}
+@media (min-width: 900px) {
+  body.pp5-login-page .login-container:has(> .pp5-login-school) { grid-template-rows: 1fr auto auto auto auto auto auto 1fr; }
+  body.pp5-login-page .login-container > .pp5-login-school { grid-column: 2; grid-row: 2; padding: 34px 48px 0; }
+  body.pp5-login-page .login-container:has(> .pp5-login-school)::after { grid-row: 3; }
+  body.pp5-login-page .login-container:has(> .pp5-login-school) > #offlineWarn { grid-row: 4; }
+  body.pp5-login-page .login-container:has(> .pp5-login-school) > #errorBox { grid-row: 5; }
+  body.pp5-login-page .login-container:has(> .pp5-login-school) > #okBox { grid-row: 6; }
+  body.pp5-login-page .login-container:has(> .pp5-login-school) > #loginForm { grid-row: 7; }
+}
+@media (max-width: 899.98px) {
+  body.pp5-login-page .login-container .pp5-login-app-logo { width: 72px; height: 72px; margin-bottom: 10px; border-radius: 18px; box-shadow: 0 0 0 5px rgba(255, 255, 255, .22), 0 8px 20px rgba(8, 47, 73, .2); }
+  body.pp5-login-page .login-container > .pp5-login-school #school-logo.loaded { height: 64px !important; max-height: 64px !important; }
+}
