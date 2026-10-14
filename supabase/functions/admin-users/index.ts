@@ -420,10 +420,14 @@ Deno.serve(async (request) => {
       const { data: before, error: beforeError } = await adminClient.from('user_profiles').select('role').eq('id', userId).single();
       if (beforeError) throw beforeError;
       const nextRole = String(profileChanges.role || before.role);
-      const replaceLinks = Object.hasOwn(body, 'studentIds') || nextRole !== 'parent';
       const studentIds = normalizeStudentIds(body.studentIds);
       if (nextRole !== 'parent' && studentIds.length) return json({ error: 'Only parents can have student links' }, 400);
       await validateStudentIds(adminClient, studentIds);
+      // pp5_replace_parent_links รับเฉพาะบัญชีผู้ปกครอง (owner 2026-10-14: แก้สิทธิ์ครู/ผู้ดูแลแล้ว "Edge Function returned a
+      // non-2xx" ทุกครั้ง เพราะเดิมเรียกล้างลิงก์กับบัญชีที่ไม่ใช่ผู้ปกครอง): ผู้ปกครองที่ถูกเปลี่ยนเป็นสิทธิ์อื่น ล้างลิงก์
+      // ก่อนเปลี่ยนสิทธิ์ (ตอนยังเป็นผู้ปกครอง) · บัญชีผู้ปกครองตั้งลิงก์หลังบันทึก · บัญชีอื่นไม่แตะ
+      if (before.role === 'parent' && nextRole !== 'parent') await replaceParentLinks(callerClient, userId, []);
+      const setLinks = nextRole === 'parent' && (Object.hasOwn(body, 'studentIds') || before.role !== 'parent');
       const { data, error } = await adminClient.from('user_profiles').update(profileChanges).eq('id', userId).select().single();
       if (error) throw error;
       if (profileChanges.role || profileChanges.username || profileChanges.display_name) {
@@ -449,7 +453,7 @@ Deno.serve(async (request) => {
         const { error: authUpdateError } = await adminClient.auth.admin.updateUserById(userId, authChanges);
         if (authUpdateError) throw authUpdateError;
       }
-      if (replaceLinks) await replaceParentLinks(callerClient, userId, nextRole === 'parent' ? studentIds : []);
+      if (setLinks) await replaceParentLinks(callerClient, userId, studentIds);
       return json({ success: true, user: data });
     }
 
@@ -462,9 +466,11 @@ Deno.serve(async (request) => {
       if (authRecord.user.app_metadata?.pp5_pending !== true) return json({ error: 'บัญชีนี้ไม่ได้รออนุมัติ' }, 400);
       const { data, error } = await adminClient.from('user_profiles').update({ role, active: true }).eq('id', userId).select().single();
       if (error) throw error;
+      // app_metadata ของ Supabase ถูก "รวม" กับค่าเดิม ไม่ใช่แทนทั้งชุด — การละ pp5_pending ไว้จึงไม่ลบมัน (owner 2026-10-14:
+      // อนุมัติแล้วยังค้างในรายการรออนุมัติ และเข้าสู่ระบบไม่ได้) ต้องตั้ง pp5_pending: false ให้ชัด
       const { pp5_pending: _done, ...appMetadata } = authRecord.user.app_metadata || {};
       const { error: authError } = await adminClient.auth.admin.updateUserById(userId, {
-        app_metadata: { ...appMetadata, role, pp5_approved_at: new Date().toISOString() }
+        app_metadata: { ...appMetadata, role, pp5_pending: false, pp5_approved_at: new Date().toISOString() }
       });
       if (authError) throw authError;
       return json({ success: true, user: data });
