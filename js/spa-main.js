@@ -5688,6 +5688,8 @@ window.GradeClassHelper = (function() {
   function createQuickBar(gradeSelectEl, classSelectEl, grades) {
     if (!gradeSelectEl) return;
     ensureQuickBarStyles();
+    const quickBarToken = (createQuickBar.__token || 0) + 1;
+    createQuickBar.__token = quickBarToken;
 
     const oldModern = document.getElementById('gcQuickBar');
     const oldLegacy = document.getElementById('gcQB');
@@ -5699,17 +5701,31 @@ window.GradeClassHelper = (function() {
     bar.className = 'gc-quick-bar';
 
     const gradeList = grades || window.PP5Grades?.list?.() || ['ป.1','ป.2','ป.3','ป.4','ป.5','ป.6'];
-    gradeList.forEach(g => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn-outline-primary btn-sm gc-quick-btn';
-      btn.textContent = g + '/1';
-      btn.dataset.grade = g;
-      btn.dataset.classNo = '1';
-      btn.setAttribute('aria-pressed', 'false');
-      btn.addEventListener('click', () => selectGradeClass(gradeSelectEl, classSelectEl, g, '1'));
-      bar.appendChild(btn);
-    });
+    // ปุ่มลัดทุกห้องที่มีนักเรียนจริง (เดิมมีแค่ ชั้น/1 — ห้อง 2, 3 … ต้องเลือกจากช่องห้องเอง) ระหว่างรอข้อมูลห้องใช้ ชั้น/1
+    const drawButtons = (rooms) => {
+      bar.innerHTML = '';
+      rooms.forEach(({ grade: g, room }) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-outline-primary btn-sm gc-quick-btn';
+        btn.textContent = g + '/' + room;
+        btn.dataset.grade = g;
+        btn.dataset.classNo = room;
+        btn.setAttribute('aria-pressed', 'false');
+        btn.addEventListener('click', () => selectGradeClass(gradeSelectEl, classSelectEl, g, room));
+        bar.appendChild(btn);
+      });
+    };
+    drawButtons(gradeList.map((g) => ({ grade: g, room: '1' })));
+    loadAllRooms_().then((rooms) => {
+      if (createQuickBar.__token !== quickBarToken || !bar.isConnected) return;
+      const known = rooms.filter((r) => gradeList.includes(r.grade));
+      if (!known.length) return;
+      // ชั้นที่ยังไม่มีนักเรียนเลยยังแสดง ชั้น/1 ไว้ให้ครูเลือกได้เหมือนเดิม
+      const withEmpty = gradeList.flatMap((g) => { const own = known.filter((r) => r.grade === g); return own.length ? own : [{ grade: g, room: '1' }]; });
+      drawButtons(withEmpty);
+      highlightQuickBtn(gradeSelectEl.value, String(classSelectEl?.value || '').trim());
+    }).catch(() => { /* keep the ชั้น/1 buttons */ });
 
     const host = document.getElementById('gcQuickBarHost');
     if (host) {
@@ -5728,6 +5744,28 @@ window.GradeClassHelper = (function() {
     }
     }
   }
+
+  // ห้องทั้งหมดที่มีนักเรียน (ปีนี้ ตามสิทธิ์ของผู้ใช้) เรียงชั้นแล้วเลขห้อง — ใช้ร่วมกับปุ่มลัดและแผงความคืบหน้าหน้าหลัก
+  function loadAllRooms_() {
+    const cache = loadAllRooms_.__cache;
+    if (cache && Date.now() - cache.at < 60000) return cache.promise;
+    const order = (window.PP5Grades?.list?.() || ['ป.1','ป.2','ป.3','ป.4','ป.5','ป.6','ม.1','ม.2','ม.3']);
+    const promise = (async () => {
+      const students = await window.PP5Data.students.list({});
+      const seen = new Map();
+      students.forEach((s) => {
+        const grade = String(s.grade || '').trim();
+        const room = String(s.classNo || s.room || '1').trim();
+        if (grade && room) seen.set(grade + '/' + room, { grade, room });
+      });
+      return [...seen.values()].sort((a, b) => ((order.indexOf(a.grade) + 100) % 100) - ((order.indexOf(b.grade) + 100) % 100)
+        || a.room.localeCompare(b.room, 'th', { numeric: true }));
+    })();
+    loadAllRooms_.__cache = { at: Date.now(), promise };
+    promise.catch(() => { loadAllRooms_.__cache = null; });
+    return promise;
+  }
+  window.PP5LoadAllRooms = loadAllRooms_;
 
   function selectGradeClass(gradeSelectEl, classSelectEl, grade, classNo) {
     if (!gradeSelectEl) return;
@@ -7718,15 +7756,23 @@ function enhanceHomeCompactLayout_(hubPage, card) {
   }
   const select = summary.querySelector('select');
   if (pills) {
-    pills.querySelectorAll('[data-grade]').forEach((pill) => {
-      const option = document.createElement('option');
-      option.value = pill.getAttribute('data-grade');
-      option.textContent = option.value + '/1';
-      option.selected = pill.classList.contains('active');
-      select.appendChild(option);
-    });
+    // ตัวเลือกห้อง = ปุ่มห้องในแผง (ชั้น|ห้อง) สร้างใหม่ทุกครั้งที่ปุ่มเปลี่ยน (ห้องจริงโหลดตามมาทีหลัง)
+    const syncRoomSelect = () => {
+      select.innerHTML = '';
+      pills.querySelectorAll('[data-grade]').forEach((pill) => {
+        const option = document.createElement('option');
+        const room = pill.getAttribute('data-room') || '1';
+        option.value = pill.getAttribute('data-grade') + '|' + room;
+        option.textContent = pill.getAttribute('data-grade') + '/' + room;
+        option.selected = pill.classList.contains('active');
+        select.appendChild(option);
+      });
+    };
+    syncRoomSelect();
+    card.__pp5SyncRoomSelect = syncRoomSelect;
     select.addEventListener('change', () => {
-      const target = Array.from(pills.querySelectorAll('[data-grade]')).find((pill) => pill.getAttribute('data-grade') === select.value);
+      const [grade, room] = select.value.split('|');
+      const target = Array.from(pills.querySelectorAll('[data-grade]')).find((pill) => pill.getAttribute('data-grade') === grade && (pill.getAttribute('data-room') || '1') === room);
       if (percent) percent.textContent = '…';
       target?.click();
     });
@@ -8450,6 +8496,10 @@ function enhanceSupabaseHomeHubPage_() {
 
   const grades = window.PP5Grades?.list?.() || ['ป.1', 'ป.2', 'ป.3', 'ป.4', 'ป.5', 'ป.6'];
   let currentActiveGrade = grades.includes(initialGrade) ? initialGrade : 'ป.1';
+  // ห้องของแผงความคืบหน้า (owner 2026-10-14: ระบบต้องรองรับห้อง 2, 3 … — เดิมส่งห้อง '1' เสมอ)
+  let currentActiveRoom = String(saved?.classNo || '1').trim() || '1';
+  const teacherRoom = teacherClass.match(/\/\s*(\d+)/);
+  if (teacherRoom) currentActiveRoom = teacherRoom[1];
   const teacherFullName = getUserFullName_();
 
   // สร้าง Card Container สำหรับ Infographic Roadmap
@@ -8457,7 +8507,7 @@ function enhanceSupabaseHomeHubPage_() {
   card.id = 'homeroomRoadmapWidget';
   card.className = 'homeroom-roadmap-card animate-fade-in';
 
-  let pillsHtml = grades.map(g => `<button type="button" class="roadmap-grade-pill ${g === currentActiveGrade ? 'active' : ''}" data-grade="${g}">${g}</button>`).join('');
+  let pillsHtml = grades.map(g => `<button type="button" class="roadmap-grade-pill ${g === currentActiveGrade ? 'active' : ''}" data-grade="${g}" data-room="1">${g}</button>`).join('');
 
   card.innerHTML = `
     <div class="roadmap-header">
@@ -8467,7 +8517,7 @@ function enhanceSupabaseHomeHubPage_() {
         </div>
         <div>
           <h3 class="roadmap-title">เส้นทางครูประจำชั้น</h3>
-          <div class="roadmap-subtitle">ติดตามความก้าวหน้าภารกิจ <strong id="rmGradeLabel">${currentActiveGrade}/1</strong> <span id="rmTeacherNameWrap">• ครูผู้ดูแล: <strong class="text-primary" id="rmTeacherNameLabel">${teacherFullName}</strong></span> สู่ความพร้อมออกเอกสาร ปพ.5 / ปพ.6</div>
+          <div class="roadmap-subtitle">ติดตามความก้าวหน้าภารกิจ <strong id="rmGradeLabel">${currentActiveGrade}/${currentActiveRoom}</strong> <span id="rmTeacherNameWrap">• ครูผู้ดูแล: <strong class="text-primary" id="rmTeacherNameLabel">${teacherFullName}</strong></span> สู่ความพร้อมออกเอกสาร ปพ.5 / ปพ.6</div>
         </div>
       </div>
       <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -8519,23 +8569,40 @@ function enhanceSupabaseHomeHubPage_() {
   enhanceHomeCompactLayout_(hubPage, card);
 
   // ผูกการคลิกเลือกชั้นเรียน (Pills)
-  const pills = card.querySelectorAll('.roadmap-grade-pill');
-  pills.forEach(pill => {
-    pill.addEventListener('click', () => {
-      pills.forEach(p => p.classList.remove('active'));
-      pill.classList.add('active');
-      currentActiveGrade = pill.getAttribute('data-grade');
-      const label = card.querySelector('#rmGradeLabel');
-      if (label) label.textContent = currentActiveGrade + '/1';
-      fetchProgress(currentActiveGrade);
-    });
+  // ปุ่มห้อง: ผูกแบบ delegation เพราะปุ่มถูกสร้างใหม่เมื่อรู้ห้องจริง (ชั้นละหลายห้อง)
+  card.addEventListener('click', (event) => {
+    const pill = event.target.closest('.roadmap-grade-pill');
+    if (!pill || !card.contains(pill)) return;
+    card.querySelectorAll('.roadmap-grade-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    currentActiveGrade = pill.getAttribute('data-grade');
+    currentActiveRoom = pill.getAttribute('data-room') || '1';
+    const label = card.querySelector('#rmGradeLabel');
+    if (label) label.textContent = currentActiveGrade + '/' + currentActiveRoom;
+    fetchProgress(currentActiveGrade);
   });
+  if (typeof window.PP5LoadAllRooms === 'function') {
+    window.PP5LoadAllRooms().then((rooms) => {
+      const bar = card.querySelector('#rmPillsBar');
+      const known = rooms.filter((r) => grades.includes(r.grade));
+      if (!bar || !known.length || !card.isConnected) return;
+      const list = grades.flatMap((g) => { const own = known.filter((r) => r.grade === g); return own.length ? own : [{ grade: g, room: '1' }]; });
+      if (!list.some((r) => r.grade === currentActiveGrade && r.room === currentActiveRoom)) {
+        currentActiveRoom = (list.find((r) => r.grade === currentActiveGrade) || { room: '1' }).room;
+      }
+      bar.innerHTML = list.map((r) => `<button type="button" class="roadmap-grade-pill ${r.grade === currentActiveGrade && r.room === currentActiveRoom ? 'active' : ''}" data-grade="${r.grade}" data-room="${r.room}">${r.grade}/${r.room}</button>`).join('');
+      const label = card.querySelector('#rmGradeLabel');
+      if (label) label.textContent = currentActiveGrade + '/' + currentActiveRoom;
+      if (typeof card.__pp5SyncRoomSelect === 'function') card.__pp5SyncRoomSelect();
+      if (currentActiveRoom !== '1') fetchProgress(currentActiveGrade);
+    }).catch(() => { /* keep the grade buttons */ });
+  }
 
   // ปุ่มเปิดเซ็นชื่อครูประจำชั้นห้องนี้
   const btnTeacherSig = card.querySelector('#btnRoadmapTeacherSig');
   if (btnTeacherSig) {
     btnTeacherSig.addEventListener('click', () => {
-      const roomKey = `${currentActiveGrade}/1`;
+      const roomKey = `${currentActiveGrade}/${currentActiveRoom}`;
       showSignaturePadModal_(`ครูประจำชั้น ${roomKey}`, (dataUrl) => {
         if (typeof google !== 'undefined' && google.script?.run) {
           google.script.run
@@ -8583,6 +8650,7 @@ function enhanceSupabaseHomeHubPage_() {
 
   // ดึงข้อมูลความก้าวหน้าจาก Backend
   function fetchProgress(grade) {
+    const room = currentActiveRoom;
     const percentPill = card.querySelector('#rmPercentPill');
     const headline = card.querySelector('#rmStatusHeadline');
     const sub = card.querySelector('#rmStatusSub');
@@ -8592,13 +8660,13 @@ function enhanceSupabaseHomeHubPage_() {
 
     if (typeof google !== 'undefined' && google.script && google.script.run && typeof google.script.run.getHomeroomProgressStatus === 'function') {
       google.script.run
-        .withSuccessHandler(data => { if (grade === currentActiveGrade) renderData(data); })
+        .withSuccessHandler(data => { if (grade === currentActiveGrade && room === currentActiveRoom) renderData(data); })
         .withFailureHandler(err => {
-          if (grade !== currentActiveGrade) return;
+          if (grade !== currentActiveGrade || room !== currentActiveRoom) return;
           console.warn('Roadmap fetch fallback:', err);
           renderFallback(grade);
         })
-        .getHomeroomProgressStatus(grade, '1');
+        .getHomeroomProgressStatus(grade, room);
     } else {
       renderFallback(grade);
     }

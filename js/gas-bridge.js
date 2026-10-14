@@ -5316,7 +5316,8 @@
     },
     async getAvailableClasses(grade) {
       const students = await data.students.list({ grade });
-      return [...new Set(students.map((student) => student.classNo))].filter(Boolean);
+      return [...new Set(students.map((student) => text(student.classNo)))].filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
     },
     async getAvailableClassNos(grade) { return this.getAvailableClasses(grade); },
     async getAvailableClassesForDelete(grade) { return this.getAvailableClasses(grade); },
