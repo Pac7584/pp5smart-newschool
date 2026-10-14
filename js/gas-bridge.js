@@ -1665,6 +1665,28 @@
 
   const ACTIVITY_KEYS = ['guidance', 'scout', 'club', 'social', 'overall'];
 
+  // ระบบลงทะเบียนชุมนุม (migration 202610140030, js/clubs.js): ชื่อชุมนุมที่นักเรียน/ครูลงทะเบียนไว้
+  // ใช้แทนเมื่อครูยังไม่ได้พิมพ์ชื่อชุมนุมเองในหน้าประเมิน (owner 2026-10-14: "ขึ้นอัตโนมัติ")
+  // ภาค 1/2 = ภาคนั้น · ทั้งปี = ภาค 2 ถ้ามี ไม่งั้นภาค 1 · ยังไม่ได้ลง SQL 030 = ไม่มีผล
+  async function registeredClubNames(studentIds, academicYear, semester) {
+    if (!studentIds.length) return {};
+    const term = Number(semester);
+    let query = client.from('club_members').select('student_id,semester,clubs(name)')
+      .eq('academic_year', text(academicYear)).in('student_id', studentIds);
+    if (term === 1 || term === 2) query = query.eq('semester', term);
+    const { data: rows, error } = await query;
+    if (error) {
+      if (data.helpers.isOptionalSchemaError(error)) return {};
+      throw new Error(error.message);
+    }
+    const names = {};
+    [...(rows || [])].sort((a, b) => Number(a.semester) - Number(b.semester)).forEach((row) => {
+      const name = text(row.clubs?.name).trim();
+      if (name) names[row.student_id] = name;
+    });
+    return names;
+  }
+
   async function loadActivityAssessment(grade, classNo, semester = 1, academicYear) {
     const year = text(academicYear || await currentYear());
     const students = await data.students.list({ grade, room: classNo, academicYear: year });
@@ -1679,6 +1701,8 @@
         clubNames[row.student_id] = text(row.note).trim();
       }
     });
+    const registered = await registeredClubNames(students.map((student) => student.id), year, semester);
+    Object.entries(registered).forEach(([studentId, name]) => { if (!clubNames[studentId]) clubNames[studentId] = name; });
     return students.map((student) => {
       const studentMap = grouped[student.id] || {};
       const guidanceVal = studentMap.guidance ?? studentMap.act1;

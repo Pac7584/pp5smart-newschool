@@ -202,3 +202,50 @@ body.pp5-login-page .login-container .pp5-register-link a { color: #9af5ff !impo
   #pp5RegisterOverlay .pp5-reg-grid { grid-template-columns: 1fr; }
   #pp5RegisterOverlay .pp5-reg-card { padding: 22px 18px 16px; }
 }
+
+/* ---------- นักเรียน: ลงทะเบียนชุมนุม (js/clubs.js) ---------- */
+body.pp5-login-page .login-container .pp5-club-link { text-align: center; margin-top: 8px; }
+body.pp5-login-page .login-container .pp5-club-link a {
+  display: inline-block; padding: 7px 16px; border-radius: 999px; border: 1px solid rgba(154, 245, 255, .6);
+  background: rgba(154, 245, 255, .14); color: #e3fbff !important; font-weight: 700; cursor: pointer; text-decoration: none;
+}
+#pp5ClubOverlay {
+  position: fixed; inset: 0; z-index: 10060; display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(3, 40, 80, .55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); overflow-y: auto;
+}
+#pp5ClubOverlay .pp5-cs-card {
+  position: relative; width: 100%; max-width: 560px; margin: auto; padding: 24px 24px 18px; border-radius: 24px;
+  background: linear-gradient(140deg, rgba(9, 110, 180, .94), rgba(7, 128, 170, .92));
+  border: 1px solid rgba(239, 255, 255, .56); box-shadow: 0 22px 65px rgba(0, 35, 82, .35); color: #f2fbff;
+}
+#pp5ClubOverlay h2 { margin: 0 0 6px; text-align: center; font-size: 1.45rem; font-weight: 800; color: #f2fbff; }
+#pp5ClubOverlay .pp5-cs-sub { text-align: center; color: #d3edf8; margin: 0 0 14px; line-height: 1.6; }
+#pp5ClubOverlay .pp5-cs-close { position: absolute; top: 10px; right: 14px; border: 0; background: none; color: #e3fbff; font-size: 1.6rem; cursor: pointer; }
+#pp5ClubOverlay label { display: flex; flex-direction: column; gap: 5px; font-weight: 600; font-size: .9rem; margin-bottom: 10px; }
+#pp5ClubOverlay input, #pp5ClubOverlay select {
+  height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(217, 249, 255, .62);
+  background: rgba(220, 249, 255, .15); color: #f2fbff; font-size: 1rem;
+}
+#pp5ClubOverlay select option { color: #173451; }
+#pp5ClubOverlay .pp5-cs-birth { display: grid; grid-template-columns: .8fr 1.4fr 1fr; gap: 8px; }
+#pp5ClubOverlay .pp5-cs-btn, #pp5ClubOverlay .pp5-cs-back {
+  width: 100%; min-height: 48px; margin-top: 8px; border-radius: 999px; border: 1px solid rgba(209, 255, 255, .65);
+  background: linear-gradient(100deg, #69f5f5, #31e5ed 52%, #35d4ee); color: #073b5f; font-weight: 800; font-size: 1rem; cursor: pointer;
+}
+#pp5ClubOverlay .pp5-cs-msg { margin: 8px 0; padding: 9px 12px; border-radius: 10px; font-weight: 600; }
+#pp5ClubOverlay .pp5-cs-msg.err { background: rgba(254, 226, 226, .95); color: #b91c1c; }
+#pp5ClubOverlay .pp5-cs-msg.ok { background: rgba(220, 252, 231, .95); color: #047857; }
+#pp5ClubOverlay .pp5-cs-msg.info { background: rgba(220, 249, 255, .2); color: #f2fbff; }
+#pp5ClubOverlay .pp5-cs-list { display: grid; gap: 8px; max-height: 52vh; overflow-y: auto; padding-right: 2px; }
+#pp5ClubOverlay .pp5-cs-club {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 14px; border-radius: 14px;
+  background: rgba(220, 249, 255, .12); border: 1px solid rgba(217, 249, 255, .35);
+}
+#pp5ClubOverlay .pp5-cs-club.mine { background: rgba(154, 245, 255, .25); border-color: #9af5ff; }
+#pp5ClubOverlay .pp5-cs-club small { display: block; color: #d3edf8; font-size: .82rem; }
+#pp5ClubOverlay .pp5-cs-pick {
+  flex: none; min-width: 72px; height: 38px; border-radius: 999px; border: 0; cursor: pointer;
+  background: #9af5ff; color: #073b5f; font-weight: 800;
+}
+#pp5ClubOverlay .pp5-cs-pick:disabled { opacity: .45; cursor: not-allowed; }
+#pp5ClubOverlay .pp5-cs-mine { flex: none; font-weight: 800; color: #9af5ff; }

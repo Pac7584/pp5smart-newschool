@@ -10,7 +10,8 @@
   // implementations perform login/recovery validation or read public navigation/branding.
   // getGlobalSettings reads the existing public settings under RLS, not private signatures.
   const PUBLIC_AUTH_METHODS = new Set(['requestPasswordReset','clearLoginSession','getDeploymentUrl','getLoginPageHtml','getGlobalSettings']);
-  const COMMON = new Set(['home_hub','dashboard','change_password','academic_calendar']);
+  // club_management: club advisors teach across rooms (ระบบชุมนุม 2026-10-14) — writes still go through pp5_club_set_member
+  const COMMON = new Set(['home_hub','dashboard','change_password','academic_calendar','club_management']);
   const SUBJECT = new Set(['create_score_sheet','score_table_viewer','subject_score_viewer','exam_analysis']);
   const HOMEROOM = new Set(['studentList','export_pdf_page','behavior_records','student_growth_entry','student_growth_report',
     'attendance_daily','attendance_monthly','attendance_table','semester_attendance_summary','student_scores_summary',
