@@ -206,6 +206,8 @@
       }
       if (!profile.active) {
         await client.auth.signOut({ scope: 'local' });
+        // ลงทะเบียนเองแล้วยังไม่อนุมัติ (js/self-register.js, admin-users register): บอกให้รอ ไม่ใช่ "ถูกระงับ"
+        if (data.user?.app_metadata?.pp5_pending === true) throw appError('บัญชีนี้รอผู้ดูแลระบบอนุมัติ เมื่ออนุมัติแล้วจะเข้าสู่ระบบได้ทันที', null, 'AUTH_PENDING');
         throw appError('บัญชีนี้ถูกระงับการใช้งาน', null, 'AUTH_INACTIVE');
       }
       syncLegacySession(data.session, profile);

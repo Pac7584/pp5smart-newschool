@@ -46,6 +46,73 @@ function temporaryPassword() {
   return 'R9!' + Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('');
 }
 
+const MAX_PENDING_REGISTRATIONS = 30;
+const USERNAME_PATTERN = /^[a-z0-9._-]{3,30}$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// บัญชีที่ลงทะเบียนเองและยังรออนุมัติ: id -> ข้อมูลที่ผู้สมัครกรอก (เบอร์ อีเมล เวลาสมัคร)
+async function pendingRegistrations(client: ReturnType<typeof createClient>) {
+  const pending = new Map<string, Record<string, unknown>>();
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await client.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw error;
+    const users = data?.users || [];
+    for (const user of users) {
+      if (user.app_metadata?.pp5_pending !== true) continue;
+      pending.set(user.id, {
+        phone: user.user_metadata?.phone || '',
+        email: user.email && !user.email.endsWith('@pp5smart.local') ? user.email : '',
+        registeredAt: user.created_at || ''
+      });
+    }
+    if (users.length < 1000) break;
+  }
+  return pending;
+}
+
+async function selfRegister(client: ReturnType<typeof createClient>, body: Record<string, unknown>) {
+  if (String(body.website || '').trim()) return json({ error: 'ลงทะเบียนไม่สำเร็จ' }, 400); // ช่องกับดักบอท
+  const firstName = String(body.firstName || '').trim().slice(0, 60);
+  const lastName = String(body.lastName || '').trim().slice(0, 60);
+  const username = String(body.username || '').trim().toLowerCase();
+  const password = String(body.password || '');
+  const phone = String(body.phone || '').replace(/[^\d+-]/g, '').slice(0, 20);
+  const givenEmail = String(body.email || '').trim().toLowerCase();
+  if (!firstName || !lastName) return json({ error: 'กรุณากรอกชื่อและนามสกุล' }, 400);
+  if (!USERNAME_PATTERN.test(username)) return json({ error: 'ชื่อผู้ใช้ใช้ได้เฉพาะ a-z 0-9 . _ - ยาว 3-30 ตัว' }, 400);
+  if (password.length < 8 || password.length > 72) return json({ error: 'รหัสผ่านต้องยาว 8 ตัวขึ้นไป' }, 400);
+  if (givenEmail && !EMAIL_PATTERN.test(givenEmail)) return json({ error: 'รูปแบบอีเมลไม่ถูกต้อง' }, 400);
+
+  if ((await pendingRegistrations(client)).size >= MAX_PENDING_REGISTRATIONS) {
+    return json({ error: 'มีคำขอรออนุมัติจำนวนมาก กรุณาติดต่อผู้ดูแลระบบ' }, 429);
+  }
+  const { data: taken, error: takenError } = await client.from('user_profiles').select('id').eq('username', username).maybeSingle();
+  if (takenError) throw takenError;
+  if (taken) return json({ error: 'ชื่อผู้ใช้นี้มีคนใช้แล้ว กรุณาเลือกชื่ออื่น' }, 409);
+
+  const displayName = `${firstName} ${lastName}`;
+  const { data: created, error: createError } = await client.auth.admin.createUser({
+    email: givenEmail || `${username}@pp5smart.local`,
+    password,
+    email_confirm: true,
+    user_metadata: { username, display_name: displayName, phone, self_registered: true },
+    app_metadata: { role: 'teacher', pp5_pending: true }
+  });
+  if (createError || !created.user) {
+    const message = String(createError?.message || '');
+    if (/already|registered|exists/i.test(message)) return json({ error: 'อีเมลหรือชื่อผู้ใช้นี้มีบัญชีอยู่แล้ว' }, 409);
+    throw createError || new Error('ลงทะเบียนไม่สำเร็จ');
+  }
+  const { error: insertError } = await client.from('user_profiles').insert({
+    id: created.user.id, username, role: 'teacher', display_name: displayName, active: false
+  });
+  if (insertError) {
+    await client.auth.admin.deleteUser(created.user.id);
+    throw insertError;
+  }
+  return json({ success: true, message: 'ส่งคำขอลงทะเบียนแล้ว กรุณารอผู้ดูแลระบบอนุมัติ' }, 201);
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -55,6 +122,32 @@ Deno.serve(async (request) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const authorization = request.headers.get('Authorization') || '';
   if (!supabaseUrl || !anonKey || !serviceRoleKey) return json({ error: 'Function secrets are incomplete' }, 500);
+
+  let body: Record<string, unknown>;
+  try { body = await request.json(); }
+  catch { return json({ error: 'Invalid JSON' }, 400); }
+  const action = String(body.action || '');
+
+  // ลงทะเบียนบุคลากรด้วยตนเอง (owner 2026-10-14): 2 คำสั่งที่ไม่ต้องเข้าสู่ระบบ ใช้ได้เฉพาะเมื่อผู้ดูแลเปิดสวิตช์
+  // (settings_json.self_registration = true) บัญชีใหม่ active = false + app_metadata.pp5_pending จนผู้ดูแลอนุมัติ
+  // ต้องปิด "Verify JWT" ของฟังก์ชันนี้ใน Dashboard (ผู้ไม่ได้เข้าระบบส่ง publishable key ซึ่งไม่ใช่ JWT)
+  // คำสั่งอื่นทั้งหมดยังตรวจผู้เรียกด้วย auth.getUser() + บทบาท admin เหมือนเดิม
+  if (action === 'registration-status' || action === 'register') {
+    const publicClient = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+    try {
+      const { data: settingsRow, error: settingsError } = await publicClient
+        .from('school_settings').select('settings_json').limit(1).maybeSingle();
+      if (settingsError) throw settingsError;
+      const enabled = settingsRow?.settings_json?.self_registration === true;
+      if (action === 'registration-status') return json({ success: true, enabled });
+      if (!enabled) return json({ error: 'ขณะนี้ปิดรับลงทะเบียน กรุณาติดต่อผู้ดูแลระบบ' }, 403);
+      return await selfRegister(publicClient, body);
+    } catch (error) {
+      console.error('admin-users register:', error);
+      return json({ error: error instanceof Error ? error.message : 'ลงทะเบียนไม่สำเร็จ' }, 400);
+    }
+  }
+
   if (!authorization.startsWith('Bearer ')) return json({ error: 'Unauthorized' }, 401);
 
   const callerClient = createClient(supabaseUrl, anonKey, {
@@ -74,11 +167,6 @@ Deno.serve(async (request) => {
     return json({ error: 'Forbidden' }, 403);
   }
 
-  let body: Record<string, unknown>;
-  try { body = await request.json(); }
-  catch { return json({ error: 'Invalid JSON' }, 400); }
-
-  const action = String(body.action || '');
   try {
     if (action === 'list') {
       const { data, error } = await adminClient.from('user_profiles')
@@ -93,7 +181,13 @@ Deno.serve(async (request) => {
         current.push(String(link.student_id));
         linkMap.set(link.parent_user_id, current);
       });
-      return json({ success: true, users: (data || []).map((profile) => ({ ...profile, studentIds: (linkMap.get(profile.id) || []).join(',') })) });
+      const pending = await pendingRegistrations(adminClient);
+      return json({ success: true, users: (data || []).map((profile) => ({
+        ...profile,
+        studentIds: (linkMap.get(profile.id) || []).join(','),
+        pending: pending.has(profile.id),
+        registration: pending.get(profile.id) || null
+      })) });
     }
 
     if (action === 'import-legacy') {
@@ -357,6 +451,33 @@ Deno.serve(async (request) => {
       }
       if (replaceLinks) await replaceParentLinks(callerClient, userId, nextRole === 'parent' ? studentIds : []);
       return json({ success: true, user: data });
+    }
+
+    // อนุมัติคำขอลงทะเบียน: ผู้ดูแลเลือกเป็นครูหรือผู้ดูแลระบบ (owner 2026-10-14)
+    if (action === 'approve-registration') {
+      const role = String(body.role || 'teacher');
+      if (!['teacher', 'admin'].includes(role)) return json({ error: 'Invalid role' }, 400);
+      const { data: authRecord, error: readError } = await adminClient.auth.admin.getUserById(userId);
+      if (readError || !authRecord.user) throw readError || new Error('ไม่พบบัญชี');
+      if (authRecord.user.app_metadata?.pp5_pending !== true) return json({ error: 'บัญชีนี้ไม่ได้รออนุมัติ' }, 400);
+      const { data, error } = await adminClient.from('user_profiles').update({ role, active: true }).eq('id', userId).select().single();
+      if (error) throw error;
+      const { pp5_pending: _done, ...appMetadata } = authRecord.user.app_metadata || {};
+      const { error: authError } = await adminClient.auth.admin.updateUserById(userId, {
+        app_metadata: { ...appMetadata, role, pp5_approved_at: new Date().toISOString() }
+      });
+      if (authError) throw authError;
+      return json({ success: true, user: data });
+    }
+
+    // ปฏิเสธคำขอ: ลบบัญชีที่ยังรออนุมัติเท่านั้น (บัญชีที่ใช้งานอยู่ลบด้วยปุ่ม "ลบ" เดิม)
+    if (action === 'reject-registration') {
+      const { data: authRecord, error: readError } = await adminClient.auth.admin.getUserById(userId);
+      if (readError || !authRecord.user) throw readError || new Error('ไม่พบบัญชี');
+      if (authRecord.user.app_metadata?.pp5_pending !== true) return json({ error: 'บัญชีนี้ไม่ได้รออนุมัติ' }, 400);
+      const { error } = await adminClient.auth.admin.deleteUser(userId);
+      if (error) throw error;
+      return json({ success: true });
     }
 
     if (action === 'reset-password') {
