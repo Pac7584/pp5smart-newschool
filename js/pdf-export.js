@@ -2410,7 +2410,8 @@
     const att = sheet.attendance;
     if (!att) return;
     // hourly = ครูเช็คชื่อรายชั่วโมงของวิชานี้ (SQL 031) · daily = คิดจากเช็คชื่อรายวัน (ยังไม่มีบันทึกรายชั่วโมง)
-    const hourly = att.mode === 'hourly';
+    // mixed = วิชาทั้งปีที่ภาคหนึ่งเช็ครายคาบ อีกภาคใช้เช็คชื่อรายวันแปลงเป็นชั่วโมง (gas-bridge mixedAttendance) — แสดงเป็นชั่วโมง
+    const hourly = att.mode === 'hourly' || att.mode === 'mixed';
     const pageWidth = doc.internal.pageSize.getWidth();
     const left = 16;
     doc.setTextColor(0, 0, 0);
@@ -2445,7 +2446,9 @@
     doc.setFont('Sarabun', 'normal');
     doc.setFontSize(8);
     doc.text(`* สรุป: มาเรียนร้อยละ 80 ขึ้นไป ${att.over} คน · ไม่ถึงร้อยละ 80 (มส) ${att.under} คน${att.noData ? ` · ยังไม่มีข้อมูลเช็คชื่อ ${att.noData} คน` : ''}`, left, y);
-    doc.text(hourly
+    doc.text(att.mode === 'mixed'
+      ? `* ${text(att.note)} · ร้อยละการมาเรียน = ชั่วโมงที่มาเรียน ÷ ชั่วโมงรวมทั้งปี`
+      : hourly
       ? '* คิดจากการเช็คชื่อรายชั่วโมงของวิชานี้ · ร้อยละการมาเรียน = ชั่วโมงที่มาเรียน ÷ ชั่วโมงที่สอนและบันทึกแล้ว'
       : '* คิดจากการเช็คชื่อรายวันของห้อง (ยังไม่มีการเช็คชื่อรายชั่วโมงของวิชานี้ ไม่นับวันหยุดราชการ) · ชั่วโมงที่เรียน = เวลาเรียนของวิชา × ร้อยละการมาเรียน', left, y + 4);
     doc.text('* นักเรียนที่มีเวลาเรียนไม่ถึงร้อยละ 80 ไม่มีสิทธิ์ได้รับการวัดผลปลายภาค/ปลายปี (มส)', left, y + 8);
@@ -2462,7 +2465,8 @@
   // ท้ายตารางมีรวมของเดือน (ชั่วโมงหรือวันที่มา / ที่สอน)
   function drawPp5SubjectMonthPage(doc, report, sheet, month, meta, logo) {
     const att = sheet.attendance;
-    const hourly = att.mode === 'hourly';
+    // แต่ละเดือนบอกเองว่าเป็นรายคาบหรือรายวัน (วิชาทั้งปีแบบ mixed มีทั้งสองแบบในเล่มเดียว)
+    const hourly = typeof month.hourly === 'boolean' ? month.hourly : att.mode === 'hourly';
     const pageWidth = doc.internal.pageSize.getWidth();
     let y = 12;
     if (logo) {

@@ -2099,7 +2099,7 @@
         list.forEach((entry) => marks.set(`${entry.sid}|${slotOf(entry)}`, entry));
         const mark = { present: '✓', leave: 'ล', absent: 'ข' };
         return {
-          key: month.key, monthName: month.monthName, yearBE: month.yearBE, semester: month.semester,
+          key: month.key, monthName: month.monthName, yearBE: month.yearBE, semester: month.semester, hourly: !!hourlyMode,
           days: dates.map((slot) => {
             const [date, period] = slot.split('#');
             const [y, m, d] = date.split('-').map(Number);
@@ -2125,9 +2125,9 @@
       });
     };
     const studentIdsForHours = students.map((student) => text(student.id)).filter(Boolean);
-    const hourlyAttendance = async (subject) => {
+    const hourlyAttendance = async (subject, semester = subjectSemester_(subject)) => {
       if (!studentIdsForHours.length) return null;
-      const att = await attendanceFor(subjectSemester_(subject));
+      const att = await attendanceFor(semester);
       let rows = [];
       try {
         rows = await optionalTableAll('subject_attendance', (query) => query
@@ -2177,10 +2177,8 @@
         noData: list.filter((row) => row.pct === null).length
       };
     };
-    const subjectAttendance = async (subject) => {
-      const hourly = await hourlyAttendance(subject);
-      if (hourly) return hourly;
-      const att = await attendanceFor(subjectSemester_(subject));
+    const dailyAttendance = async (subject, semester = subjectSemester_(subject)) => {
+      const att = await attendanceFor(semester);
       const sums = new Map(summarizeAttendanceRows(students, att.rows, true).map((row) => [row.studentId, row]));
       const hours = Number(subject.hours_per_year ?? subject.hoursPerYear) || 0;
       const list = students.map((student, index) => {
@@ -2198,6 +2196,58 @@
       return {
         months: attendanceMonths(att.rows.map((row) => ({ date: row.attendance_date, sid: text(row.student_id), status: row.status })), false),
         mode: 'daily', first: att.first, last: att.last, schoolDays: countRecordedSchoolDays(att.rows), hours, students: list,
+        over: list.filter((row) => row.pct !== null && !row.below).length,
+        under: list.filter((row) => row.below).length,
+        noData: list.filter((row) => row.pct === null).length
+      };
+    };
+    // owner 2026-10-15 (ยกวิชาให้ครูรายวิชาในภาค 2): วิชาทั้งปีที่ภาค 1 มีแต่เช็คชื่อรายวัน แต่ภาค 2 เช็ครายคาบ
+    // เดิมระบบใช้รายคาบทั้งปี (ภาค 1 หายจากการคำนวณ) — ตอนนี้คิดทีละภาค: ภาคไหนมีรายคาบใช้รายคาบ ภาคไหนไม่มีใช้รายวัน
+    // แล้วแปลงรายวันเป็นชั่วโมง (เวลาเรียนของวิชาครึ่งปี × สัดส่วนวันที่มา/ลา/ขาด) รวมกับชั่วโมงจริง -> ร้อยละทั้งปีเป็นชั่วโมง
+    const subjectAttendance = async (subject) => {
+      const own = subjectSemester_(subject);
+      if (own) return (await hourlyAttendance(subject, own)) || dailyAttendance(subject, own);
+      const whole = await hourlyAttendance(subject, 0);
+      if (!whole) return dailyAttendance(subject, 0);
+      const parts = [];
+      // ภาคที่ยังไม่มีบันทึกเลย (เช่น ภาค 2 ยังไม่เปิด) ไม่นับ — ไม่งั้นได้ "เวลาเรียน 0 วัน" ไปถ่วงทั้งปี
+      for (const semester of [1, 2]) {
+        const part = (await hourlyAttendance(subject, semester)) || (await dailyAttendance(subject, semester));
+        if (part.mode === 'hourly' || number(part.schoolDays, 0) > 0) parts.push({ ...part, semesterNo: semester });
+      }
+      if (parts.every((part) => part.mode === 'hourly')) return whole;
+      return mixedAttendance(subject, parts);
+    };
+    const mixedAttendance = (subject, parts) => {
+      const hours = Number(subject.hours_per_year ?? subject.hoursPerYear) || 0;
+      const hourlyPart = parts.find((part) => part.mode === 'hourly');
+      const semHours = hours ? hours / 2 : number(hourlyPart?.taughtHours, 0);
+      const toHours = (row) => {
+        if (!row || !row.total || !semHours) return { present: 0, leave: 0, absent: 0, total: 0 };
+        const present = Math.round((semHours * row.present) / row.total);
+        const leave = Math.round((semHours * row.leave) / row.total);
+        return { present, leave, absent: Math.max(0, Math.round(semHours) - present - leave), total: Math.round(semHours) };
+      };
+      const list = students.map((student, index) => {
+        const sum = { present: 0, leave: 0, absent: 0, total: 0 };
+        parts.forEach((part) => {
+          const row = part.students.find((r) => r.code === text(student.id));
+          const add = part.mode === 'hourly' ? row : toHours(row);
+          ['present', 'leave', 'absent', 'total'].forEach((k) => { sum[k] += number(add?.[k], 0); });
+        });
+        const pct = sum.total ? Math.round((sum.present / sum.total) * 1000) / 10 : null;
+        return {
+          no: text(student.studentNumber ?? student.student_number) || String(index + 1), code: text(student.id), name: studentDisplayName(student),
+          ...sum, pct, hours: pct === null ? null : sum.present, below: pct !== null && pct < 80
+        };
+      });
+      const describe = parts.map((part) => `ภาค ${part.semesterNo} ${part.mode === 'hourly' ? 'เช็คชื่อรายคาบ' : `เช็คชื่อรายวัน (แปลงเป็น ${Math.round(semHours)} ชม.)`}`).join(' · ');
+      return {
+        months: parts.flatMap((part) => part.months || []),
+        mode: 'mixed', note: describe, first: parts[0].first, last: parts[parts.length - 1].last,
+        schoolDays: parts.reduce((sum, part) => sum + number(part.schoolDays, 0), 0),
+        taughtHours: Math.round(parts.reduce((sum, part) => sum + (part.mode === 'hourly' ? number(part.taughtHours, 0) : semHours), 0)),
+        hours, students: list,
         over: list.filter((row) => row.pct !== null && !row.below).length,
         under: list.filter((row) => row.below).length,
         noData: list.filter((row) => row.pct === null).length

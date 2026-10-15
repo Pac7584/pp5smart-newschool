@@ -39,7 +39,8 @@
       if (!out.has(key)) out.set(key, { key, subject, grade, room: text(room) });
     };
     assignments.forEach((a) => {
-      if (a.scope === 'subject') add(subjects.find((s) => text(s.id) === text(a.subject_id)), a.grade, a.room);
+      // งานครูประจำวิชาเฉพาะภาค (ผู้ดูแลเลือก ภาค 1 / ภาค 2) แสดงเฉพาะภาคนั้น
+      if (a.scope === 'subject') { if (!Number(a.semester) || Number(a.semester) === Number(semester)) add(subjects.find((s) => text(s.id) === text(a.subject_id)), a.grade, a.room); }
       else subjects.filter((s) => text(s.grade) === a.grade).forEach((s) => add(s, a.grade, a.room));
     });
     return [...out.values()].sort((a, b) => roomSort(a, b) || rank(a.subject.name) - rank(b.subject.name)
@@ -195,7 +196,7 @@
     try { const { data } = await client().rpc('pp5_teacher_scope_context'); scope = data && data.enabled ? data : null; } catch (_) { scope = null; }
     state.scoped = role === 'teacher' && !!scope;
     state.assignments = state.scoped ? (scope.assignments || []).filter((a) => a.active !== false && text(a.academic_year) === state.year
-      && global.PP5WorkMode?.keeps?.(a, scope) !== false) : [];
+      && global.PP5WorkMode?.keeps?.(a, scope, 0) !== false) : [];
     const { data: subjects, error: subjectError } = await client().from('subjects').select('*');
     if (subjectError) throw subjectError;
     state.subjects = subjects || [];

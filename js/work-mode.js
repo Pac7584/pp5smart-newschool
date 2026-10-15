@@ -15,7 +15,12 @@
   let ctxCache = null;
   let chooserOpen = false;
 
-  const current = (ctx) => (ctx?.assignments || []).filter((a) => a.active !== false && a.academic_year === ctx.academicYear);
+  // ภาคเรียนปัจจุบัน (school_settings.semester) — งานครูประจำวิชาที่ผู้ดูแลตั้ง "ภาค 2" ยังไม่นับในภาค 1 และกลับกัน
+  // (owner 2026-10-15: ยกวิชาให้ครูรายวิชาในภาคเรียนที่ 2) · 0 = ยังไม่รู้ภาค (ไม่กรอง) · งานทั้งปี (semester 0) นับทุกภาค
+  let semester = 0;
+  let semesterLoading = null;
+  const inSemester = (a, sem = semester) => a.scope !== 'subject' || !Number(a.semester) || !sem || Number(a.semester) === Number(sem);
+  const current = (ctx) => (ctx?.assignments || []).filter((a) => a.active !== false && a.academic_year === ctx.academicYear && inSemester(a));
   function kinds(ctx) {
     const list = current(ctx);
     return { homeroom: list.some((a) => a.scope === 'homeroom'), subject: list.some((a) => a.scope === 'subject') };
@@ -32,7 +37,8 @@
     return k.subject ? 'subject' : k.homeroom ? 'homeroom' : '';
   }
   const both = (ctx) => { const k = kinds(ctx || ctxCache); return k.homeroom && k.subject; };
-  const keeps = (assignment, ctx) => { const m = mode(ctx); return !m || assignment.scope === m; };
+  // sem: ไม่ส่ง = ภาคปัจจุบัน · 0 = ทุกภาค (หน้าตารางสอน/สรุปที่มีแท็บภาคของตัวเอง)
+  const keeps = (assignment, ctx, sem) => { const m = mode(ctx); return (!m || assignment.scope === m) && inSemester(assignment, sem === undefined ? semester : sem); };
   const filter = (assignments, ctx) => (assignments || []).filter((a) => keeps(a, ctx));
   const label = () => LABEL[mode()] || '';
 
@@ -390,6 +396,16 @@ ${option('subject', 'bi-journal-bookmark-fill', 'ครูประจำวิ�
   // ---- เรียกจาก PP5Permissions.refreshMenu() ทุกครั้งที่เปลี่ยนหน้า (ได้ context ล่าสุดมาด้วย)
   function apply(ctx) {
     ctxCache = ctx || ctxCache;
+    // รู้ภาคเรียนก่อน จึงตัดสินโหมด/หน้าต่างเลือกงาน (ไม่ให้ถามเรื่องงานภาค 2 ระหว่างภาค 1)
+    if (!semester && ctxCache?.enabled && ctxCache?.role === 'teacher' && global.PP5Data?.settings?.get) {
+      if (!semesterLoading) {
+        semesterLoading = global.PP5Data.settings.get()
+          .then((settings) => { semester = Number(settings?.semester || settings?.currentSemester) === 2 ? 2 : 1; })
+          .catch(() => { semester = 0; })
+          .then(() => { global.PP5Permissions?.refreshMenu?.(); });
+      }
+      return;
+    }
     const m = mode();
     if (m) doc.documentElement.dataset.pp5WorkMode = m;
     else delete doc.documentElement.dataset.pp5WorkMode;
@@ -531,5 +547,6 @@ html[data-pp5-work-mode="subject"] #userRoomBadge{display:none!important}
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', watch, { once: true });
   else watch();
 
-  global.PP5WorkMode = { mode, both, keeps, filter, label, apply, choose, forget, openChooser, teachingRows, panelHtml, subjectRank };
+  const setSemester = (n) => { semester = Number(n) || 0; };
+  global.PP5WorkMode = { mode, both, keeps, filter, label, apply, choose, forget, openChooser, teachingRows, panelHtml, subjectRank, setSemester, inSemester };
 })(window);

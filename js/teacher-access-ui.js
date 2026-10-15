@@ -67,9 +67,14 @@
 .ta-subj-room{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
 .ta-subj-room select{width:auto;min-width:140px}
 .ta-subjects{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px}
-.ta-subject{display:flex;gap:8px;align-items:center;border:1.5px solid var(--t-line);border-radius:10px;padding:.45rem .6rem;cursor:pointer}
+.ta-subj-item{border:1.5px solid var(--t-line);border-radius:10px;padding:.45rem .6rem}
+.ta-subj-item:has(input:checked){border-color:#10b981;background:color-mix(in srgb,#10b981 8%,var(--t-card))}
+.ta-subject{display:flex;gap:8px;align-items:center;cursor:pointer;margin:0}
 .ta-subject input{accent-color:#10b981;width:1.05rem;height:1.05rem;flex:none}
-.ta-subject:has(input:checked){border-color:#10b981;background:color-mix(in srgb,#10b981 8%,var(--t-card))}
+.ta-sem{display:flex;gap:4px;margin:6px 0 0 1.6rem}
+.ta-sem button{border:1px solid var(--t-line);background:var(--t-card);color:var(--t-muted);border-radius:999px;font-size:.75rem;font-weight:700;padding:.1rem .6rem}
+.ta-sem button[aria-pressed="true"]{background:#10b981;border-color:#10b981;color:#fff}
+.ta-others{display:block;margin:4px 0 0 1.6rem;font-size:.72rem;color:var(--t-warn)}
 .ta-subject code{font-size:.75rem;color:var(--t-muted)}
 .ta-subject small{display:block;font-size:.72rem;color:var(--t-muted)}
 .ta-summary{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
@@ -131,6 +136,14 @@
       const p = profiles.find((x) => x.id === a.user_id);
       homeroomOf.set(key, [...(homeroomOf.get(key) || []), text(p?.display_name || p?.username)]);
     });
+    // ใครสอนวิชานี้ในห้องนี้อยู่แล้ว (owner 2026-10-15: ยกวิชาให้ครูรายวิชาเฉพาะภาค 2 — ต้องเห็นว่าภาค 1 เป็นของใคร)
+    const subjectTeachersOf = new Map();
+    yearRows.filter((a) => a.scope === 'subject').forEach((a) => {
+      const key = `${text(a.subject_id)}|${roomKey(a.grade, a.room)}`;
+      const p = profiles.find((x) => x.id === a.user_id);
+      subjectTeachersOf.set(key, [...(subjectTeachersOf.get(key) || []), { id: a.user_id, name: text(p?.display_name || p?.username), semester: Number(a.semester) || 0 }]);
+    });
+    const semText = (n) => (n ? `ภาค ${n}` : 'ทั้งปี');
     // มาจากปุ่ม "มอบหมายงาน" ในหน้าจัดการผู้ใช้ (js/admin-users-ui.js): เลือกครูคนนั้นไว้ให้
     let handoff = '';
     try { handoff = global.sessionStorage.getItem('pp5TeacherAccessSelect') || ''; global.sessionStorage.removeItem('pp5TeacherAccessSelect'); } catch (_) { handoff = ''; }
@@ -215,9 +228,14 @@ ${ctx.enabled ? '' : `<details class="ta-card ta-enable mt-3"><summary><i class=
     <div class="ta-subj-room"><span>ห้องที่สอน</span><select class="form-select form-select-sm" data-subj-room>${rooms.map((key) => `<option value="${esc(key)}"${key === state.subjRoom ? ' selected' : ''}>${esc(key)}</option>`).join('')}</select>
       <span class="ta-empty">ติ๊กวิชาที่ครูคนนี้สอนในห้องนี้ (เลือกได้หลายวิชา)</span></div>
     <div class="ta-subjects">${roomSubjects.length ? roomSubjects.map((s) => {
-      const on = subjJobs.some((j) => j.subject_id === s.id && roomKey(j.grade, j.room) === state.subjRoom);
-      return `<label class="ta-subject"><input type="checkbox" data-subject="${esc(s.id)}"${on ? ' checked' : ''}>
-  <span>${esc(s.name)} <code>${esc(s.code || '')}</code>${Number(s.semester) ? `<small>ภาคเรียนที่ ${esc(s.semester)}</small>` : ''}</span></label>`;
+      const job = subjJobs.find((j) => j.subject_id === s.id && roomKey(j.grade, j.room) === state.subjRoom);
+      // วิชาทั้งปีเลือกได้ว่าสอนทั้งปี / ภาค 1 / ภาค 2 (วิชาที่ผูกภาคไว้แล้ว เช่น ม.ต้น ใช้ภาคของวิชา)
+      const sems = job && !Number(s.semester) ? `<div class="ta-sem" role="group" aria-label="สอนภาคเรียน">${[0, 1, 2].map((n) =>
+        `<button type="button" data-pp5-btn-skip data-sem-subject="${esc(s.id)}" data-sem="${n}" aria-pressed="${Number(job.semester) === n}">${semText(n)}</button>`).join('')}</div>` : '';
+      const others = (subjectTeachersOf.get(`${s.id}|${state.subjRoom}`) || []).filter((o) => o.id !== state.selected);
+      return `<div class="ta-subj-item"><label class="ta-subject"><input type="checkbox" data-subject="${esc(s.id)}"${job ? ' checked' : ''}>
+  <span>${esc(s.name)} <code>${esc(s.code || '')}</code>${Number(s.semester) ? `<small>ภาคเรียนที่ ${esc(s.semester)}</small>` : ''}</span></label>${sems}
+  ${others.length ? `<small class="ta-others"><i class="bi bi-people"></i> ครูผู้สอนอีกคน: ${others.map((o) => `${esc(o.name)} (${semText(o.semester)})`).join(', ')}</small>` : ''}</div>`;
     }).join('') : '<span class="ta-empty">ห้องนี้ยังไม่มีรายวิชา</span>'}</div>
     <div class="ta-summary">${subjJobs.length ? subjJobs.map((j, i) => `<span class="ta-chip subj">${esc(roomKey(j.grade, j.room))} · ${esc(subjectById.get(text(j.subject_id))?.name || j.subject_id)}${j.semester ? ` · ภาค ${j.semester}` : ''}<button type="button" data-pp5-btn-skip data-drop="${i}" aria-label="เอาออก">×</button></span>`).join('') : '<span class="ta-empty">ยังไม่ได้สอนวิชาใด</span>'}</div>
   </section>
@@ -244,6 +262,13 @@ ${ctx.enabled ? '' : `<details class="ta-card ta-enable mt-3"><summary><i class=
         const idx = state.jobs.findIndex((j) => j.scope === 'homeroom' && j.grade === grade && j.room === room);
         if (idx >= 0) state.jobs.splice(idx, 1); else state.jobs.push({ scope: 'homeroom', grade, room, subject_id: null, semester: 0 });
         setDirty(true); renderEditor(); renderList(); return;
+      }
+      const sem = event.target.closest('[data-sem-subject]');
+      if (sem) {
+        const [grade, room] = state.subjRoom.split('/');
+        const job = state.jobs.find((j) => j.scope === 'subject' && j.subject_id === sem.dataset.semSubject && j.grade === grade && j.room === room);
+        if (job) { job.semester = Number(sem.dataset.sem) || 0; setDirty(true); renderEditor(); renderList(); }
+        return;
       }
       const drop = event.target.closest('[data-drop]');
       if (drop) {

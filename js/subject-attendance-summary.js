@@ -219,7 +219,7 @@
     // งาน = (วิชา, ห้อง) เหมือนหน้าตารางสอนของฉัน · ผู้ดูแล/ยังไม่เปิดสิทธิ์ครู = ทุกวิชาของทุกห้อง
     let assignments;
     if (scoped) {
-      assignments = (scope.assignments || []).filter((a) => a.active !== false && text(a.academic_year) === state.year && global.PP5WorkMode?.keeps?.(a, scope) !== false);
+      assignments = (scope.assignments || []).filter((a) => a.active !== false && text(a.academic_year) === state.year && global.PP5WorkMode?.keeps?.(a, scope, 0) !== false);
     } else {
       const all = await global.PP5Data.students.list({}).catch(() => []);
       const rooms = new Map();
