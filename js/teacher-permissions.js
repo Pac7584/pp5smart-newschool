@@ -15,6 +15,8 @@
   const COMMON = new Set(['home_hub','dashboard','change_password','academic_calendar','club_management','help_page']);
   // subject_attendance / pp5_subject_book: เช็คชื่อรายวิชา (รายชั่วโมง) และ ปพ.5 แบบรายวิชา ของครูผู้สอน — สิทธิ์เขียนจริงตรวจที่ pp5_save_subject_attendance (SQL 031)
   const SUBJECT = new Set(['create_score_sheet','score_table_viewer','subject_score_viewer','exam_analysis','subject_attendance','pp5_subject_book',
+    // subject_schedule: ตารางสอนของฉัน (SQL 032) — ต้องตั้งก่อนเช็คชื่อรายคาบ สิทธิ์จริงตรวจที่ pp5_save_subject_schedule
+    'subject_schedule',
     // export_reports: ศูนย์รวมลิงก์รายงานของห้องที่ได้รับมอบหมาย (หน้าปลายทางตรวจสิทธิ์ของตัวเอง)
     'export_reports']);
   const HOMEROOM = new Set(['studentList','export_pdf_page','behavior_records','student_growth_entry','student_growth_report',
@@ -52,7 +54,8 @@
   function restrictGradeChoices() {
     if (!uiContext?.enabled || uiContext.role!=='teacher') return;
     const page=global.document?.body?.getAttribute('data-current-page') || global.AppNavigation?.currentPage;
-    const assignments=active(uiContext).filter((a)=>!HOMEROOM.has(page)||a.scope==='homeroom');
+    // โหมดการทำงาน (js/work-mode.js): ห้องในตัวเลือกเฉพาะงานของโหมดที่ครูเลือก
+    const assignments=active(uiContext).filter((a)=>(!HOMEROOM.has(page)||a.scope==='homeroom') && keepsMode(a,uiContext));
     const grades=new Set(assignments.map((a)=>a.grade));
     selectReportRoom(page);
     global.document?.querySelectorAll('#contentFrame select').forEach((select)=>{
@@ -122,19 +125,24 @@
     }
   }
   const active = (ctx, year) => (ctx.assignments || []).filter((a) => a.active !== false && a.academic_year === (year || ctx.academicYear));
-  function pageAllowed(page, ctx) {
+  const keepsMode = (a, ctx) => global.PP5WorkMode?.keeps?.(a, ctx) !== false;
+  // ignoreMode: ใช้แยกข้อความ "สลับโหมดก่อน" ออกจาก "ไม่ได้รับสิทธิ์" — สิทธิ์จริงไม่ขึ้นกับโหมด
+  function pageAllowed(page, ctx, ignoreMode) {
     if (PUBLIC.has(page)) return true;
     if (!ctx.enabled || ctx.role === 'admin') return true;
     if (ctx.role === 'parent') return PARENT.has(page);
     if (ctx.role !== 'teacher') return false;
     if (COMMON.has(page)) return true;
-    const assignments = active(ctx);
+    const assignments = active(ctx).filter((a) => ignoreMode || keepsMode(a, ctx));
     if (SUBJECT.has(page)) return assignments.length > 0;
     return HOMEROOM.has(page) && assignments.some((a) => a.scope === 'homeroom');
   }
   async function authorizePage(page) {
     if (PUBLIC.has(page)) return;
-    if (!pageAllowed(page, await context())) fail('บัญชีนี้ไม่ได้รับสิทธิ์เปิดหน้านี้ กรุณาติดต่อผู้ดูแล');
+    const ctx = await context();
+    if (pageAllowed(page, ctx)) return;
+    if (pageAllowed(page, ctx, true)) fail('หน้านี้เป็นงานของ'+(HOMEROOM.has(page)?'ครูประจำชั้น':'ครูประจำวิชา')+' — กดป้ายบทบาทมุมบนเพื่อสลับโหมดก่อน');
+    fail('บัญชีนี้ไม่ได้รับสิทธิ์เปิดหน้านี้ กรุณาติดต่อผู้ดูแล');
   }
   function attendanceAcademicYear(calendarYear, zeroBasedMonth) {
     let year=Number(calendarYear);
@@ -244,7 +252,7 @@
       const rows = await originalSubjects.call(this,grade);
       const ctx = await context();
       if (!ctx.enabled || ctx.role !== 'teacher') return rows;
-      return rows.filter((s) => (ctx.assignments || []).some((a) =>
+      return rows.filter((s) => (ctx.assignments || []).some((a) => keepsMode(a, ctx) &&
         a.grade === s.grade && (a.scope === 'homeroom' || a.subject_id === s.id)));
     };
   }
@@ -373,6 +381,7 @@
     try {
       const ctx=await context();
       uiContext=ctx;
+      global.PP5WorkMode?.apply?.(ctx);
       if (!ctx.enabled) return;
       global.document?.querySelectorAll('.nav-item[data-page], .hub-card[data-page]').forEach((item)=>{
         item.hidden=!pageAllowed(item.dataset.page,ctx);

@@ -14,7 +14,7 @@
     both: { title: 'ใช้ทั้งสองแบบ', note: 'แสดงเมนูของทั้งสองแบบ', icon: 'bi-collection' }
   };
   const HIDE = {
-    class: ['pp5_subject_book', 'subject_attendance'],
+    class: ['pp5_subject_book', 'subject_attendance', 'subject_schedule'],
     subject: ['pp5_full_book'],
     both: []
   };

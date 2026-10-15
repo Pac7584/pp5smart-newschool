@@ -2090,17 +2090,21 @@
       });
       return months.filter((month) => byMonth.has(month.key)).map((month) => {
         const list = byMonth.get(month.key);
+        // รายคาบ (SQL 032): วันที่สอน 2 คาบ = 2 คอลัมน์ (slot = วันที่#คาบ) · แถวเก่าก่อน 032 = คาบ 1 ที่มีหลายชั่วโมง
+        const slotOf = (entry) => (hourlyMode ? `${entry.date}#${Number(entry.period) || 1}` : entry.date);
         const dayHours = new Map();
-        list.forEach((entry) => dayHours.set(entry.date, Math.max(dayHours.get(entry.date) || 0, hourlyMode ? Number(entry.hours) || 0 : 1)));
-        const dates = [...dayHours.keys()].sort();
+        list.forEach((entry) => dayHours.set(slotOf(entry), Math.max(dayHours.get(slotOf(entry)) || 0, hourlyMode ? Number(entry.hours) || 0 : 1)));
+        const dates = [...dayHours.keys()].sort((a, b) => a.slice(0, 10).localeCompare(b.slice(0, 10)) || Number(a.split('#')[1] || 1) - Number(b.split('#')[1] || 1));
         const marks = new Map();
-        list.forEach((entry) => marks.set(`${entry.sid}|${entry.date}`, entry));
+        list.forEach((entry) => marks.set(`${entry.sid}|${slotOf(entry)}`, entry));
         const mark = { present: '✓', leave: 'ล', absent: 'ข' };
         return {
           key: month.key, monthName: month.monthName, yearBE: month.yearBE, semester: month.semester,
-          days: dates.map((date) => {
+          days: dates.map((slot) => {
+            const [date, period] = slot.split('#');
             const [y, m, d] = date.split('-').map(Number);
-            return { date, label: String(d), dow: thaiDow[new Date(y, m - 1, d).getDay()], hours: dayHours.get(date) };
+            const p = Number(period) || 1;
+            return { date, period: p, label: p > 1 ? `${d}-${p}` : String(d), dow: thaiDow[new Date(y, m - 1, d).getDay()], hours: dayHours.get(slot) };
           }),
           taught: dates.reduce((sum, date) => sum + dayHours.get(date), 0),
           students: students.map((student, index) => {
@@ -2135,10 +2139,14 @@
           .order('attendance_date', { ascending: true }));
       } catch (_) { rows = []; }
       if (!rows.length) return null;
+      // ชั่วโมงที่สอน = ผลรวมของทุกคาบ (SQL 032: 1 แถวต่อคาบ hours = 1) · schoolDays = จำนวนวันที่สอน
       const taughtByDate = new Map();
+      const taughtDays = new Set();
       rows.forEach((row) => {
         const day = normalizeDate(row.attendance_date);
-        taughtByDate.set(day, Math.max(taughtByDate.get(day) || 0, Number(row.hours) || 0));
+        const slot = `${day}#${Number(row.period) || 1}`;
+        taughtDays.add(day);
+        taughtByDate.set(slot, Math.max(taughtByDate.get(slot) || 0, Number(row.hours) || 0));
       });
       const byStudent = groupBy(rows, (row) => text(row.student_id));
       const hours = Number(subject.hours_per_year ?? subject.hoursPerYear) || 0;
@@ -2161,8 +2169,8 @@
         };
       });
       return {
-        months: attendanceMonths(rows.map((row) => ({ date: normalizeDate(row.attendance_date), sid: text(row.student_id), status: text(row.status), hours: row.hours })), true),
-        mode: 'hourly', first: att.first, last: att.last, schoolDays: taughtByDate.size,
+        months: attendanceMonths(rows.map((row) => ({ date: normalizeDate(row.attendance_date), sid: text(row.student_id), status: text(row.status), hours: row.hours, period: row.period })), true),
+        mode: 'hourly', first: att.first, last: att.last, schoolDays: taughtDays.size,
         taughtHours: [...taughtByDate.values()].reduce((a, b) => a + b, 0), hours, students: list,
         over: list.filter((row) => row.pct !== null && !row.below).length,
         under: list.filter((row) => row.below).length,

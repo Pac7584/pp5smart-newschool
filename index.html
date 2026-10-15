@@ -234,7 +234,8 @@
     <ul class="menu-group" aria-label="เวลาเรียน">
       <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout"><i class="bi bi-calendar-check me-2"></i>เวลาเรียน<span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
       <li class="nav-item teacher-only" data-page="attendance_daily"><a href="#" class="nav-link" data-page="attendance_daily"><i class="bi bi-calendar-check"></i> เช็คชื่อรายวัน</a></li>
-      <li class="nav-item teacher-only" data-page="subject_attendance"><a href="#" class="nav-link" data-page="subject_attendance"><i class="bi bi-clock-history"></i> เช็คชื่อรายวิชา (รายชั่วโมง)</a></li>
+      <li class="nav-item teacher-only" data-page="subject_attendance"><a href="#" class="nav-link" data-page="subject_attendance"><i class="bi bi-clock-history"></i> เช็คชื่อรายวิชา (รายคาบ)</a></li>
+      <li class="nav-item teacher-only" data-page="subject_schedule"><a href="#" class="nav-link" data-page="subject_schedule"><i class="bi bi-calendar-week"></i> ตารางสอนของฉัน</a></li>
       <li class="nav-item teacher-only" data-page="attendance_monthly"><a href="#" class="nav-link" data-page="attendance_monthly"><i class="bi bi-calendar3"></i> เช็คชื่อรายเดือน</a></li>
       <li class="nav-item teacher-only" data-page="attendance_table"><a href="#" class="nav-link" data-page="attendance_table"><i class="bi bi-calendar-range"></i> รายงานเวลาเรียนรายเดือน</a></li>
       <li class="nav-item teacher-only" data-page="semester_attendance_summary"><a href="#" class="nav-link" data-page="semester_attendance_summary"><i class="bi bi-calendar2-week-fill"></i> สรุปเวลาเรียนรายภาค</a></li>
@@ -461,7 +462,7 @@
 <script src="js/dmc-import.js?v=1"></script>
 
 <!-- GAS Bridge (Maps google.script.run to Supabase) -->
-  <script src="js/gas-bridge.js?v=165"></script>
+  <script src="js/gas-bridge.js?v=166"></script>
   <script src="js/growth-export.js?v=5"></script>
 
 <!-- สำรองข้อมูล / เปิดไฟล์สำรอง / เตือนก่อนงานเสี่ยง (ต้องโหลดหลัง gas-bridge) -->
@@ -500,7 +501,9 @@
   <script src="js/student-list-autoload.js?v=1"></script>
   <!-- วิชารายภาค (ม.ต้น): หน้าบันทึกคะแนนเปิดเฉพาะแท็บภาคของวิชา -->
   <script src="js/semester-subjects.js?v=1"></script>
-  <script src="js/teacher-permissions.js?v=14"></script>
+  <script src="js/teacher-permissions.js?v=16"></script>
+  <!-- โหมดการทำงานของครู: ครูประจำชั้น / ครูประจำวิชา ตามงานที่ผู้ดูแลมอบหมาย -->
+  <script src="js/work-mode.js?v=6"></script>
   <script src="js/install-guide.js?v=8"></script>
   <script src="js/button-system.js?v=2"></script>
   <script src="js/login-layout.js?v=5"></script>
@@ -508,13 +511,14 @@
   <script src="js/self-register.js?v=1"></script>
   <script src="js/clubs.js?v=7"></script>
   <script src="js/pp5-subject-cover.js?v=9"></script>
-  <script src="js/subject-attendance.js?v=1"></script>
-  <script src="js/pp5-format.js?v=6"></script>
+  <script src="js/subject-attendance.js?v=5"></script>
+  <script src="js/subject-schedule.js?v=2"></script>
+  <script src="js/pp5-format.js?v=7"></script>
   <script src="js/menu-flyout.js?v=3"></script>
   <script src="js/settings-layout.js?v=3"></script>
   <script src="js/teacher-access-ui.js?v=2"></script>
   <script src="js/admin-users-ui.js?v=1"></script>
-  <script src="js/spa-main.js?v=148"></script>
+  <script src="js/spa-main.js?v=149"></script>
   <script src="js/exam-import.js?v=3"></script>
 
 <script>

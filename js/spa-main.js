@@ -286,6 +286,7 @@ window.logout = function(event) {
     localStorage.removeItem('username');
     localStorage.removeItem('role');
     localStorage.removeItem('displayName');
+    window.PP5WorkMode?.forget?.(); // เข้าระบบครั้งหน้าถามโหมดการทำงานใหม่
   } catch(e) {}
   const loginUrl = _buildLoginUrl('');
   if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -389,7 +390,8 @@ function displayUserInfo() {
   }
 
   if (userRoleBadgeEl) {
-    userRoleBadgeEl.textContent = role === 'admin' ? 'ผู้ดูแลระบบ' : (role === 'parent' ? 'ผู้ปกครอง' : 'ครูประจำชั้น');
+    // ครู: ป้ายตามโหมดการทำงานที่ผู้ดูแลมอบหมาย (js/work-mode.js) — ครูประจำชั้น / ครูประจำวิชา
+    userRoleBadgeEl.textContent = role === 'admin' ? 'ผู้ดูแลระบบ' : (role === 'parent' ? 'ผู้ปกครอง' : (window.PP5WorkMode?.label?.() || 'ครู'));
     userRoleBadgeEl.className = 'badge ' + (role === 'admin' ? 'bg-danger' : (role === 'parent' ? 'bg-info' : 'bg-primary'));
   }
 
