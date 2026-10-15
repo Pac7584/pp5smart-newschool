@@ -45,6 +45,58 @@
     return [...out.values()].sort((a, b) => roomSort(a, b) || rank(a.subject.name) - rank(b.subject.name)
       || text(a.subject.code || a.subject.name).localeCompare(text(b.subject.code || b.subject.name), 'th', { numeric: true }));
   }
+  // ---- คาบที่ค้างเช็ค (owner 2026-10-15 ขั้นที่ 3): ตารางสอน × วันเรียนในภาค (หักวันหยุด) เทียบกับคาบที่เช็คแล้ว
+  // ช่วงภาค = settings_json.term_dates[ปี][ภาค] = { start, end } ที่ผู้ดูแลตั้ง (หน้าตั้งค่าระบบกลาง แท็บรูปแบบ ปพ.5)
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
+  // count_from (ไม่บังคับ, owner 2026-10-15 "แยกช่อง เริ่มนับตั้งแต่"): โรงเรียนที่เริ่มใช้กลางภาค นับคาบค้างตั้งแต่วันที่เริ่มใช้จริง
+  //   start = วันที่เริ่มนับจริง (ค่าที่หลังกว่าระหว่างวันเปิดภาคกับ count_from) · termStart = วันเปิดภาคจริง
+  function termRange(settingsJson, year, semester) {
+    const all = settingsJson?.term_dates?.[text(year)];
+    const r = all?.[String(semester)];
+    if (!(r && ISO.test(text(r.start)) && ISO.test(text(r.end)) && r.start <= r.end)) return null;
+    const from = ISO.test(text(all.count_from)) ? all.count_from : '';
+    const start = from > r.start ? from : r.start;
+    // empty = ภาคนี้ปิดก่อนวันเริ่มนับ (เช่น เริ่มใช้ช่วงปิดภาค) — ตั้งค่าครบแล้ว แต่ภาคนี้ไม่มีคาบต้องนับ
+    return { start, end: r.end, termStart: r.start, countFrom: from, empty: start > r.end };
+  }
+  function isoAdd(iso, days) {
+    const [y, m, d] = text(iso).split('-').map(Number);
+    const t = new Date(Date.UTC(y, m - 1, d + days));
+    return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`;
+  }
+  function weekdayOf(iso) {
+    const [y, m, d] = text(iso).split('-').map(Number);
+    const js = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+    return js === 0 ? 7 : js;
+  }
+  // week: Map(วัน 1-7 -> คาบ) · recorded: Map('YYYY-MM-DD' -> Set(คาบที่เช็คแล้ว)) · holidays: Set('YYYY-MM-DD')
+  // นับเฉพาะวันก่อนวันนี้ (วันนี้ยังเช็คได้ ไม่ถือว่าค้าง) · คาบที่สอนชดเชย (วันนอกตาราง หรือคาบเกินตาราง) หักออกจากที่ค้าง
+  function missedPeriods(week, recorded, range, holidays, todayIso) {
+    if (!range || !week || !week.size) return null;
+    if (range.empty) return { planned: 0, missed: [], missedCount: 0, makeup: 0, owed: 0, notYet: 'ended' };
+    if (todayIso <= range.start) return { planned: 0, missed: [], missedCount: 0, makeup: 0, owed: 0, notYet: 'future' };
+    const last = [range.end, isoAdd(todayIso, -1)].sort()[0];
+    const missed = [];
+    let planned = 0;
+    let missedCount = 0;
+    for (let d = range.start; d <= last; d = isoAdd(d, 1)) {
+      const n = Number(week.get(weekdayOf(d))) || 0;
+      if (!n || holidays?.has(d)) continue;
+      planned += n;
+      const got = recorded.get(d) || new Set();
+      const lack = [];
+      for (let p = 1; p <= n; p += 1) if (!got.has(p)) lack.push(p);
+      if (lack.length) { missed.push({ date: d, periods: lack }); missedCount += lack.length; }
+    }
+    let makeup = 0;
+    recorded.forEach((periods, d) => {
+      if (d < range.start || d > last) return;
+      const n = holidays?.has(d) ? 0 : Number(week.get(weekdayOf(d))) || 0;
+      periods.forEach((p) => { if (p > n) makeup += 1; });
+    });
+    return { planned, missed, missedCount, makeup, owed: Math.max(0, missedCount - makeup) };
+  }
+
   const nextCount = (n) => ((Number(n) || 0) + 1) % 5;
   const total = (week) => [...(week || new Map()).values()].reduce((sum, n) => sum + (Number(n) || 0), 0);
 
@@ -326,5 +378,5 @@ ${jobs.map((j) => {
   global.GAS_PAGES.subject_schedule = shell();
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', watch, { once: true });
   else watch();
-  global.PP5SubjectSchedule = { shell, jobsFor, nextCount, total, keyOf };
+  global.PP5SubjectSchedule = { shell, jobsFor, nextCount, total, keyOf, termRange, missedPeriods, isoAdd, weekdayOf };
 })(window);

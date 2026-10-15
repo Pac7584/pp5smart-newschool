@@ -210,13 +210,17 @@ ${option('subject', 'bi-journal-bookmark-fill', 'ครูประจำวิ�
     // ตารางสอน (SQL 032) บอกว่าวันนี้มีกี่คาบ — ยังไม่ได้รัน 032 = null (ไม่แสดงส่วน "วันนี้")
     const attendanceRows = (cols) => allPages(() => client.from('subject_attendance').select(cols)
       .in('subject_id', ids).eq('academic_year', year).order('id'));
+    let holidays = new Set();
     const [scores, attendance, schedules] = await Promise.all([
       allPages(() => client.from('scores').select('student_id,subject_id,semester,total_score')
         .in('subject_id', ids).eq('academic_year', year).order('id')).catch(() => null),
       attendanceRows('subject_id,student_id,attendance_date,period').catch(() => attendanceRows('subject_id,student_id,attendance_date')).catch(() => null),
       allPages(() => client.from('subject_schedules').select('subject_id,grade,room,weekday,periods')
-        .eq('academic_year', year).eq('semester', semester).in('subject_id', ids).order('id')).catch(() => null)
-    ]);
+        .eq('academic_year', year).eq('semester', semester).in('subject_id', ids).order('id')).catch(() => null),
+      allPages(() => client.from('holidays').select('holiday_date').order('id')).catch(() => [])
+    ]).then(([a, b, c, h]) => { holidays = new Set((h || []).map((r) => text(r.holiday_date).slice(0, 10))); return [a, b, c]; });
+    // ขั้นที่ 3: คาบที่ค้างเช็ค = ตารางสอน × วันเรียนในช่วงภาค (settings_json.term_dates) หักวันหยุด เทียบกับคาบที่เช็คแล้ว
+    const range = global.PP5SubjectSchedule?.termRange?.(settings?.settings_json, year, semester) || null;
     const todayDay = weekdayOf(todayIso);
     const byId = new Map(subjects.map((s) => [s.id, s]));
     const seen = new Set();
@@ -236,7 +240,16 @@ ${option('subject', 'bi-journal-bookmark-fill', 'ครูประจำวิ�
       const week = schedules && schedules.filter((r) => r.subject_id === subject.id && r.grade === job.grade && text(r.room) === text(job.room));
       const todayDone = attendance ? new Set(attendance.filter((r) => r.subject_id === subject.id && r.attendance_date === todayIso
         && students.has(text(r.student_id))).map((r) => Number(r.period) || 1)).size : 0;
-      rows.push({ subject, grade: job.grade, room: text(job.room), term, total: students.size,
+      const recorded = new Map();
+      (attendance || []).forEach((r) => {
+        if (r.subject_id !== subject.id || !students.has(text(r.student_id))) return;
+        const d = text(r.attendance_date).slice(0, 10);
+        if (!recorded.has(d)) recorded.set(d, new Set());
+        recorded.get(d).add(Number(r.period) || 1);
+      });
+      const weekMap = new Map((week || []).map((r) => [Number(r.weekday), Number(r.periods) || 0]));
+      const late = attendance && week?.length && range ? global.PP5SubjectSchedule?.missedPeriods?.(weekMap, recorded, range, holidays, todayIso) : null;
+      rows.push({ subject, grade: job.grade, room: text(job.room), term, total: students.size, owed: late ? late.owed : null,
         scored: scored ? scored.size : null, days: dates ? dates.length : null, last: dates?.length ? dates[dates.length - 1] : '',
         hasWeek: week ? week.length > 0 : null, weekTotal: week ? week.reduce((sum, r) => sum + (Number(r.periods) || 0), 0) : 0,
         todayPlanned: week ? week.filter((r) => Number(r.weekday) === todayDay).reduce((sum, r) => sum + (Number(r.periods) || 0), 0) : 0,
@@ -288,8 +301,10 @@ ${option('subject', 'bi-journal-bookmark-fill', 'ครูประจำวิ�
     const scheduled = rows.some((r) => r.hasWeek !== null && r.hasWeek !== undefined);
     const todayLeft = rows.reduce((sum, r) => sum + Math.max(0, (r.todayPlanned || 0) - (r.todayDone || 0)), 0);
     const noWeek = rows.filter((r) => r.hasWeek === false).length;
+    const owed = rows.reduce((sum, r) => sum + (r.owed || 0), 0);
     const stats = `<div class="pp5wm-stats">
   ${scheduled ? `<span class="${todayLeft ? 'is-today' : 'is-done'}"><b>${todayLeft}</b>${todayLeft ? 'คาบรอเช็ควันนี้' : 'เช็ควันนี้ครบ'}</span>` : ''}
+  ${owed ? `<span class="is-owed"><b>${owed}</b>คาบค้างเช็ค</span>` : ''}
   <span><b>${subjects}</b>วิชา</span><span><b>${roomCount}</b>ห้อง</span><span class="is-done"><b>${done}/${rows.length}</b>คะแนนครบ</span></div>
   ${scheduled ? `<button type="button" class="pp5wm-schedule" data-pp5-btn-skip data-wm-go="subject_schedule"><i class="bi bi-calendar-week"></i> ตารางสอนของฉัน${noWeek ? ` <em>ยังไม่ตั้ง ${noWeek}</em>` : ''}</button>` : ''}`;
     const card = (r) => {
@@ -307,6 +322,7 @@ ${option('subject', 'bi-journal-bookmark-fill', 'ครูประจำวิ�
             ? `<div class="pp5wm-today is-ok"><i class="bi bi-check-circle-fill"></i> วันนี้ ${r.todayPlanned} คาบ · เช็คครบแล้ว</div>`
             : `<div class="pp5wm-today is-due"><i class="bi bi-alarm-fill"></i> วันนี้ ${r.todayPlanned} คาบ · เช็คแล้ว ${r.todayDone}</div>`)
             : '<div class="pp5wm-today"><i class="bi bi-moon-stars"></i> วันนี้ไม่มีคาบวิชานี้</div>';
+      const late = r.owed ? `<div class="pp5wm-today is-none"><i class="bi bi-exclamation-triangle-fill"></i> ค้างเช็ค ${r.owed} คาบ (วันที่ผ่านมา)</div>` : '';
       const due = r.hasWeek && r.todayPlanned > (r.todayDone || 0);
       return `<article class="pp5wm-card${due ? ' is-due' : ''}" style="--s1:${start};--s2:${end}">
   <div class="pp5wm-card-top">
@@ -314,12 +330,12 @@ ${option('subject', 'bi-journal-bookmark-fill', 'ครูประจำวิ�
     <div class="pp5wm-title"><b>${esc(r.subject.name)}</b><small>${esc(r.subject.code || '')}${r.subject.semester ? ' · ภาค ' + esc(r.subject.semester) : ''}</small></div>
     <span class="pp5wm-room">${esc(r.grade + '/' + r.room)}</span>
   </div>
-  ${today}
+  ${today}${late}
   <div class="pp5wm-progress">
     <span class="pp5wm-ring ${tone}" style="--p:${pct}"><span>${r.scored == null ? '—' : pct + '%'}</span></span>
     <div class="pp5wm-facts">
       <div><small>คะแนนภาค ${esc(r.term)}</small><b>${scoreText}</b></div>
-      <div><small>เช็คชื่อรายวิชา</small>${att}</div>
+      <div><small>เช็คชื่อรายวิชา <button type="button" class="pp5wm-mini" data-pp5-btn-skip data-wm-go="subject_attendance_summary" data-grade="${esc(r.grade)}" data-room="${esc(r.room)}" data-subject="${esc(r.subject.id)}">ดูสรุป ›</button></small>${att}</div>
     </div>
   </div>
   <div class="pp5wm-actions">${nav('score_table_viewer', 'กรอกคะแนน', 'bi-pencil-square', 'is-main')}${nav('subject_attendance', 'เช็คชื่อ', 'bi-calendar2-check-fill', 'is-green')}${nav('pp5_subject_book', 'ปพ.5', 'bi-printer-fill', 'is-violet')}</div>
@@ -346,6 +362,9 @@ ${option('subject', 'bi-journal-bookmark-fill', 'ครูประจำวิ�
       if (!go) return;
       global.GradeClassHelper?.saveSelection?.(go.dataset.grade, go.dataset.room);
       // หน้าเช็คชื่อรายวิชาเลือกชั้น/ห้อง/วิชาให้ตรงกับการ์ด (js/subject-attendance.js อ่านครั้งเดียวแล้วลบ)
+      if (go.dataset.wmGo === 'subject_attendance_summary') {
+        try { global.sessionStorage.setItem('pp5SubjectSummaryTarget', JSON.stringify({ grade: go.dataset.grade, room: go.dataset.room, subjectId: go.dataset.subject })); } catch (_) { /* เลือกเองได้ */ }
+      }
       if (go.dataset.wmGo === 'subject_attendance') {
         try { global.sessionStorage.setItem('pp5SubjectAttendanceTarget', JSON.stringify({ grade: go.dataset.grade, room: go.dataset.room, subjectId: go.dataset.subject })); } catch (_) { /* เลือกเองได้ */ }
       }
@@ -469,6 +488,8 @@ html[data-pp5-work-mode="subject"] #userRoomBadge{display:none!important}
 .pp5wm-btn:hover{filter:brightness(1.06);transform:translateY(-1px)}.pp5wm-btn:focus-visible{outline:3px solid color-mix(in srgb,var(--wm-accent) 45%,transparent)}
 .pp5wm-btn.is-main{color:#fff;background:linear-gradient(135deg,var(--s1),var(--s2));box-shadow:0 6px 14px color-mix(in srgb,var(--s2) 35%,transparent)}
 .pp5wm-btn.is-green{color:#047857;background:#d1fae5}.pp5wm-btn.is-violet{color:#6d28d9;background:#ede9fe}
+.pp5wm-mini{border:0;background:none;padding:0 0 0 4px;color:var(--wm-accent);font-weight:700;font-size:.75rem;cursor:pointer}
+.pp5wm-stats .is-owed{background:#fff;color:#b91c1c;box-shadow:0 0 0 2px #fca5a5}
 .pp5wm-stats .is-today{background:#fff;color:#c2410c;box-shadow:0 0 0 2px #fdba74}
 .pp5wm-schedule{position:relative;z-index:1;display:inline-flex;align-items:center;gap:6px;border:0;border-radius:12px;padding:8px 14px;font-weight:700;
   color:#3b3fd8;background:#fff;box-shadow:0 6px 14px rgba(0,0,0,.12)}

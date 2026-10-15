@@ -431,8 +431,14 @@
     const monthName = text(monthData?.monthName || '');
     const yearBE = text(monthData?.yearBE || meta.academicYear || '2569');
     doc.setFontSize(12);
-    doc.text(`บันทึกเวลาเรียน ชั้น ${gradeText}/${classText} เดือน ${monthName} ${yearBE}`, pageWidth / 2, y, { align: 'center' });
+    // title / subjectLine / countLine / unit: ใช้กับ "สรุปเวลาเรียนรายวิชา" (owner 2026-10-15 "ดูตัวอย่างแบบรายชั้น") — รายชั้นใช้ค่าเดิม
+    doc.text(text(monthData?.title) || `บันทึกเวลาเรียน ชั้น ${gradeText}/${classText} เดือน ${monthName} ${yearBE}`, pageWidth / 2, y, { align: 'center' });
     y += 5;
+    if (text(monthData?.subjectLine)) {
+      doc.setFontSize(10.5);
+      doc.text(text(monthData.subjectLine), pageWidth / 2, y, { align: 'center' });
+      y += 4.8;
+    }
 
     doc.setFont('Sarabun', 'normal');
     doc.setFontSize(9.5);
@@ -446,7 +452,7 @@
     const students = monthData?.students || [];
     const actualSchoolDays = number(monthData?.actualSchoolDays, days.length);
     const totalDaysInMonth = number(monthData?.totalDaysInMonth, 31);
-    doc.text(`แสดงเฉพาะวันที่มีการเรียน: ${actualSchoolDays} วัน (จาก ${totalDaysInMonth} วันในเดือน)`, pageWidth / 2, y, { align: 'center' });
+    doc.text(text(monthData?.countLine) || `แสดงเฉพาะวันที่มีการเรียน: ${actualSchoolDays} วัน (จาก ${totalDaysInMonth} วันในเดือน)`, pageWidth / 2, y, { align: 'center' });
     y += 3.5;
 
     // 3. Table
@@ -552,12 +558,16 @@
     doc.setTextColor(0, 0, 0);
     const legendY = endY + 7;
     doc.text(
-      `หมายเหตุ:        = มาเรียน   ล = ลา   ข = ขาด   |   นักเรียน: ${students.length} คน   |   วันเรียน: ${actualSchoolDays} วัน`,
+      `หมายเหตุ:        = มาเรียน   ล = ลา   ข = ขาด   |   นักเรียน: ${students.length} คน   |   ${text(monthData?.unitLabel) || 'วันเรียน'}: ${actualSchoolDays} ${text(monthData?.unit) || 'วัน'}`,
       pageWidth / 2,
       legendY,
       { align: 'center' }
     );
-    const checkX = (pageWidth / 2) - 61.5;
+    // รายชั้นใช้ตำแหน่งเดิม · รายวิชา (unit ตั้งเอง) ข้อความยาวต่างกัน: วัดจากความกว้างจริงของบรรทัด
+    const legendText = `หมายเหตุ:        = มาเรียน   ล = ลา   ข = ขาด   |   นักเรียน: ${students.length} คน   |   ${text(monthData?.unitLabel) || 'วันเรียน'}: ${actualSchoolDays} ${text(monthData?.unit) || 'วัน'}`;
+    const checkX = text(monthData?.unit)
+      ? (pageWidth / 2) - doc.getTextWidth(legendText) / 2 + doc.getTextWidth('หมายเหตุ:    ') + 1.6
+      : (pageWidth / 2) - 61.5;
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.35);
     doc.line(checkX - 1.2, legendY - 1, checkX - 0.3, legendY + 0.1);
@@ -4666,7 +4676,87 @@
     return finish(doc, meta);
   }
 
+  // สรุปเวลาเรียนรายวิชา (owner 2026-10-15 "ไม่คิดจะทำปุ่มส่งออก pdf ให้หน่อยเหรอ") — หน้า subject_attendance_summary
+  //   report = { title, subtitle, landscape, head: [[…]], body: [[…]], nameColumn, statusColumn, markFrom, markTo, note,
+  //              signers: [{ role, name }] } · ตารางรายเดือนแนวนอน (คอลัมน์ต่อคาบ) · รายภาค/ทั้งปีแนวตั้ง
+  async function createSubjectAttendanceReport(report, options) {
+    const jsPDF = getJsPdf();
+    const orientation = report.landscape ? 'landscape' : 'portrait';
+    const doc = new jsPDF({ orientation, unit: 'mm', format: 'a4', compress: true, putOnlyUsedFonts: true });
+    await installFonts(doc);
+    const meta = officialMeta(options || {});
+    const logo = await loadOfficialLogo(meta.logo);
+    const title = text(report.title, 'สรุปเวลาเรียนรายวิชา');
+    const subtitle = text(report.subtitle);
+    drawHeader(doc, title, meta, logo, subtitle);
+    doc.setProperties({ title, subject: [meta.meta, subtitle].filter(Boolean).join(' - '), author: meta.schoolName, creator: 'ระบบ ปพ.5 ออนไลน์' });
+    const columns = (report.head?.[0] || []).length;
+    // A4 แนวตั้งที่คอลัมน์เยอะ (ทั้งปี 11 เดือน = 20 คอลัมน์, owner 2026-10-15 "ปรับให้มีขนาด a4 แนวตั้ง"): ย่อแบบ
+    // createMatrix รายชั้น — ตัวอักษรเล็ก แบ่งความกว้างที่เหลือเท่ากันทุกคอลัมน์ ให้ลงหน้าเดียวพอดี 190 มม.
+    const compact = !report.landscape && columns > 15;
+    const fontSize = compact ? 6.4 : report.landscape && columns > 24 ? 6.5 : report.landscape || columns > 12 ? 7.5 : 9;
+    const base = tableDefaults();
+    const nameColumn = Number.isInteger(report.nameColumn) ? report.nameColumn : 1;
+    const compactStyles = {};
+    if (compact) {
+      // ร้อยละ ("100.0%") และสถานะ ("ใกล้ มส.") ต้องไม่ตัดบรรทัด — กำหนดกว้างคงที่ ที่เหลือแบ่งให้เดือนและยอดรวม
+      const fixed = { 0: 6, 1: 9, [nameColumn]: 36 };
+      if (Number.isInteger(report.statusColumn)) { fixed[report.statusColumn] = 11; fixed[report.statusColumn - 1] = 11.5; }
+      const rest = (doc.internal.pageSize.getWidth() - 20 - Object.values(fixed).reduce((a, b) => a + b, 0)) / (columns - Object.keys(fixed).length);
+      for (let i = 0; i < columns; i += 1) compactStyles[i] = { cellWidth: fixed[i] || rest };
+      compactStyles[nameColumn].halign = 'left';
+    }
+    const isMark = (index) => Number.isInteger(report.markFrom) && index >= report.markFrom && index <= report.markTo;
+    runAutoTable(doc, tableDefaults({
+      startY: headerBottom(meta, logo, subtitle),
+      head: report.head || [],
+      body: report.body || [],
+      styles: { ...base.styles, fontSize, cellPadding: compact ? 0.7 : report.landscape ? 0.8 : 1.4 },
+      headStyles: { ...base.headStyles, fontSize: compact ? 6 : Math.max(6, fontSize - 0.5) },
+      // หัวคอลัมน์แรก 'ลำดับ' (แบบรายงานรายภาครายชั้น) กว้าง 12 มม. เหมือน createSummary · 'ที่' 9 มม.
+      columnStyles: compact ? compactStyles : { 0: { cellWidth: text(report.head?.[0]?.[0]).length > 3 ? 12 : 9 }, [nameColumn]: { halign: 'left', cellWidth: report.landscape ? 44 : columns > 12 ? 40 : 58 } },
+      margin: { left: 10, right: 10, bottom: 14 },
+      didParseCell: (data) => {
+        if (data.section !== 'body') return;
+        const value = text(data.cell.raw);
+        if (data.column.index === report.statusColumn) {
+          if (value === 'มส.') { data.cell.styles.textColor = [190, 30, 30]; data.cell.styles.fontStyle = 'bold'; }
+          else if (value === 'ใกล้ มส.') data.cell.styles.textColor = [170, 90, 0];
+        }
+        if (isMark(data.column.index)) {
+          if (value === 'ข') { data.cell.styles.textColor = [190, 30, 30]; data.cell.styles.fontStyle = 'bold'; }
+          else if (value === 'ล') data.cell.styles.textColor = [170, 90, 0];
+        }
+      }
+    }));
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let y = number(doc.lastAutoTable?.finalY, 60) + 5;
+    if (report.note) {
+      doc.setFont('Sarabun', 'normal');
+      doc.setFontSize(8);
+      doc.text(text(report.note), 10, y, { maxWidth: pageWidth - 20 });
+      y += 6;
+    }
+    const signers = (report.signers || []).filter((s) => s && s.role);
+    if (signers.length) {
+      y += 12;
+      if (y > pageHeight - 26) { doc.addPage('a4', orientation); y = 40; }
+      doc.setFont('Sarabun', 'normal');
+      doc.setFontSize(8.5);
+      signers.forEach((signer, index) => {
+        const x = (pageWidth / (signers.length + 1)) * (index + 1);
+        doc.text('ลงชื่อ................................................', x, y, { align: 'center' });
+        doc.text(`(${text(signer.name) || '................................................'})`, x, y + 6, { align: 'center' });
+        doc.text(text(signer.role), x, y + 12, { align: 'center' });
+      });
+    }
+    addDocumentPageNumbers(doc);
+    return finish(doc, meta);
+  }
+
   global.PP5PDF = {
+    createSubjectAttendanceReport,
     createSummary,
     createDashboardSummary,
     createStudent,

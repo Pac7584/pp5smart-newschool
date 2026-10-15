@@ -17,6 +17,8 @@
   const SUBJECT = new Set(['create_score_sheet','score_table_viewer','subject_score_viewer','exam_analysis','subject_attendance','pp5_subject_book',
     // subject_schedule: ตารางสอนของฉัน (SQL 032) — ต้องตั้งก่อนเช็คชื่อรายคาบ สิทธิ์จริงตรวจที่ pp5_save_subject_schedule
     'subject_schedule',
+    // subject_attendance_summary: สรุปเวลาเรียนรายวิชา รายเดือน/รายภาค/ทั้งปี (อ่านอย่างเดียว ตาม RLS ของ subject_attendance)
+    'subject_attendance_summary',
     // export_reports: ศูนย์รวมลิงก์รายงานของห้องที่ได้รับมอบหมาย (หน้าปลายทางตรวจสิทธิ์ของตัวเอง)
     'export_reports']);
   const HOMEROOM = new Set(['studentList','export_pdf_page','behavior_records','student_growth_entry','student_growth_report',
