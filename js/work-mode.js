@@ -344,7 +344,7 @@ ${option('subject', 'bi-journal-bookmark-fill', 'ครูประจำวิ�
       <div><small>เช็คชื่อรายวิชา <button type="button" class="pp5wm-mini" data-pp5-btn-skip data-wm-go="subject_attendance_summary" data-grade="${esc(r.grade)}" data-room="${esc(r.room)}" data-subject="${esc(r.subject.id)}">ดูสรุป ›</button></small>${att}</div>
     </div>
   </div>
-  <div class="pp5wm-actions">${nav('score_table_viewer', 'กรอกคะแนน', 'bi-pencil-square', 'is-main')}${nav('subject_attendance', 'เช็คชื่อ', 'bi-calendar2-check-fill', 'is-green')}${nav('pp5_subject_book', 'ปพ.5', 'bi-printer-fill', 'is-violet')}</div>
+  <div class="pp5wm-actions">${nav('score_table_viewer', 'กรอกคะแนน', 'bi-pencil-square', 'is-main')}${nav('subject_attendance', 'เช็คชื่อ', 'bi-calendar2-check-fill', 'is-green')}${nav('characteristic_assessment', 'ประเมิน', 'bi-clipboard2-check', 'is-amber')}${nav('pp5_subject_book', 'ปพ.5', 'bi-printer-fill', 'is-violet')}</div>
 </article>`;
     };
     const core = rows.filter((r) => subjectRank(r.subject.name) < 100);
@@ -368,6 +368,10 @@ ${option('subject', 'bi-journal-bookmark-fill', 'ครูประจำวิ�
       if (!go) return;
       global.GradeClassHelper?.saveSelection?.(go.dataset.grade, go.dataset.room);
       // หน้าเช็คชื่อรายวิชาเลือกชั้น/ห้อง/วิชาให้ตรงกับการ์ด (js/subject-attendance.js อ่านครั้งเดียวแล้วลบ)
+      // ประเมินในวิชา: หน้าประเมินเดิม + แถบเลือกวิชา (js/subject-assessment.js อ่านครั้งเดียวแล้วลบ)
+      if (go.dataset.wmGo === 'characteristic_assessment') {
+        try { global.sessionStorage.setItem('pp5SubjectAssessmentTarget', JSON.stringify({ grade: go.dataset.grade, room: go.dataset.room, subjectId: go.dataset.subject })); } catch (_) { /* เลือกเองได้ */ }
+      }
       if (go.dataset.wmGo === 'subject_attendance_summary') {
         try { global.sessionStorage.setItem('pp5SubjectSummaryTarget', JSON.stringify({ grade: go.dataset.grade, room: go.dataset.room, subjectId: go.dataset.subject })); } catch (_) { /* เลือกเองได้ */ }
       }
@@ -498,12 +502,12 @@ html[data-pp5-work-mode="subject"] #userRoomBadge{display:none!important}
 .pp5wm-facts b{font-size:1rem}
 .pp5wm-chip{display:inline-flex;align-items:center;gap:4px;font-size:.8rem;font-weight:600;padding:2px 10px;border-radius:99px}
 .pp5wm-chip.is-ok{background:#d1fae5;color:#047857}.pp5wm-chip.is-wait{background:#fef3c7;color:#b45309}.pp5wm-chip.is-none{background:#e5e7eb;color:#4b5563}
-.pp5wm-actions{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px}
+.pp5wm-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .pp5wm-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:12px;padding:9px 8px;font-weight:700;
   font-size:.88rem;cursor:pointer;transition:filter .15s,transform .15s}
 .pp5wm-btn:hover{filter:brightness(1.06);transform:translateY(-1px)}.pp5wm-btn:focus-visible{outline:3px solid color-mix(in srgb,var(--wm-accent) 45%,transparent)}
 .pp5wm-btn.is-main{color:#fff;background:linear-gradient(135deg,var(--s1),var(--s2));box-shadow:0 6px 14px color-mix(in srgb,var(--s2) 35%,transparent)}
-.pp5wm-btn.is-green{color:#047857;background:#d1fae5}.pp5wm-btn.is-violet{color:#6d28d9;background:#ede9fe}
+.pp5wm-btn.is-green{color:#047857;background:#d1fae5}.pp5wm-btn.is-amber{color:#b45309;background:#fef3c7}.pp5wm-btn.is-violet{color:#6d28d9;background:#ede9fe}
 .pp5wm-mini{border:0;background:none;padding:0 0 0 4px;color:var(--wm-accent);font-weight:700;font-size:.75rem;cursor:pointer}
 .pp5wm-stats .is-owed{background:#fff;color:#b91c1c;box-shadow:0 0 0 2px #fca5a5}
 .pp5wm-stats .is-today{background:#fff;color:#c2410c;box-shadow:0 0 0 2px #fdba74}
@@ -523,6 +527,7 @@ html[data-pp5-work-mode="subject"] #userRoomBadge{display:none!important}
 [data-theme="dark"] .pp5wm-chip.is-ok,[data-theme="dark"] .pp5wm-btn.is-green{background:#0f3d2e;color:#6ee7b7}
 [data-theme="dark"] .pp5wm-chip.is-wait{background:#3d2f0f;color:#fcd34d}
 [data-theme="dark"] .pp5wm-btn.is-violet{background:#2e2350;color:#c4b5fd}
+[data-theme="dark"] .pp5wm-btn.is-amber{background:#3d2f0f;color:#fcd34d}
 [data-theme="dark"] .pp5wm-ring{background:conic-gradient(var(--c) calc(var(--p)*1%),#34405a 0)}
 `;
   function ensureStyle() {

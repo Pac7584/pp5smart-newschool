@@ -1520,29 +1520,51 @@
     return results.some((value) => value === null) ? null : (results.every((value) => value === 1) ? 1 : 0);
   }
 
+  // ครูประจำวิชาใช้หน้าประเมินเดิม (owner 2026-10-16: "เอามาจากระบบที่มีอยู่แล้ว"): js/subject-assessment.js ตั้ง
+  // PP5AssessmentSubject = { subjectId, grade, room, semester } แล้วหน้าเดิมจะอ่าน/เขียนแถว subj_* ของวิชานั้นรายภาค
+  // (criteria_code = '<subject id>|c1', SQL 202610150034) แทนผลประจำชั้น · ห้องไม่ตรงกับที่เลือก = ไม่ใช้ (กันค้างข้ามหน้า)
+  const SUBJECT_ASSESSMENT_TYPES = { characteristic: 'subj_char', rtw: 'subj_rtw', competency: 'subj_comp' };
+  function subjectAssessment(type, grade, classNo) {
+    const ctx = global.PP5AssessmentSubject;
+    const subjType = SUBJECT_ASSESSMENT_TYPES[type];
+    if (!ctx || !subjType || !text(ctx.subjectId)) return null;
+    if (grade !== undefined && (text(grade) !== text(ctx.grade) || text(classNo) !== text(ctx.room))) return null;
+    const prefix = `${text(ctx.subjectId)}|`;
+    return { type: subjType, prefix, semester: Number(ctx.semester) === 2 ? 2 : 1 };
+  }
+
   async function loadAssessment(type, prefix, count, grade, classNo, semester = 1, academicYear) {
     const year = text(academicYear || await currentYear());
     const students = await data.students.list({ grade, room: classNo, academicYear: year });
-    const rows = await data.assessments.list(type, semester, students.map((student) => student.id), year);
+    const subj = subjectAssessment(type, grade, classNo);
+    const ids = students.map((student) => student.id);
+    const rows = !subj ? await data.assessments.list(type, semester, ids, year)
+      : (ids.length ? await optionalTableAll('assessments', (q) => q.eq('assessment_type', subj.type).eq('academic_year', year)
+        .eq('semester', subj.semester).like('criteria_code', `${subj.prefix}%`).in('student_id', ids).order('id')) : []);
     const grouped = {};
     rows.forEach((row) => {
+      const code = text(row.criteria_code);
+      if (subj && !code.startsWith(subj.prefix)) return;
       grouped[row.student_id] ||= {};
-      grouped[row.student_id][row.criteria_code] = row.score;
+      grouped[row.student_id][subj ? code.slice(subj.prefix.length) : row.criteria_code] = row.score;
     });
     return students.map((student) => assessmentStudent(student, grouped[student.id], prefix, count));
   }
 
-  async function saveAssessment(type, prefix, payload, defaultSemester = 1) {
+  async function saveAssessment(officialType, prefix, payload, defaultSemester = 1) {
     const list = Array.isArray(payload) ? payload : (payload?.students || payload?.records || []);
     const year = text(payload?.academicYear || payload?.academic_year || await currentYear());
-    const semester = number(payload?.semester, defaultSemester);
+    const subj = subjectAssessment(officialType);
+    const type = subj ? subj.type : officialType;
+    const semester = subj ? subj.semester : number(payload?.semester, defaultSemester);
     const rows = [];
     // ค่าที่ว่าง (= ยังไม่ประเมิน) ต้อง "ลบแถวเดิม" ไม่ใช่ข้ามไปเฉย ๆ ไม่งั้นผู้ใช้ล้างค่าไม่ได้เลย
     const clears = [];
     list.forEach((student) => {
       const studentId = text(student.studentId || student.student_id || student.id);
       const rawScores = student.scores ?? student.criteria ?? student.values ?? {};
-      const collect = (criteriaCode, score) => {
+      const collect = (rawCode, score) => {
+        const criteriaCode = subj ? `${subj.prefix}${rawCode}` : rawCode;
         if (score === '' || score === null || score === undefined) {
           if (studentId) clears.push({ studentId, criteriaCode });
           return;
@@ -2317,10 +2339,54 @@
       return { ...studentInfo(student, index), scores, level: avg === null ? '' : avg >= 2.5 ? 3 : avg >= 2.0 ? 2 : avg >= 1.0 ? 1 : 0 };
     });
 
+    // ผลประเมินของครูผู้สอนวิชานี้เอง (SQL 034, owner 2026-10-15 "ให้ครูประจำวิชาประเมิน…ในวิชาตัวเอง"):
+    // subj_char / subj_rtw ของวิชา — ค่าของแต่ละข้อ = เฉลี่ยภาคที่มีผล · ไม่มีผลของวิชา = ใช้ผลรวม/กลุ่มสาระเหมือนเดิม
+    const subjectOwn = async (subjectId) => {
+      let rows = [];
+      try {
+        rows = await optionalTableAll('assessments', (query) => query.in('assessment_type', ['subj_char', 'subj_rtw'])
+          .eq('academic_year', academicYear).in('student_id', studentIds).like('criteria_code', `${subjectId}|%`));
+      } catch (_) { rows = []; }
+      const pick = (type, prefix, count) => {
+        const sums = new Map();
+        rows.filter((r) => r.assessment_type === type && text(r.criteria_code).split('|')[0] === text(subjectId)).forEach((r) => {
+          const code = text(r.criteria_code).split('|')[1] || '';
+          const index = Number(code.slice(prefix.length)) - 1;
+          if (!code.startsWith(prefix) || !(index >= 0 && index < count)) return;
+          const sid = text(r.student_id);
+          if (!sums.has(sid)) sums.set(sid, Array.from({ length: count }, () => []));
+          sums.get(sid)[index].push(Number(r.score));
+        });
+        const out = new Map();
+        sums.forEach((items, sid) => out.set(sid, items.map((v) => (v.length ? v.reduce((a, b) => a + b, 0) / v.length : ''))));
+        return out.size ? out : null;
+      };
+      return { char: pick('subj_char', 'c', 8), rtw: pick('subj_rtw', 'rtw', 5) };
+    };
+    const levelOf = (avg) => (avg === null ? '' : avg >= 2.5 ? 3 : avg >= 2.0 ? 2 : avg >= 1.0 ? 1 : 0);
+    const completeAvg = (scores, count) => {
+      const valid = (scores || []).filter((v) => v !== '' && v !== null && v !== undefined && !isNaN(Number(v))).map(Number);
+      return valid.length === count ? valid.reduce((a, b) => a + b, 0) / count : null;
+    };
+
+    const ownCharacter = (map) => {
+      const counts = { '3': 0, '2': 0, '1': 0, '0': 0, pending: 0 };
+      students.forEach((student) => {
+        const level = levelOf(completeAvg(map.get(text(student.id)), 8));
+        if (level === '') counts.pending++; else counts[String(level)]++;
+      });
+      return counts;
+    };
+    const ownCharacterBook = (map) => students.map((student, index) => {
+      const scores = (map.get(text(student.id)) || Array(8).fill('')).map((v) => (v === '' ? '' : Math.round(Number(v) * 100) / 100));
+      return { ...studentInfo(student, index), scores, level: levelOf(completeAvg(scores, 8)) };
+    });
+
     const sheets = [];
     for (const item of chosen) {
       const subject = details.get(text(item.id)) || item;
       const group = pp5SubjectGroup(subject);
+      const own = await subjectOwn(item.id);
       const grades = { '4': 0, '3.5': 0, '3': 0, '2.5': 0, '2': 0, '1.5': 0, '1': 0, '0': 0, 'ร': 0, 'มส': 0, pending: 0 };
       const rows = await scoreRowsForSubject(item.id, academicYear, studentIds);
       const rowMap = {};
@@ -2331,7 +2397,12 @@
         else grades.pending++;
       });
       const reading = { '3': 0, '2': 0, '1': 0, '0': 0, pending: 0 };
-      if (group) {
+      if (own.rtw) {
+        students.forEach((student) => {
+          const level = levelOf(completeAvg(own.rtw.get(text(student.id)), 5));
+          if (level === '') reading.pending++; else reading[String(level)]++;
+        });
+      } else if (group) {
         assessed.rtw.students.forEach((s) => {
           const v = s.scores?.[group.key];
           if (v === '' || v === null || v === undefined || isNaN(Number(v))) reading.pending++;
@@ -2349,9 +2420,14 @@
         semester: subjectSemester_(subject) || 0,
         teacher: cleanTeacherName(overrides[text(item.id)]) || cleanTeacherName(roomTeachers[roomTeacherKey(grade, classNo, item.id)])
           || text(subject.teacher_name || subject.teacherName),
-        grades, reading, character,
+        grades, reading, character: own.char ? ownCharacter(own.char) : character,
+        readingBy: own.rtw ? 'subject' : 'group', characterBy: own.char ? 'subject' : 'homeroom',
         attendance: await subjectAttendance(subject),
-        book: { scores: scoreBookFor(subject, rowMap), rtw: rtwBookFor(group), character: characterBook }
+        book: {
+          scores: scoreBookFor(subject, rowMap),
+          rtw: own.rtw ? students.map((student, index) => ({ ...studentInfo(student, index), score: levelOf(completeAvg(own.rtw.get(text(student.id)), 5)) })) : rtwBookFor(group),
+          character: own.char ? ownCharacterBook(own.char) : characterBook
+        }
       });
     }
     return { academicYear, studentCount, sheets };

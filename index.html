@@ -262,6 +262,7 @@
       <li class="nav-item teacher-only" data-page="characteristic_assessment"><a href="#" class="nav-link" data-page="characteristic_assessment"><i class="bi bi-patch-check-fill"></i> ประเมินคุณลักษณะอันพึงประสงค์</a></li>
       <li class="nav-item teacher-only" data-page="activity_assessment"><a href="#" class="nav-link" data-page="activity_assessment"><i class="bi bi-ui-checks"></i> ประเมินกิจกรรมพัฒนาผู้เรียน</a></li>
       <li class="nav-item teacher-only" data-page="club_management"><a href="#" class="nav-link" data-page="club_management"><i class="bi bi-people-fill"></i> ลงทะเบียนชุมนุม</a></li>
+      <li class="nav-item teacher-only" data-page="subject_assessment_summary"><a href="#" class="nav-link" data-page="subject_assessment_summary"><i class="bi bi-diagram-3"></i> รวมผลประเมินจากครูรายวิชา</a></li>
       <li class="nav-item teacher-only" data-page="competency_assessment"><a href="#" class="nav-link" data-page="competency_assessment"><i class="bi bi-star-fill"></i> ประเมินสมรรถนะสำคัญ</a></li>
       <li class="nav-item teacher-only" data-page="teacher_comment_form"><a href="#" class="nav-link" data-page="teacher_comment_form"><i class="bi bi-chat-square-text-fill"></i> บันทึกความคิดเห็นครู</a></li>
     </ul>
@@ -443,7 +444,7 @@
   <!-- Direct PDF exporter with bundled Sarabun fonts -->
   <script src="vendor/jspdf.umd.min.js"></script>
   <script src="vendor/jspdf.plugin.autotable.min.js"></script>
-  <script src="js/pdf-export.js?v=54"></script>
+  <script src="js/pdf-export.js?v=55"></script>
   <script src="js/growth-nutrition.js?v=1"></script>
 
   <!-- ============ MAIN APP SCRIPT ============ -->
@@ -463,7 +464,7 @@
 <script src="js/dmc-import.js?v=1"></script>
 
 <!-- GAS Bridge (Maps google.script.run to Supabase) -->
-  <script src="js/gas-bridge.js?v=167"></script>
+  <script src="js/gas-bridge.js?v=168"></script>
   <script src="js/growth-export.js?v=5"></script>
 
 <!-- สำรองข้อมูล / เปิดไฟล์สำรอง / เตือนก่อนงานเสี่ยง (ต้องโหลดหลัง gas-bridge) -->
@@ -502,9 +503,9 @@
   <script src="js/student-list-autoload.js?v=1"></script>
   <!-- วิชารายภาค (ม.ต้น): หน้าบันทึกคะแนนเปิดเฉพาะแท็บภาคของวิชา -->
   <script src="js/semester-subjects.js?v=1"></script>
-  <script src="js/teacher-permissions.js?v=17"></script>
+  <script src="js/teacher-permissions.js?v=18"></script>
   <!-- โหมดการทำงานของครู: ครูประจำชั้น / ครูประจำวิชา ตามงานที่ผู้ดูแลมอบหมาย -->
-  <script src="js/work-mode.js?v=9"></script>
+  <script src="js/work-mode.js?v=10"></script>
   <!-- เตือนในหน้ากรอกคะแนนเมื่อวิชามีครูผู้สอนคนอื่น (SQL 033) -->
   <script src="js/subject-teacher-notice.js?v=2"></script>
   <script src="js/install-guide.js?v=8"></script>
@@ -517,7 +518,8 @@
   <script src="js/subject-attendance.js?v=8"></script>
   <script src="js/subject-schedule.js?v=6"></script>
   <script src="js/subject-attendance-summary.js?v=5"></script>
-  <script src="js/pp5-format.js?v=11"></script>
+  <script src="js/subject-assessment.js?v=1"></script>
+  <script src="js/pp5-format.js?v=12"></script>
   <script src="js/menu-flyout.js?v=3"></script>
   <script src="js/settings-layout.js?v=3"></script>
   <script src="js/teacher-access-ui.js?v=3"></script>

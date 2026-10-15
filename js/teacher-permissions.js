@@ -27,7 +27,13 @@
     'teacher_comment_form_backup','report_card_generator','report_card_scores','one_page_report','pp5_full_book','pp5_cover_page','schoolmis_sync',
     // owner 2026-10-14 (ไล่แก้ทีละข้อ): หน้าในเมนูครูที่หลุดจากรายการ — ครูประจำชั้นเปิดได้เมื่อเปิดระบบสิทธิ์ครู
     // (ปุ่มอนุมัติ/ตีกลับ ปพ.5 ยังเป็นงานผู้ดูแลตาม ADMIN_METHODS; ส่งงานของห้องตัวเองเท่านั้นตามคู่ ชั้น/ห้อง)
-    'teacher_comment_form','class_score_summary','class_assessment_summary','parent_info_report','pp5_readiness','pp5_approval']);
+    'teacher_comment_form','class_score_summary','class_assessment_summary','parent_info_report','pp5_readiness','pp5_approval',
+    // รวมผลประเมินจากครูรายวิชา -> ผลประจำชั้น (owner 2026-10-15: ครูประจำชั้นสรุป ระบบเสนอค่าตั้งต้น)
+    'subject_assessment_summary']);
+  // หน้าประเมินเดิม 3 หน้า: ครูประจำวิชาเปิดได้ด้วย แล้วเลือก "วิชา · ห้อง" ที่แถบด้านบน (js/subject-assessment.js)
+  // ผลจะลงแถว subj_* ของวิชานั้น — สิทธิ์จริงตรวจที่ SQL 202610150034
+  const SHARED_ASSESSMENT = new Set(['characteristic_assessment','rtw5_assessment','competency_assessment']);
+  const SUBJECT_ASSESSMENT_METHODS = /^(?:getStudentsForCharacteristic|saveCharacteristicAssessmentBatch|generateCharacteristicAssessmentPDF|getStudentsForRTW5|saveRTW5AssessmentBatch|getStudentsForCompetency|saveCompetencyAssessment|exportCompetency\w*)$/;
   const PARENT = new Set(['parent_portal','change_password']);
   const ADMIN_METHODS = /^(?:getAllUsers|addUser|updateUser|deleteUser|createUser|saveTeacher|saveSingleTeacher|getTeacherListForEditor|saveSystem|setGlobal|saveGlobal|setLogo|uploadLogo|saveSchoolSignatures|markPp5Reviewed|approvePp5Class|returnPp5ForCorrection|.*Transition|.*Rollback|importStudent|.*Dmc|.*DMC|.*ProjectAsZip|.*SchoolSar|.*SarAnalytics|.*Warehouse)/;
   const HOMEROOM_METHODS = /(?:Pp6|ReportCard|OnePage|StudentReport|StudentFullData|ParentInfo|Growth|Competency|Characteristic|Assessment|ReadThink|Pp5Full|Pp5Cover|Comment|Attendance|Behavior)/i;
@@ -57,7 +63,8 @@
     if (!uiContext?.enabled || uiContext.role!=='teacher') return;
     const page=global.document?.body?.getAttribute('data-current-page') || global.AppNavigation?.currentPage;
     // โหมดการทำงาน (js/work-mode.js): ห้องในตัวเลือกเฉพาะงานของโหมดที่ครูเลือก
-    const assignments=active(uiContext).filter((a)=>(!HOMEROOM.has(page)||a.scope==='homeroom') && keepsMode(a,uiContext));
+    const subjectRoom=SHARED_ASSESSMENT.has(page) && !!global.PP5AssessmentSubject;
+    const assignments=active(uiContext).filter((a)=>(!HOMEROOM.has(page)||a.scope==='homeroom'||subjectRoom) && keepsMode(a,uiContext));
     const grades=new Set(assignments.map((a)=>a.grade));
     selectReportRoom(page);
     global.document?.querySelectorAll('#contentFrame select').forEach((select)=>{
@@ -137,6 +144,7 @@
     if (COMMON.has(page)) return true;
     const assignments = active(ctx).filter((a) => ignoreMode || keepsMode(a, ctx));
     if (SUBJECT.has(page)) return assignments.length > 0;
+    if (SHARED_ASSESSMENT.has(page) && assignments.some((a) => a.scope === 'subject')) return true;
     return HOMEROOM.has(page) && assignments.some((a) => a.scope === 'homeroom');
   }
   async function authorizePage(page) {
@@ -159,8 +167,14 @@
     if (!ctx.enabled || ctx.role === 'admin') return ctx;
     if (ctx.role !== 'teacher') return ctx; // Parent bridge methods already verify their linked student IDs.
     if (ADMIN_METHODS.test(name)) fail('ส่วนนี้เป็นงานของผู้ดูแลระบบ');
+    // ประเมินในวิชาที่สอน (หน้าประเมินเดิม + แถบเลือกวิชา): งานรายวิชาของวิชา/ห้อง/ภาคที่เลือก
+    const chosen = SUBJECT_ASSESSMENT_METHODS.test(name) ? global.PP5AssessmentSubject : null;
+    const subjectJob = chosen ? active(ctx).find((a) => a.scope === 'subject' && text(a.subject_id) === text(chosen.subjectId)
+      && a.grade === text(chosen.grade) && text(a.room) === text(chosen.room)
+      && (!Number(a.semester) || Number(a.semester) === Number(chosen.semester))) || null : null;
+    if (chosen && !subjectJob && !(ctx.assignments || []).some((a) => a.scope === 'homeroom')) fail('คุณไม่ได้รับมอบหมายวิชานี้ในห้อง/ภาคที่เลือก');
     // Course score configuration is metadata used by subject teachers, not a student's assessment.
-    if (name!=='getSubjectAssessmentConfig' && HOMEROOM_METHODS.test(name) && !(ctx.assignments || []).some((a) => a.scope === 'homeroom')) {
+    if (name!=='getSubjectAssessmentConfig' && !subjectJob && HOMEROOM_METHODS.test(name) && !(ctx.assignments || []).some((a) => a.scope === 'homeroom')) {
       fail('งานนี้ต้องได้รับมอบหมายเป็นครูประจำชั้น');
     }
     // Explicit class arguments on exports/readers must not produce a misleading empty document.
@@ -182,7 +196,7 @@
       fail('คุณไม่ได้รับมอบหมายชั้นเรียนนี้');
     }
     if (pair >= 0 && !active(ctx,year).some((a) => a.grade === text(args[pair]) && a.room === text(args[pair+1])
-      && (!HOMEROOM_METHODS.test(name) || a.scope==='homeroom'))) {
+      && (!HOMEROOM_METHODS.test(name) || a.scope==='homeroom' || a===subjectJob))) {
       fail('คุณไม่ได้รับมอบหมายห้องนี้');
     }
     if (/^(generateStudentReportPdfUnified|generateOnePageReportPdf|exportOnePageReport|generateParentReportCard|getStudentFullData)$/.test(name)) {
@@ -237,7 +251,7 @@
       const [base, minimal] = await Promise.all([originalList.call(this,filters), rpc('pp5_teacher_scope_roster',{ p_year:year })]);
       const byId = new Map(base.map((s) => [text(s.id),s]));
       for (const row of minimal || []) {
-        if (HOMEROOM.has(page) && !active(ctx,year).some((a)=>a.scope==='homeroom' && a.grade===row.grade && a.room===row.room)) continue;
+        if (HOMEROOM.has(page) && !(SHARED_ASSESSMENT.has(page) && global.PP5AssessmentSubject) && !active(ctx,year).some((a)=>a.scope==='homeroom' && a.grade===row.grade && a.room===row.room)) continue;
         if (filters.grade && row.grade !== filters.grade || filters.room && row.room !== text(filters.room)) continue;
         if (filters.active !== false && row.status !== (filters.status || 'active')) continue;
         if (filters.status && row.status !== filters.status) continue;

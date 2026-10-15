@@ -2372,7 +2372,10 @@
     if (Number(c.pending)) notes.push(`ยังไม่ได้ประเมินคุณลักษณะ ${c.pending} คน`);
     if (Number(r.pending)) notes.push(sheet.group ? `ยังไม่ได้ประเมินการอ่านฯ ของกลุ่มสาระนี้ ${r.pending} คน` : 'ไม่พบกลุ่มสาระของวิชานี้ จึงไม่มีผลการอ่านฯ');
     if (notes.length) { doc.text(`* ${notes.join(' · ')}`, left, noteY); noteY += 4; }
-    doc.text('* คุณลักษณะอันพึงประสงค์ใช้ผลการประเมินรวมของนักเรียน (ดีเยี่ยม = 3, ดี = 2, ผ่าน = 1, ไม่ผ่าน = 0)', left, noteY);
+    // SQL 034: ถ้าครูผู้สอนประเมินในวิชานี้เอง ใช้ผลของวิชา (gas-bridge subjectOwn) ไม่ใช่ผลรวมของนักเรียน
+    doc.text(sheet.characterBy === 'subject' || sheet.readingBy === 'subject'
+      ? `* ${[sheet.characterBy === 'subject' ? 'คุณลักษณะ' : '', sheet.readingBy === 'subject' ? 'การอ่านฯ' : ''].filter(Boolean).join(' และ ')}ใช้ผลประเมินของครูผู้สอนวิชานี้ (ดีเยี่ยม = 3, ดี = 2, ผ่าน = 1, ไม่ผ่าน = 0)`
+      : '* คุณลักษณะอันพึงประสงค์ใช้ผลการประเมินรวมของนักเรียน (ดีเยี่ยม = 3, ดี = 2, ผ่าน = 1, ไม่ผ่าน = 0)', left, noteY);
 
     // ลงนาม: ครูผู้สอน | หัวหน้าฝ่ายวิชาการ/งานวัดผล  แล้วผู้อำนวยการ (อนุมัติ/ไม่อนุมัติ + วันที่)
     const signs = meta?.includeSignatures !== false;
