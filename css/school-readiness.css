@@ -1,4 +1,4 @@
-.pp5-readiness { max-width: 1200px; margin: auto; color: var(--text-primary, #1e293b); }
+.pp5-readiness { max-width: 1200px; margin: auto; color: var(--text-primary, #1e293b); container-type: inline-size; }
 [data-theme="dark"] .pp5-readiness { --text-primary: #e2e8f0; --text-secondary: #cbd5e1; --border-color: #475569; --bg-secondary: #1e293b; }
 .pp5-readiness h2 { font-size: 1.45rem; font-weight: 700; margin: 0 0 .5rem; }
 .pp5-readiness h3 { font-size: 1.05rem; font-weight: 700; margin: 0 0 .4rem; }
@@ -9,7 +9,12 @@
 .pp5-readiness-overview { display: flex; gap: .8rem 1.4rem; flex-wrap: wrap; padding: 1rem; border: 1px solid var(--border-color, #cbd5e1); border-radius: 12px; margin-bottom: 1.2rem; background: var(--bg-secondary, #f8fafc); }
 .pp5-readiness-filter { display: flex; align-items: center; gap: .8rem; margin: 1rem 0; }
 .pp5-readiness-filter select { width: 150px; }
+.pp5-readiness-summary { margin-bottom: 1.5rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border-color, #cbd5e1); }
+.pp5-readiness-summary strong { font-size: 1.05rem; }
+.pp5-readiness-summary p { margin-bottom: .5rem; }
+.pp5-readiness-scroll-hint { display: none; color: var(--text-secondary, #475569); }
 .pp5-readiness-table { overflow-x: auto; margin-bottom: 1.3rem; }
+.pp5-readiness-table:focus-visible { outline: 2px solid var(--primary, #2563eb); outline-offset: 2px; }
 .pp5-readiness-table table { min-width: 610px; margin: 0; }
 .pp5-readiness-table caption { caption-side: top; color: var(--text-secondary, #475569); }
 .pp5-readiness-table th, .pp5-readiness-table td { white-space: nowrap; }
@@ -33,6 +38,9 @@
 [data-theme="dark"] .pp5-readiness .btn-outline-primary { color: #93c5fd; border-color: #60a5fa; }
 [data-theme="dark"] .pp5-readiness .btn-outline-primary:hover { color: #fff; }
 .pp5-readiness [hidden] { display: none !important; }
+@container (max-width: 609px) {
+  .pp5-readiness-scroll-hint { display: block; }
+}
 @media (max-width: 600px) {
   .pp5-readiness-check { grid-template-columns: minmax(0, 1fr) auto; gap: .8rem; }
   .pp5-readiness-check > div { grid-column: 1 / -1; }

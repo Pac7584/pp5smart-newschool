@@ -233,23 +233,30 @@
       '<div data-readiness-result aria-live="polite"><p role="status">กำลังตรวจข้อมูล...</p></div></section>' +
       '<script>window.PP5SchoolReadiness.mount("' + mode + '");</script>';
   }
+  function curriculumSummary(grade, count, shared) {
+    const scope = grade ? grade + (shared ? ' และรายการภาพรวมโรงเรียน' : '') : 'ทุกชั้น';
+    return scope + ': ' + (count ? 'พบ ' + count + ' จุดที่ควรตรวจและปรับตามหลักสูตรสถานศึกษา' : 'ไม่พบข้อทักท้วงจากตัวเลขและรายการที่ตรวจได้');
+  }
   function renderCurriculum(report) {
     const secondary = report.secondarySummary;
-    let html = '<p class="pp5-readiness-note">รายวิชารายปีแสดงเป็นยอดรายปี ไม่แบ่งครึ่งเป็นรายภาค กิจกรรมนับชั่วโมงและประเมินผ่าน/ไม่ผ่าน ไม่นับเป็นหน่วยกิตเพิ่มเติม</p>';
+    let html = '<label class="pp5-readiness-filter">แสดงชั้น <select class="form-select form-select-sm" data-readiness-grade><option value="">ทุกชั้น</option>' +
+      report.grades.map((g) => '<option value="' + esc(g.grade) + '">' + esc(g.grade) + '</option>').join('') + '</select></label>' +
+      '<div class="pp5-readiness-summary"><p><strong data-readiness-summary>' + curriculumSummary('', report.issues.length, false) + '</strong></p>' +
+      '<p class="pp5-readiness-note">ผลนี้เป็นการตรวจตัวเลขและรายการ ไม่ใช่การรับรองหลักสูตร ครูวิชาการยังต้องตรวจเนื้อหา ตัวชี้วัด และการจัดกิจกรรมจริง</p></div>';
     if (secondary) html += '<div class="pp5-readiness-overview"><span>ม.1–ม.3 รวม 3 ปี</span><strong>พื้นฐาน ' + format(secondary.basicCredits) +
       ' / 66 หน่วยกิต</strong><strong>เพิ่มเติม ' + format(secondary.additionalCredits) + ' / อย่างน้อย 11 หน่วยกิต</strong><strong>เพื่อสังคมฯ ' +
       format(secondary.socialHours) + ' / 45 ชั่วโมง</strong></div>';
-    html += '<label class="pp5-readiness-filter">แสดงชั้น <select class="form-select form-select-sm" data-readiness-grade><option value="">ทุกชั้น</option>' +
-      report.grades.map((g) => '<option value="' + esc(g.grade) + '">' + esc(g.grade) + '</option>').join('') + '</select></label>' +
-      '<div class="pp5-readiness-table"><table class="table table-bordered align-middle"><caption>ชั่วโมงและหน่วยกิตตามรายการที่บันทึกไว้</caption><thead><tr>' +
+    html += '<p class="pp5-readiness-note">รายวิชารายปีแสดงเป็นยอดรายปี ไม่แบ่งครึ่งเป็นรายภาค กิจกรรมนับชั่วโมงและประเมินผ่าน/ไม่ผ่าน ไม่นับเป็นหน่วยกิตเพิ่มเติม</p>' +
+      '<p class="pp5-readiness-note">ช่องหน่วยกิตเพิ่มเติมแสดงเฉพาะระดับมัธยมศึกษา (— = ไม่ใช้กับชั้นนี้)</p>' +
+      '<p class="pp5-readiness-scroll-hint" id="readinessScrollHint">เลื่อนตารางซ้าย–ขวาเพื่อดูข้อมูลครบทุกคอลัมน์</p>' +
+      '<div class="pp5-readiness-table" tabindex="0" role="region" aria-label="ชั่วโมงและหน่วยกิตแยกตามชั้น" aria-describedby="readinessScrollHint"><table class="table table-bordered align-middle"><caption>ชั่วโมงและหน่วยกิตตามรายการที่บันทึกไว้</caption><thead><tr>' +
       '<th scope="col">ชั้น</th><th scope="col">ช่วงเวลา</th><th scope="col">พื้นฐาน<br>ชั่วโมง</th><th scope="col">กิจกรรม<br>ชั่วโมง</th><th scope="col">เพิ่มเติม<br>ชั่วโมง</th><th scope="col">เพิ่มเติม<br>หน่วยกิต</th></tr></thead><tbody>' +
       report.grades.map((g) => g.periods.map((p) => '<tr data-readiness-for="' + esc(g.grade) + '"' + (p.label === 'ทั้งปี (รวม)' ? ' class="pp5-readiness-total"' : '') +
         '><th scope="row">' + esc(g.grade) + '</th><td>' + esc(p.label) + '</td><td>' + format(p.basicHours) + '</td><td>' + format(p.activityHours) +
         '</td><td>' + format(p.additionalHours) + '</td><td>' + (isSecondary(g.grade) ? format(p.additionalCredits) : '—') + '</td></tr>').join('')).join('') +
-      '</tbody></table></div><h3>รายการที่ควรตรวจ</h3><p>' + (report.issues.length ? 'พบ ' + report.issues.length + ' จุดที่ควรตรวจและปรับตามหลักสูตรสถานศึกษา' : 'ไม่พบข้อทักท้วงจากตัวเลขและรายการที่ตรวจได้') + '</p>' +
+      '</tbody></table></div><div data-readiness-issues-section' + (report.issues.length ? '' : ' hidden') + '><h3>รายการที่ควรตรวจ</h3>' +
       '<ul class="pp5-readiness-issues">' + report.issues.map((i) => '<li data-readiness-for="' + esc(i.grade) + '"><strong>' + esc(i.grade + ' ' + i.period) + '</strong> — ' + esc(i.message) + '</li>').join('') + '</ul>' +
-      '<p class="pp5-readiness-note">เทียบกรอบหลักสูตรแกนกลาง 2551 และคำสั่งปรับโครงสร้างเวลาเรียน: ประถมพื้นฐาน 840 ชม./ปี ม.ต้นพื้นฐาน 880 ชม./ปี กิจกรรม 120 ชม./ปี โดยไม่ได้บังคับชั่วโมงขั้นต่ำรายภาค ' +
-      'การมีตัวเลขครบไม่ใช่การรับรองหลักสูตร ให้ครูวิชาการตรวจเนื้อหา ตัวชี้วัด และการจัดกิจกรรมจริงด้วย</p>' +
+      '</div><p class="pp5-readiness-note">เทียบกรอบหลักสูตรแกนกลาง 2551 และคำสั่งปรับโครงสร้างเวลาเรียน: ประถมพื้นฐาน 840 ชม./ปี ม.ต้นพื้นฐาน 880 ชม./ปี กิจกรรม 120 ชม./ปี โดยไม่ได้บังคับชั่วโมงขั้นต่ำรายภาค</p>' +
       '<details><summary>เอกสารที่ใช้เทียบกรอบ</summary><p><a href="https://academic.obec.go.th/download/journal/journal2561.3.pdf" target="_blank" rel="noopener">สพฐ. อธิบายโครงสร้างเวลาเรียนตามคำสั่ง 922/2561 (หน้า 58)</a></p>' +
       '<p><a href="https://academic.obec.go.th/web/images/document/1562725676_d_1.pdf" target="_blank" rel="noopener">เกณฑ์จบตามคำสั่ง สพฐ. 63/2562</a></p>' +
       '<p><a href="https://academic.obec.go.th/web/images/document/1760458207_d_1.pdf" target="_blank" rel="noopener">แนวทางกิจกรรมพัฒนาผู้เรียน (หน้า 9)</a></p></details>';
@@ -267,10 +274,15 @@
       'หลังตั้งค่า ให้ทดลองเข้าด้วยบัญชีครูและพิมพ์รายงานของห้องตัวอย่าง</p>';
   }
   function filterGrade(root, grade) {
+    root.dataset.readinessSelectedGrade = grade;
     root.querySelectorAll('[data-readiness-for]').forEach((el) => {
       el.hidden = !!grade && el.dataset.readinessFor !== grade && !['ม.1–ม.3', 'ไม่ระบุชั้น'].includes(el.dataset.readinessFor) &&
         PRIMARY.concat(SECONDARY).includes(el.dataset.readinessFor);
     });
+    const issues = Array.from(root.querySelectorAll('.pp5-readiness-issues li')).filter((el) => !el.hidden);
+    const shared = issues.some((el) => el.dataset.readinessFor !== grade);
+    root.querySelector('[data-readiness-summary]').textContent = curriculumSummary(grade, issues.length, shared);
+    root.querySelector('[data-readiness-issues-section]').hidden = !issues.length;
   }
   async function mount(mode) {
     const root = global.document?.querySelector('.pp5-readiness[data-readiness-mode="' + mode + '"]');
@@ -292,7 +304,16 @@
     result.innerHTML = '<p role="status">กำลังตรวจข้อมูล...</p>';
     try {
       const value = await (mode === 'curriculum' ? loadCurriculum() : loadSetup());
-      if (root.isConnected && root.__readinessToken === token) result.innerHTML = mode === 'curriculum' ? renderCurriculum(value) : renderSetup(value);
+      if (root.isConnected && root.__readinessToken === token) {
+        result.innerHTML = mode === 'curriculum' ? renderCurriculum(value) : renderSetup(value);
+        if (mode === 'curriculum') {
+          const select = root.querySelector('[data-readiness-grade]');
+          select.value = root.dataset.readinessSelectedGrade || '';
+          // If school grade levels changed, fall back to all grades instead of an empty selection.
+          if (select.selectedIndex < 0) select.value = '';
+          filterGrade(root, select.value);
+        }
+      }
     } catch (error) {
       if (root.isConnected && root.__readinessToken === token) result.innerHTML = '<p class="text-danger" role="alert">' + esc(error.message || error) + '</p>';
     }
