@@ -1533,6 +1533,17 @@
     return { type: subjType, prefix, semester: Number(ctx.semester) === 2 ? 2 : 1 };
   }
 
+  // หัวกระดาษ PDF เมื่อครูประจำวิชาส่งออกจากหน้าประเมินเดิม (Codex 2026-10-16: ยังเป็นข้อความแบบครูประจำชั้น)
+  async function assessmentPrintDetail(type, detail, grade, classNo) {
+    const subj = subjectAssessment(type, grade, classNo);
+    if (!subj) return detail;
+    const id = text(global.PP5AssessmentSubject.subjectId);
+    let subject = null;
+    try { subject = (await data.subjects.list(grade)).find((row) => text(row.id) === id) || null; } catch (_) { subject = null; }
+    const name = [subject?.code, subject?.name].map(text).filter(Boolean).join(' ') || id;
+    return `${detail} · วิชา ${name} ภาคเรียนที่ ${subj.semester} (ครูผู้สอนประเมิน)`;
+  }
+
   async function loadAssessment(type, prefix, count, grade, classNo, semester = 1, academicYear) {
     const year = text(academicYear || await currentYear());
     const students = await data.students.list({ grade, room: classNo, academicYear: year });
@@ -1677,7 +1688,7 @@
       }
       return text(a.studentId).localeCompare(text(b.studentId), undefined, { numeric: true });
     });
-    const options = await attendancePrintOptions(grade, classNo, 'คุณลักษณะอันพึงประสงค์');
+    const options = await attendancePrintOptions(grade, classNo, await assessmentPrintDetail('characteristic', 'คุณลักษณะอันพึงประสงค์', grade, classNo));
     if (global.PP5PDF?.createCharacteristicReport) {
       const result = await global.PP5PDF.createCharacteristicReport({ grade, classNo, students: sorted }, options);
       return typeof result === 'object' && result?.dataUri ? result.dataUri : (typeof result === 'object' && result?.blobUrl ? result.blobUrl : result);
@@ -1869,7 +1880,7 @@
       }
       return text(a.studentId).localeCompare(text(b.studentId), undefined, { numeric: true });
     });
-    const options = await attendancePrintOptions(grade, classNo, 'สมรรถนะสำคัญของผู้เรียน');
+    const options = await attendancePrintOptions(grade, classNo, await assessmentPrintDetail('competency', 'สมรรถนะสำคัญของผู้เรียน', grade, classNo));
     if (global.PP5PDF?.createCompetencyReport) {
       const result = await global.PP5PDF.createCompetencyReport({ grade, classNo, students: sorted }, options);
       return typeof result === 'object' && result?.dataUri ? result.dataUri : (typeof result === 'object' && result?.blobUrl ? result.blobUrl : result);
@@ -1880,7 +1891,7 @@
   async function generateCompetencySummaryPdf(grade, classNo) {
     const students = await loadAssessment('competency', 'cp', 25, grade, classNo);
     if (!students.length) throw new Error('ไม่พบข้อมูลนักเรียน');
-    const options = await attendancePrintOptions(grade, classNo, 'สรุปผลการประเมินสมรรถนะสำคัญ');
+    const options = await attendancePrintOptions(grade, classNo, await assessmentPrintDetail('competency', 'สรุปผลการประเมินสมรรถนะสำคัญ', grade, classNo));
     if (global.PP5PDF?.createCompetencySummaryReport) {
       const result = await global.PP5PDF.createCompetencySummaryReport({ grade, classNo, students }, options);
       return typeof result === 'object' && result?.dataUri ? result.dataUri : (typeof result === 'object' && result?.blobUrl ? result.blobUrl : result);
