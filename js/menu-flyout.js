@@ -45,6 +45,16 @@
         link.appendChild(arrow);
       }
     });
+    fit(fly);
+  }
+
+  // owner 2026-10-16 (ภาพเมนูเวลาเรียนตกลงไปใต้แถบงาน): spa-main openFlyout() วัดความสูงก่อนเราเติมหัวเมนูและไอคอนใหญ่
+  // จึงขยับขึ้นใหม่หลังแต่ง — สูงเกินจอเลื่อนในกล่องได้ (max-height ใน css/menu-flyout.css)
+  function fit(fly) {
+    if (!fly.getBoundingClientRect || !global.innerHeight) return;
+    const room = global.innerHeight - 8;
+    const rect = fly.getBoundingClientRect();
+    if (rect.bottom > room) fly.style.top = `${Math.max(8, room - rect.height)}px`;
   }
 
   // เมนูบนมือถือ (กางลงในแถบข้าง) แต่งแบบเดียวกัน (owner 2026-10-14 ข้อ 4): สีไอคอนรายการ + ลูกศร

@@ -9,6 +9,10 @@
   background: #ffffff;
   border: 1px solid #e6eaf3;
   box-shadow: 0 18px 40px -12px rgba(30, 41, 89, 0.22), 0 4px 12px -6px rgba(30, 41, 89, 0.12);
+  /* หมวดที่รายการเยอะ (เวลาเรียน 9+ รายการ) ต้องไม่ล้นใต้ขอบจอ — js/menu-flyout.js fit() ขยับขึ้น ที่เหลือเลื่อนในกล่อง */
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 #submenuFlyout .pp5-fly-head {
   display: flex;

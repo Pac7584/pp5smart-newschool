@@ -2,7 +2,8 @@
 // แบบรายภาค และรวมแบบรายปี เหมือนครูประจำชั้นเหรอ")
 //   รายเดือน = ตารางรายชื่อ × คาบที่สอนในเดือน (✓ ล ข) · ภาค 1 / ภาค 2 / ทั้งปี = มา ลา ขาด ร้อยละ และสถานะ มส.
 //   แบ่งภาคเหมือน ปพ.5 แบบรายวิชา (gas-bridge attendanceFor): ภาค 1 = 1 พ.ค.–31 ต.ค. · ภาค 2 = 1 พ.ย.–31 มี.ค.
-//   ร้อยละ = ชั่วโมงที่มา ÷ ชั่วโมงที่บันทึกของนักเรียนคนนั้น (เหมือน ปพ.5 แบบรายวิชา) · ต่ำกว่า 80 = มส. · 80 ถึงต่ำกว่า 85 = ใกล้ มส.
+//   ร้อยละ (owner 2026-10-16 ตามระเบียบ เหมือน ปพ.5 แบบรายวิชา) = (ชั่วโมงเต็มของวิชา − ชั่วโมงที่ขาด) ÷ ชั่วโมงเต็ม · ลาไม่นับเป็นขาด
+//   ต่ำกว่า 80 = มส. · 80 ถึงต่ำกว่า 85 = ใกล้ มส. · รายเดือน (ไม่มีชั่วโมงเต็มของเดือน) เทียบกับชั่วโมงที่บันทึก
 //   1 คาบ = 1 ชั่วโมง (SQL 032) · แถวก่อน 032 = คาบ 1 ที่มีหลายชั่วโมง นับตาม hours
 // อ่านอย่างเดียว (RLS ของ subject_attendance คุมว่าใครเห็นห้อง/วิชาไหน)
 (function initSubjectAttendanceSummary(global) {
@@ -34,7 +35,17 @@
     return { key: 'ok', label: 'ผ่าน' };
   }
   // สรุปช่วงวัน: คาบที่สอน (ของห้อง) + ต่อคน มา/ลา/ขาด/รวม/ร้อยละ
-  function summarize(rows, studentIds, range) {
+  // ชั่วโมงเต็มของช่วงที่ดู: ทั้งปี = ชั่วโมงของวิชา · ภาคเดียวของวิชาทั้งปี = ครึ่งหนึ่ง · วิชารายภาค = ชั่วโมงของวิชา
+  function fullOf(subject, view) {
+    const hours = Number(subject?.hours_per_year ?? subject?.hoursPerYear) || 0;
+    return !hours ? 0 : view !== 'year' && !(Number(subject?.semester) || 0) ? hours / 2 : hours;
+  }
+  function rulePct(absent, recorded, full) {
+    if (!recorded) return null;
+    const base = full > 0 ? full : recorded;
+    return Math.round(Math.max(0, (base - Math.min(absent, base)) / base) * 1000) / 10;
+  }
+  function summarize(rows, studentIds, range, fullHours = 0) {
     const ids = new Set(studentIds.map(text));
     const slots = new Map();
     const per = new Map(studentIds.map((id) => [text(id), { present: 0, leave: 0, absent: 0, total: 0, pct: null }]));
@@ -48,7 +59,7 @@
       sum[row.status] += h;
       sum.total += h;
     });
-    per.forEach((sum) => { sum.pct = sum.total ? Math.round((sum.present / sum.total) * 1000) / 10 : null; });
+    per.forEach((sum) => { sum.pct = rulePct(sum.absent, sum.total, fullHours); });
     return { taught: [...slots.values()].reduce((a, b) => a + b, 0), days: new Set([...slots.keys()].map((k) => k.slice(0, 10))).size, per };
   }
   // ตารางรายเดือน: คอลัมน์ = คาบที่สอนในเดือน (วันที่#คาบ) เรียงตามวันแล้วคาบ
@@ -101,11 +112,12 @@
     }
     // รายภาค / ทั้งปี แยกทีละเดือน (owner 2026-10-15: "แยกเป็นเดือนสิครับ เช่น พ.ค. เท่าไหร่ มิ.ย. เท่าไหร่ ไม่ใช่เหมารวม")
     //   ตัวเลขรายเดือน = ชั่วโมงที่มาเรียน · A4 แนวตั้งทุกแบบ
-    const split = monthBreakdown(rows, ids, year, view);
+    const full = fullOf(job.subject, view);
+    const split = monthBreakdown(rows, ids, year, view, full);
     const sum = split.total;
     const whole = view === 'year';
     const head = [whole ? 'ที่' : 'ลำดับ', 'รหัส', 'ชื่อ-นามสกุล', ...split.months.map((m) => `${m.label}\n${m.yy}`),
-      'มา', 'ลา', 'ขาด', 'รวม (ชม.)', whole ? 'ร้อยละ' : 'ร้อยละมาเรียน', 'สถานะ'];
+      'มา', 'ลา', 'ขาด', 'รวม (ชม.)', 'ร้อยละ', 'สถานะ'];
     return {
       // owner 2026-10-15 "ปรับให้มีขนาด a4 แนวตั้ง": ทั้งปีก็แนวตั้ง (pdf-export ย่อคอลัมน์ให้พอดีหน้า)
       kind: 'table', landscape: false,
@@ -118,10 +130,13 @@
         return [i + 1, text(s.id), name(s), ...split.months.map((m) => { const x = m.sum.per.get(text(s.id)); return x.total ? x.present : '-'; }),
           per.present, per.leave, per.absent, per.total, pct(per.pct), st.key === 'none' ? '-' : st.label];
       }),
-      note: `ตัวเลขรายเดือน = ชั่วโมงที่มาเรียน (- = ยังไม่มีการเช็คชื่อ) · สอนทั้งหมด ${sum.taught} คาบ · ร้อยละ = ชั่วโมงที่มา ÷ ชั่วโมงที่บันทึก · ต่ำกว่า 80 = มส. (ไม่มีสิทธิ์สอบ) · 80 ถึงต่ำกว่า 85 = ใกล้ มส.`
+      note: `ตัวเลขรายเดือน = ชั่วโมงที่มาเรียน (- = ยังไม่มีการเช็คชื่อ) · สอนทั้งหมด ${sum.taught} คาบ · ${ruleNote(full)}`
     };
   }
 
+  const ruleNote = (full) => (full
+    ? `ร้อยละเวลาเรียน = (${full} ชม. − ชั่วโมงที่ขาด) ÷ ${full} ชม. · ลาไม่นับเป็นขาด · ต่ำกว่า 80 = มส. (ไม่มีสิทธิ์สอบ) · 80 ถึงต่ำกว่า 85 = ใกล้ มส.`
+    : 'ร้อยละ = (ชั่วโมงที่บันทึก − ชั่วโมงที่ขาด) ÷ ชั่วโมงที่บันทึก (วิชานี้ยังไม่ได้ตั้งชั่วโมงเรียน) · ลาไม่นับเป็นขาด · ต่ำกว่า 80 = มส. · 80 ถึงต่ำกว่า 85 = ใกล้ มส.');
   // เดือนของภาค / ปี (เหมือน ปพ.5: ภาค 1 = พ.ค.–ต.ค. · ภาค 2 = พ.ย.–มี.ค.) แสดงครบทุกเดือนแม้ยังไม่มีข้อมูล
   function monthKeysOf(year, view) {
     const ce = Number(year) - 543;
@@ -129,13 +144,13 @@
     const second = [`${ce}-11`, `${ce}-12`, `${ce + 1}-01`, `${ce + 1}-02`, `${ce + 1}-03`];
     return view === 'sem1' ? first : view === 'sem2' ? second : [...first, ...second];
   }
-  function monthBreakdown(rows, ids, year, view) {
+  function monthBreakdown(rows, ids, year, view, fullHours = 0) {
     const months = monthKeysOf(year, view).map((key) => {
       const [y, m] = key.split('-').map(Number);
       return { key, label: THAI_MONTHS[m - 1], yy: String(y + 543).slice(2),
         sum: summarize(rows, ids, { from: `${key}-01`, to: `${key}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}` }) };
     });
-    return { months, total: summarize(rows, ids, rangeOf(year, view)) };
+    return { months, total: summarize(rows, ids, rangeOf(year, view), fullHours) };
   }
 
   function monthsOf(rows) {
@@ -294,7 +309,8 @@ ${state.students.map((s, i) => {
 <div class="small mt-2" style="color:var(--s-muted)">✓ มา · ล ลา · ข ขาด · หัวคอลัมน์ "15-2" = วันที่ 15 คาบที่ 2</div>`;
         return;
       }
-      const split = monthBreakdown(state.rows, ids, state.year, state.view);
+      const full = fullOf(jobs.find((j) => j.key === jobSel.value)?.subject, state.view);
+      const split = monthBreakdown(state.rows, ids, state.year, state.view, full);
       const sum = split.total;
       const statuses = state.students.map((s) => statusOf(sum.per.get(text(s.id)).pct).key);
       const fail = statuses.filter((k) => k === 'fail').length;
@@ -313,7 +329,7 @@ ${state.students.map((s, i) => {
 ${split.months.map((m) => { const x = m.sum.per.get(text(s.id)); return `<td class="sas-month">${x.total ? x.present : '–'}</td>`; }).join('')}<td><b>${per.present}</b></td><td>${per.leave}</td><td>${per.absent}</td><td>${per.total}</td>
 <td class="sas-pct">${per.pct === null ? '–' : per.pct}</td><td><span class="sas-badge ${st.key}">${st.label}</span></td></tr>`;
   }).join('')}</tbody></table></div>
-<div class="small mt-2" style="color:var(--s-muted)">ตัวเลขรายเดือน = ชั่วโมงที่มาเรียน (– = เดือนนั้นยังไม่มีการเช็คชื่อ) · ร้อยละ = ชั่วโมงที่มา ÷ ชั่วโมงที่บันทึก · ต่ำกว่า 80 = มส. (ไม่มีสิทธิ์สอบ) · 80 ถึงต่ำกว่า 85 = ใกล้ มส. · แบ่งภาคเหมือน ปพ.5 (ภาค 1 = พ.ค.–ต.ค. · ภาค 2 = พ.ย.–มี.ค.)</div>`;
+<div class="small mt-2" style="color:var(--s-muted)">ตัวเลขรายเดือน = ชั่วโมงที่มาเรียน (– = เดือนนั้นยังไม่มีการเช็คชื่อ) · ${ruleNote(full)} · แบ่งภาคเหมือน ปพ.5 (ภาค 1 = พ.ค.–ต.ค. · ภาค 2 = พ.ย.–มี.ค.)</div>`;
     }
 
     root.addEventListener('click', (event) => {

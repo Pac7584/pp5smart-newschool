@@ -2055,6 +2055,21 @@
     return year && typeof year === 'object' ? year : {};
   }
 
+  // มส. ตามระเบียบ (owner 2026-10-16): ต้องมีเวลาเรียนไม่น้อยกว่าร้อยละ 80 ของเวลาเรียนทั้งหมดของวิชา = ขาดได้ไม่เกินร้อยละ 20
+  // ของชั่วโมงทั้งปี (วิชาทั้งปี รายภาค = ครึ่งหนึ่ง) · ลาไม่นับเป็นขาด (เจ้าของเลือก)
+  //   ร้อยละเวลาเรียน = (เวลาทั้งหมด − เวลาที่ขาด) ÷ เวลาทั้งหมด — ระหว่างปีคือ "ถ้าไม่ขาดอีกจะได้เท่านี้" ขาดเกินโควตา = มส. แน่นอน
+  //   ยังไม่มีบันทึกเลย = null · วิชาที่ไม่ได้ตั้งชั่วโมง = เทียบกับเวลาที่บันทึกแล้ว (ลาไม่นับเป็นขาดเช่นกัน)
+  //   เช็คชื่อรายวัน: 1 วัน = ชั่วโมงของวิชา ÷ 200 วัน/ปี (100 วัน/ภาค) ตามปีการศึกษา 200 วัน
+  const SCHOOL_DAYS_PER_YEAR = 200;
+  function attendanceRulePct(absent, recordedTotal, fullTime) {
+    if (!recordedTotal) return null;
+    const base = fullTime > 0 ? fullTime : recordedTotal;
+    return Math.round(Math.max(0, (base - Math.min(absent, base)) / base) * 1000) / 10;
+  }
+  // ชั่วโมงเต็มของช่วงที่คิด: ทั้งปี = ชั่วโมงของวิชา · ภาคเดียวของวิชาทั้งปี = ครึ่งหนึ่ง · วิชารายภาค = ชั่วโมงของวิชา
+  const attendanceFullHours = (hours, semester, ownSemester) => (!hours ? 0 : semester && !ownSemester ? hours / 2 : hours);
+  const roundTenth = (value) => Math.round(value * 10) / 10;
+
   async function computePp5SubjectSheets(grade, classNo, students, subjectId, requestedYear, teacherOverrides) {
     const settings = await data.settings.get();
     const academicYear = text(requestedYear || settings.academicYear || settings.academic_year || '');
@@ -2172,6 +2187,7 @@
       });
       const byStudent = groupBy(rows, (row) => text(row.student_id));
       const hours = Number(subject.hours_per_year ?? subject.hoursPerYear) || 0;
+      const fullHours = attendanceFullHours(hours, semester, subjectSemester_(subject));
       const list = students.map((student, index) => {
         const sum = { present: 0, leave: 0, absent: 0, total: 0 };
         (byStudent[text(student.id)] || []).forEach((row) => {
@@ -2180,12 +2196,13 @@
           sum[row.status] += h;
           sum.total += h;
         });
-        const pct = sum.total ? Math.round((sum.present / sum.total) * 1000) / 10 : null;
+        const pct = attendanceRulePct(sum.absent, sum.total, fullHours);
         return {
           no: text(student.studentNumber ?? student.student_number) || String(index + 1),
           code: text(student.id),
           name: studentDisplayName(student),
           present: sum.present, leave: sum.leave, absent: sum.absent, total: sum.total, pct,
+          absentHours: sum.absent,
           hours: pct === null ? null : sum.present,
           below: pct !== null && pct < 80
         };
@@ -2193,7 +2210,7 @@
       return {
         months: attendanceMonths(rows.map((row) => ({ date: normalizeDate(row.attendance_date), sid: text(row.student_id), status: text(row.status), hours: row.hours, period: row.period })), true),
         mode: 'hourly', first: att.first, last: att.last, schoolDays: taughtDays.size,
-        taughtHours: [...taughtByDate.values()].reduce((a, b) => a + b, 0), hours, students: list,
+        taughtHours: [...taughtByDate.values()].reduce((a, b) => a + b, 0), hours, fullHours, students: list,
         over: list.filter((row) => row.pct !== null && !row.below).length,
         under: list.filter((row) => row.below).length,
         noData: list.filter((row) => row.pct === null).length
@@ -2203,21 +2220,25 @@
       const att = await attendanceFor(semester);
       const sums = new Map(summarizeAttendanceRows(students, att.rows, true).map((row) => [row.studentId, row]));
       const hours = Number(subject.hours_per_year ?? subject.hoursPerYear) || 0;
+      const own = subjectSemester_(subject);
+      const fullHours = attendanceFullHours(hours, semester, own);
+      const perDay = fullHours ? fullHours / (semester || own ? SCHOOL_DAYS_PER_YEAR / 2 : SCHOOL_DAYS_PER_YEAR) : 0;
       const list = students.map((student, index) => {
         const sum = sums.get(text(student.id)) || { present: 0, leave: 0, absent: 0, total: 0 };
-        const pct = sum.total ? Math.round((sum.present / sum.total) * 1000) / 10 : null;
+        const absentHours = perDay ? roundTenth(sum.absent * perDay) : null;
+        const pct = perDay ? attendanceRulePct(absentHours, sum.total, fullHours) : attendanceRulePct(sum.absent, sum.total, 0);
         return {
           no: text(student.studentNumber ?? student.student_number) || String(index + 1),
           code: text(student.id),
           name: studentDisplayName(student),
-          present: sum.present, leave: sum.leave, absent: sum.absent, total: sum.total, pct,
+          present: sum.present, leave: sum.leave, absent: sum.absent, total: sum.total, pct, absentHours,
           hours: pct === null || !hours ? null : Math.round((hours * sum.present) / sum.total),
           below: pct !== null && pct < 80
         };
       });
       return {
         months: attendanceMonths(att.rows.map((row) => ({ date: row.attendance_date, sid: text(row.student_id), status: row.status })), false),
-        mode: 'daily', first: att.first, last: att.last, schoolDays: countRecordedSchoolDays(att.rows), hours, students: list,
+        mode: 'daily', first: att.first, last: att.last, schoolDays: countRecordedSchoolDays(att.rows), hours, fullHours, students: list,
         over: list.filter((row) => row.pct !== null && !row.below).length,
         under: list.filter((row) => row.below).length,
         noData: list.filter((row) => row.pct === null).length
@@ -2252,15 +2273,18 @@
       };
       const list = students.map((student, index) => {
         const sum = { present: 0, leave: 0, absent: 0, total: 0 };
+        let absentHours = 0;
         parts.forEach((part) => {
           const row = part.students.find((r) => r.code === text(student.id));
           const add = part.mode === 'hourly' ? row : toHours(row);
           ['present', 'leave', 'absent', 'total'].forEach((k) => { sum[k] += number(add?.[k], 0); });
+          absentHours += number(row?.absentHours ?? add?.absent, 0);
         });
-        const pct = sum.total ? Math.round((sum.present / sum.total) * 1000) / 10 : null;
+        absentHours = roundTenth(absentHours);
+        const pct = hours ? attendanceRulePct(absentHours, sum.total, hours) : attendanceRulePct(sum.absent, sum.total, 0);
         return {
           no: text(student.studentNumber ?? student.student_number) || String(index + 1), code: text(student.id), name: studentDisplayName(student),
-          ...sum, pct, hours: pct === null ? null : sum.present, below: pct !== null && pct < 80
+          ...sum, pct, absentHours, hours: pct === null ? null : sum.present, below: pct !== null && pct < 80
         };
       });
       const describe = parts.map((part) => `ภาค ${part.semesterNo} ${part.mode === 'hourly' ? 'เช็คชื่อรายคาบ' : `เช็คชื่อรายวัน (แปลงเป็น ${Math.round(semHours)} ชม.)`}`).join(' · ');
@@ -2269,7 +2293,7 @@
         mode: 'mixed', note: describe, first: parts[0].first, last: parts[parts.length - 1].last,
         schoolDays: parts.reduce((sum, part) => sum + number(part.schoolDays, 0), 0),
         taughtHours: Math.round(parts.reduce((sum, part) => sum + (part.mode === 'hourly' ? number(part.taughtHours, 0) : semHours), 0)),
-        hours, students: list,
+        hours, fullHours: hours, students: list,
         over: list.filter((row) => row.pct !== null && !row.below).length,
         under: list.filter((row) => row.below).length,
         noData: list.filter((row) => row.pct === null).length
@@ -2447,6 +2471,32 @@
     if (!Object.values(parts).some(Boolean)) throw new Error('เลือกอย่างน้อย 1 ส่วนที่จะพิมพ์');
     const result = await global.PP5PDF.createPp5SubjectCover({ grade, classNo, schoolAddress: text(settings.schoolAddress || settings.school_address), includeMonthly, parts, ...report }, options);
     return typeof result === 'object' && result?.blobUrl ? result.blobUrl : (typeof result === 'object' && result?.dataUri ? result.dataUri : result);
+  }
+
+  // นักเรียนเสี่ยง มส. ของห้อง (owner 2026-10-16 "รายชื่อนักเรียน มส. ให้ครูประจำชั้น"): เวลาเรียนทุกวิชาของห้อง
+  // คิดชุดเดียวกับ ปพ.5 แบบรายวิชา (subjectAttendance: รายคาบ / รายวัน / ผสมรายภาค) — หน้า js/attendance-risk.js จัดกลุ่ม มส.
+  async function roomAttendanceRisk(grade, classNo) {
+    const students = await data.students.list({ grade, room: classNo });
+    const print = await attendancePrintOptions(grade, classNo, 'นักเรียนที่เวลาเรียนรายวิชาไม่ถึงเกณฑ์');
+    const base = {
+      grade, classNo, academicYear: print.academicYear, print,
+      students: students.map((student, index) => ({ code: text(student.id), no: text(student.studentNumber ?? student.student_number) || String(index + 1), name: studentDisplayName(student) }))
+    };
+    if (!students.length) return { ...base, subjects: [] };
+    let report;
+    try { report = await computePp5SubjectSheets(grade, classNo, students, 'all', print.academicYear); }
+    catch (error) { if (/ไม่พบรายวิชา/.test(error.message)) return { ...base, subjects: [] }; throw error; }
+    return {
+      ...base,
+      subjects: report.sheets.map((sheet) => ({
+        id: sheet.id, code: sheet.code, name: sheet.name, semester: sheet.semester, hours: sheet.hours,
+        mode: text(sheet.attendance?.mode), note: text(sheet.attendance?.note),
+        taughtHours: sheet.attendance?.taughtHours ?? null, schoolDays: sheet.attendance?.schoolDays ?? null,
+        fullHours: Number(sheet.attendance?.fullHours) || 0,
+        rows: (sheet.attendance?.students || []).map((row) => ({ code: row.code, present: row.present, leave: row.leave, absent: row.absent,
+          total: row.total, absentHours: row.absentHours ?? null, pct: row.pct }))
+      }))
+    };
   }
 
   async function listPp5CoverSubjects(grade) {
@@ -8493,6 +8543,7 @@
     async exportPp5SubjectBookPDF(grade, classNo, subjectId, teacherOverrides, printOptions) { return generatePp5SubjectCoverPdf(grade, classNo, subjectId, teacherOverrides, printOptions); },
     async getPp5CoverSubjects(grade) { return listPp5CoverSubjects(grade); },
     async getPp5SubjectRoomTeachers(grade, classNo) { return listPp5SubjectRoomTeachers(grade, classNo); },
+    async getRoomAttendanceRisk(grade, classNo) { return roomAttendanceRisk(grade, classNo); },
     async savePp5SubjectRoomTeachers(grade, classNo, teachers) { return savePp5SubjectRoomTeachers(grade, classNo, teachers); },
     async exportPp5FullBookPDF(grade, classNo, academicYear) { return generatePp5FullBookPdf(grade, classNo, null, academicYear); },
     async exportPp5FullBookSheets(grade, classNo, parts) { return generatePp5FullBookPdf(grade, classNo, parts); },

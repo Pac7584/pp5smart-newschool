@@ -29,7 +29,9 @@
     // (ปุ่มอนุมัติ/ตีกลับ ปพ.5 ยังเป็นงานผู้ดูแลตาม ADMIN_METHODS; ส่งงานของห้องตัวเองเท่านั้นตามคู่ ชั้น/ห้อง)
     'teacher_comment_form','class_score_summary','class_assessment_summary','parent_info_report','pp5_readiness','pp5_approval',
     // รวมผลประเมินจากครูรายวิชา -> ผลประจำชั้น (owner 2026-10-15: ครูประจำชั้นสรุป ระบบเสนอค่าตั้งต้น)
-    'subject_assessment_summary']);
+    'subject_assessment_summary',
+    // นักเรียนเสี่ยง มส. ทุกวิชาของห้อง (owner 2026-10-16) — อ่านอย่างเดียว ผ่าน getRoomAttendanceRisk (คู่ ชั้น/ห้อง ของครูประจำชั้น)
+    'attendance_risk']);
   // หน้าประเมินเดิม 3 หน้า: ครูประจำวิชาเปิดได้ด้วย แล้วเลือก "วิชา · ห้อง" ที่แถบด้านบน (js/subject-assessment.js)
   // ผลจะลงแถว subj_* ของวิชานั้น — สิทธิ์จริงตรวจที่ SQL 202610150034
   const SHARED_ASSESSMENT = new Set(['characteristic_assessment','rtw5_assessment','competency_assessment']);
