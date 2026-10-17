@@ -1,7 +1,22 @@
 /* ===== จัดการรายวิชา (owner 2026-10-10): ปุ่มสีสด + มือถือจัดเป็น 2 แถว =====
    หน้าเดิม (gas-pages.js subjectManager) ใช้ปุ่มเส้นขอบบาง ๆ  บนมือถือช่องเลือก 2 ช่องและปุ่ม 3 ปุ่มเรียงลงทีละแถว
    (5 แถว ชิดขวา)  ตอนนี้:  [ชั้น][ประเภท]  /  [นำเข้า][ส่งออก PDF][เพิ่มวิชา]
-   ปุ่มหาจาก onclick เดิม จึงไม่ต้องแก้ HTML ของหน้า */
+   ปุ่มหาจาก onclick เดิม และใช้ป้ายชื่อสั้นใน HTML บนมือถือ */
+
+#subjectsPage .subject-action-short { display: none; }
+#subjectsPage .subject-score-strip { display: flex; flex-wrap: wrap; gap: 8px 12px; font-family: inherit; max-width: 100%; }
+#subjectsPage .subject-score-group { min-width: 0; max-width: 100%; }
+#subjectsPage .subject-score-heading { margin-bottom: 4px; color: var(--text-secondary, #64748b); font-size: .68rem; font-weight: 500; }
+#subjectsPage .subject-score-slots { display: flex; flex-wrap: wrap; gap: 3px; }
+#subjectsPage .subject-score-slot { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 28px; padding: 3px 4px; border: 1px solid var(--gray-200, #e2e8f0); border-radius: 6px; background: var(--bg-card, #fff); }
+#subjectsPage .subject-score-number { color: var(--text-secondary, #64748b); font-size: .62rem; line-height: 1.4; white-space: nowrap; }
+#subjectsPage .subject-score-value { color: var(--text-primary, #334155); font-size: .8rem; line-height: 1.4; font-weight: 600; overflow-wrap: anywhere; max-width: 100%; }
+[data-theme="dark"] #subjectsPage .subject-score-heading,
+[data-theme="dark"] #subjectsPage .subject-score-number { color: #aebbd0; }
+[data-theme="dark"] #subjectsPage .subject-score-slot { background: #222d3d; border-color: #475569; }
+[data-theme="dark"] #subjectsPage .subject-score-value { color: #e5e7eb; }
+#subjectsPage > .row.mb-3 > .col-md-2 > button { max-width: 100%; }
+#subjectsPage .subject-action-full { white-space: normal; overflow-wrap: anywhere; }
 
 #subjectsPage button[onclick*="csvFileInput"],
 #subjectsPage button[onclick*="exportAllSubjects"],
@@ -58,7 +73,6 @@
 
 /* โหมดมืด: กล่องหน้านี้ (.container) เคยค้างพื้นขาว ขณะที่ตัวหนังสือตารางเป็นสีอ่อน -> แทบอ่านไม่ออก */
 [data-theme="dark"] #contentFrame #subjectsPage { background-color: transparent !important; color: #e5e7eb; }
-[data-theme="dark"] #subjectsPage .fs-badge { background: #1e3a5f; color: #bfdbfe; }
 
 @media (max-width: 767.98px) {
   #subjectsPage > .row.mb-3 { --bs-gutter-x: 8px; --bs-gutter-y: 8px; }
@@ -70,13 +84,12 @@
     width: 100%;
     min-height: 44px;
     padding: 6px 4px;
-    font-size: 0;            /* ข้อความยาวเดิมซ่อน แสดงข้อความสั้นแทน (::after) */
     white-space: nowrap;
   }
-  #subjectsPage > .row.mb-3 > .col-md-2 > button::after { font-size: 0.86rem; }
-  #subjectsPage button[onclick*="csvFileInput"]::after { content: "📥 นำเข้า"; }
-  #subjectsPage button[onclick*="exportAllSubjects"]::after { content: "🧾 ส่งออก PDF"; }
-  #subjectsPage button[onclick*="openModal"]::after { content: "➕ เพิ่มวิชา"; }
+  #subjectsPage .subject-action-full { display: none; }
+  #subjectsPage .subject-action-short { display: inline; }
+  /* Shared button padding is !important; keep the three short labels inside their columns. */
+  #contentFrame #subjectsPage > .row.mb-3 > .col-md-2 > button { padding: 6px 2px !important; }
 
   /* ตาราง 11 คอลัมน์ -> การ์ดทีละวิชา (ปุ่มแก้ไข/ลบ อยู่มุมขวาบนของการ์ด)
      คอลัมน์: 1 ชั้น 2 รหัส 3 ชื่อวิชา 4 ชม. 5 ประเภท 6 คะแนนรายครั้ง 7 ระหว่าง 8 ปลาย 9 รวม 10 ครู 11 จัดการ */
@@ -105,6 +118,9 @@
     text-align: left !important;
     font-size: 0.82rem;
     line-height: 1.35;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
   /* แถว 1: ชื่อวิชา + ปุ่ม */
   #subjectsPage #subjectTable tbody td:nth-child(3) { order: 1; flex: 1 1 calc(100% - 110px); min-width: 0; font-size: 1rem; font-weight: 800; color: #0f172a; }
@@ -135,7 +151,8 @@
   #subjectsPage #subjectTable tbody td:nth-child(9)::before { content: "· รวม "; color: #64748b; font-weight: 400; }
   /* แถว 4-5: คะแนนรายครั้ง, ครูผู้สอน (เต็มบรรทัด) */
   #subjectsPage #subjectTable tbody td:nth-child(6) { order: 11; flex-basis: 100%; color: #64748b; }
-  #subjectsPage #subjectTable tbody td:nth-child(6)::before { content: "คะแนนเต็มรายครั้ง "; }
+  #subjectsPage #subjectTable tbody td:nth-child(6)::before { content: "คะแนนเต็มรายครั้ง"; display: block; margin-bottom: 6px; }
+  #subjectsPage .subject-score-strip { gap: 8px 10px; }
   #subjectsPage #subjectTable tbody td:nth-child(10) { order: 12; flex-basis: 100%; color: #475569; }
   #subjectsPage #subjectTable tbody td:nth-child(10):not(:empty)::before { content: "👩‍🏫 "; }
   #subjectsPage #subjectTable tbody td:nth-child(10):empty { display: none; }
@@ -149,8 +166,4 @@
   [data-theme="dark"] #subjectsPage #subjectTable tbody td:nth-child(5),
   [data-theme="dark"] #subjectsPage #subjectTable tbody td:nth-child(4) { background: #374151 !important; color: #e5e7eb !important; }
   [data-theme="dark"] #subjectsPage #subjectTable tbody td:nth-child(2) { background: #064e3b !important; color: #a7f3d0 !important; }
-}
-
-@media (max-width: 359.98px) {
-  #subjectsPage button[onclick*="exportAllSubjects"]::after { content: "🧾 PDF"; }
 }

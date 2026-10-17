@@ -2707,7 +2707,11 @@ function enhanceSupabaseSubjectManagerPage_() {
   input.dataset.pp5SubjectWorkbook = '1';
   const button = [...document.querySelectorAll('#contentFrame button')]
     .find((item) => (item.getAttribute('onclick') || '').includes('csvFileInput'));
-  if (button) button.textContent = '📥 นำเข้า CSV/Excel';
+  if (button) {
+    const label = button.querySelector('.subject-action-full');
+    if (label) label.textContent = '📥 นำเข้า CSV/Excel';
+    else button.textContent = '📥 นำเข้า CSV/Excel';
+  }
   if (window.__pp5SubjectWorkbookListener) return;
   window.__pp5SubjectWorkbookListener = true;
   // Capture phase on document runs before the input's own onchange, so an Excel file never
