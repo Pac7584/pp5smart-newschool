@@ -941,7 +941,7 @@ function loadPage(page) {
                 if (old?.src) {
                   const absoluteSrc = new URL(old.src, document.baseURI).href;
                   const existing = [...document.scripts].find((item) => item.src === absoluteSrc);
-                  if (existing) continue;
+                  if (existing || isDuplicateSharedLibrary_(absoluteSrc)) continue;
                   s.src = absoluteSrc;
                   await new Promise((resolveScript, rejectScript) => {
                     s.addEventListener('load', resolveScript, { once: true });
@@ -4470,18 +4470,32 @@ async function installPageScriptsAfterDomReady_(page, installScripts) {
   });
 }
 
+// Page templates still carry their own <script> copies of libraries index.html already loads.
+// A second Bootstrap 5 bundle re-binds every data-api handler (and throws on destroy), so skip it.
+// Bootstrap 4 pages (graduation_management, with jQuery) are left alone.
+function isDuplicateSharedLibrary_(src) {
+  const url = String(src || '');
+  if (/\/bootstrap@5\.[^/]*\/dist\/js\/bootstrap\.bundle(\.min)?\.js/i.test(url)) return !!window.bootstrap?.Modal;
+  if (/xlsx[@/]0\.18\.\d+\/(dist\/)?xlsx\.full\.min\.js/i.test(url)) return !!window.XLSX;
+  return false;
+}
+
 function executePageScripts(container, page) {
   try {
     const scripts = [...container.querySelectorAll('script')];
     installPageScriptsAfterDomReady_(page, () => {
       scripts.forEach(old => {
         try {
-          if (old.src && document.querySelector('script[src="' + old.getAttribute('src') + '"]') !== old) {
+          if (old.src && (isDuplicateSharedLibrary_(old.src)
+            || document.querySelector('script[src="' + old.getAttribute('src') + '"]') !== old)) {
             old.remove();
             return;
           }
           const s = document.createElement('script');
           [...old.attributes].forEach(a => s.setAttribute(a.name, a.value));
+          // Inserted scripts default to async; keep page order so plugins run after their core
+          // (fullcalendar/bootstrap5 threw "FullCalendar is not defined").
+          if (old.src) s.async = false;
           if (old.innerHTML.trim()) s.textContent = old.innerHTML;
           old.parentNode.replaceChild(s, old);
         } catch (se) {}

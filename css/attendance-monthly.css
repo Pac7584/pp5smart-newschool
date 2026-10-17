@@ -453,3 +453,23 @@
     transition: none;
   }
 }
+/* Phone: room shortcuts were one full-width button per row (8 rooms filled the screen). */
+@container attendance-monthly-controls (max-width: 640px) {
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) #gcQuickBarHost .gc-quick-bar {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  }
+
+  .att-filter-card.pro-toolbar:has(> #gcQuickBarHost) #gcQuickBarHost .gc-quick-btn {
+    width: auto !important;
+    min-width: 0;
+    padding: 2px 6px !important;
+  }
+}
+
+/* Phone: body sticky cells (z-index 11-12) scrolled over the header corner; keep the header on top. */
+@media (max-width: 768px) {
+  #attendanceTableContainer .attendance-table thead {
+    z-index: 20 !important;
+  }
+}
