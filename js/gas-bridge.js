@@ -5242,8 +5242,11 @@
     async getGlobalSettings() {
       const settings = await data.settings.get();
       let assignments = [];
+      // The signed-out login page only needs school branding; homeroom names are staff-only (RLS answers 401).
+      let signedIn = true;
+      try { signedIn = !!(await client.auth.getSession())?.data?.session?.user; } catch (_) { /* unknown: keep the original read */ }
       try {
-        assignments = await optionalTable('teacher_assignments', (query) => query.eq('active', true));
+        if (signedIn) assignments = await optionalTable('teacher_assignments', (query) => query.eq('active', true));
       } catch (error) {
         if (!/permission denied|row-level security/i.test(text(error?.message))) throw error;
       }
