@@ -1,0 +1,42 @@
+/* Scoped corrections for score entry; keep the shared table and grading contracts. */
+#contentFrame #scoreEntryPage .compact-selectors { min-width: 0; }
+#contentFrame #scoreEntryPage .compact-selectors select { min-width: 0; max-width: 100%; }
+#contentFrame #scoreEntryPage .score-entry-grade-pending { color: #64748b; background: #f1f5f9; }
+#contentFrame #scoreEntryPage .score-entry-input.score-over-full,
+#contentFrame #scoreEntryPage .score-entry-final-input.score-over-full { border-color: #dc2626 !important; color: #991b1b !important; background: #fee2e2 !important; }
+@media (max-width: 576px) {
+  #contentFrame #scoreEntryPage .compact-selectors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  #contentFrame #scoreEntryPage .compact-selectors #scoreEntrySubjectSelect { grid-column: 1 / -1; }
+  #contentFrame #scoreEntryPage .score-entry-compact-header { min-width: 0; }
+  #contentFrame #scoreEntryPage .score-entry-table.pp5-sf-focus { table-layout: fixed; }
+  #contentFrame #scoreEntryPage .score-entry-table.pp5-sf-focus td.score-entry-student-name,
+  #contentFrame #scoreEntryPage .score-entry-table.pp5-sf-focus thead tr:first-child th:nth-child(3) { width: 34% !important; }
+  #contentFrame #scoreEntryPage .score-entry-table.pp5-sf-focus input.score-entry-input,
+  #contentFrame #scoreEntryPage .score-entry-table.pp5-sf-focus input.score-entry-final-input { width: 100% !important; max-width: 4.2rem; min-width: 0; }
+  #contentFrame #scoreEntryPage .score-entry-table.pp5-sf-focus th,
+  #contentFrame #scoreEntryPage .score-entry-table.pp5-sf-focus td { overflow-wrap: anywhere; white-space: normal; }
+  #contentFrame #scoreEntryPage .score-entry-table.pp5-sf-focus .score-entry-full-score { max-width: 100%; }
+}
+[data-theme="dark"] #contentFrame #scoreEntryPage .score-entry-compact-header,
+[data-theme="dark"] #contentFrame #scoreEntryPage .score-entry-main-content,
+[data-theme="dark"] #contentFrame #scoreEntryPage .score-entry-stats-panel { background: #1e293b; color: #e2e8f0; border-color: #475569; }
+[data-theme="dark"] #contentFrame #scoreEntryPage .compact-title,
+[data-theme="dark"] #contentFrame #scoreEntryPage .score-entry-stats-panel h3,
+[data-theme="dark"] #contentFrame #scoreEntryPage .score-entry-stat-number { color: #f1f5f9; }
+[data-theme="dark"] #contentFrame #scoreEntryPage .score-entry-stat-card { background: #263449; border-color: #475569; }
+[data-theme="dark"] #contentFrame #scoreEntryPage .score-entry-stat-label,
+[data-theme="dark"] #contentFrame #scoreEntryPage .compact-info small { color: #bdc9db; }
+[data-theme="dark"] #contentFrame #scoreEntryPage .score-entry-table tbody td { background: #243247 !important; color: #e2e8f0 !important; border-color: #475569 !important; }
+[data-theme="dark"] #contentFrame #scoreEntryPage .score-entry-table td.score-entry-student-name,
+[data-theme="dark"] #contentFrame #scoreEntryPage .score-entry-table td:first-child { background: #1e293b !important; color: #f1f5f9 !important; }
+[data-theme="dark"] #contentFrame #scoreEntryPage .score-entry-table input { background: #111b2c !important; color: #f1f5f9 !important; border-color: #64748b !important; }
+[data-theme="dark"] #contentFrame #scoreEntryPage .score-entry-grade-pending { background: #334155; color: #cbd5e1; }
+[data-theme="dark"] #contentFrame #scoreEntryPage .score-entry-toolbar,
+[data-theme="dark"] #contentFrame #scoreEntryPage .compact-tabs { background: #263449; border-color: #475569; }
+[data-theme="dark"] #contentFrame #scoreEntryPage .compact-tabs .nav-link { color: #d1dbea; }
+[data-theme="dark"] #contentFrame #scoreEntryPage .compact-tabs .nav-link.active { background: #385db3; color: #fff; }
+[data-theme="dark"] #contentFrame #scoreEntryPage #scoreEntryCurrentSubjectInfo strong { color: #bfdbfe; }
+[data-theme="dark"] #contentFrame #scoreEntryPage #scoreEntryEditState.text-muted { color: #bdc9db !important; }
+[data-theme="dark"] #contentFrame #scoreEntryPage #scoreEntryEditState.text-warning-emphasis { color: #fde68a !important; }
+[data-theme="dark"] #contentFrame #scoreEntryPage .score-entry-input.score-over-full,
+[data-theme="dark"] #contentFrame #scoreEntryPage .score-entry-final-input.score-over-full { background: #542530 !important; color: #fecaca !important; border-color: #fb7185 !important; }
