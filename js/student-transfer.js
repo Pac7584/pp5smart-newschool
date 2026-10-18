@@ -227,6 +227,171 @@ ${sheets.join('\n')}
 <script>Promise.all([document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()].concat(Array.from(document.images).map(function(i){return i.complete?0:new Promise(function(r){i.onload=i.onerror=r;});}))).then(function(){setTimeout(function(){window.print();},300);});${endScript}</body></html>`;
   }
 
+  // ---------------------------------------------------------------- ไฟล์ Word (.docx) (เจ้าของขอ 2026-10-19)
+  // ข้อความชุดเดียวกับฉบับพิมพ์ (tools/student-transfer-contract.cjs เทียบข้อความทั้งสองแบบทุกครั้ง) · TH Sarabun New ๑๖ พอยต์
+  // ไม่มีตัวหนา · A4 ขอบ ๓/๒ ซม. · ครุฑ ๓ ซม. ลอยกลางหน้า (PNG ที่วาดจาก SVG ตอนดาวน์โหลด) · ค่าที่กรอกใน พฐ.19 ขีดเส้นจุด
+  // หน่วย twip (๑ ซม. = ๕๖๗) · กว้างพื้นที่พิมพ์ = A4 11906 - ซ้าย 1701 - ขวา 1134
+  const DX = { width: 9071, half: 4536, block: 4990, owner: 5556, tabTopic: 907, tabEnc: 1644, indent: 1418, closing: 3629 };
+  const DOTS = { s: '........', m: '................', l: '..........................', xl: '..............................................' };
+  function docxBuilder() {
+    let pictureId = 0;
+    const run = (text, { u = false, size = 0 } = {}) => (text === '' || text == null ? '' : `<w:r>${u || size ? `<w:rPr>${u ? '<w:u w:val="dotted"/>' : ''}${size ? `<w:sz w:val="${size}"/><w:szCs w:val="${size}"/>` : ''}</w:rPr>` : ''}<w:t xml:space="preserve">${esc(text)}</w:t></w:r>`);
+    const tab = '<w:r><w:tab/></w:r>';
+    // ค่าที่กรอก: พิมพ์ทับเส้นจุด (dotted = แบบฟอร์ม พฐ.19) หรือข้อความเรียบ (หนังสือ พฐ.19/1) · ค่าว่าง = จุดให้เขียนด้วยมือ
+    const val = (value, width = 'm', dotted = true) => {
+      const v = clean(value);
+      return v ? run(` ${thaiDigits(v)} `, { u: dotted }) : run(DOTS[width] || DOTS.m);
+    };
+    const para = (runs, o = {}) => `<w:p><w:pPr>${o.pageBreak ? '<w:pageBreakBefore/>' : ''}${o.tabs ? `<w:tabs>${o.tabs.map(([kind, pos]) => `<w:tab w:val="${kind}" w:pos="${pos}"/>`).join('')}</w:tabs>` : ''}`
+      + `<w:spacing w:before="${o.before || 0}" w:after="${o.after || 0}" ${o.exact ? `w:line="${o.exact}" w:lineRule="exact"` : 'w:line="240" w:lineRule="auto"'}/>`
+      + `${o.left || o.first ? `<w:ind w:left="${o.left || 0}"${o.first ? ` w:firstLine="${o.first}"` : ''}/>` : ''}${o.jc ? `<w:jc w:val="${o.jc}"/>` : ''}</w:pPr>${runs}</w:p>`;
+    // ชิดซ้าย: ทดสอบกับ Word 2026-10-19 — thaiDistribute ยืดทุกตัวอักษร ("เ ข ต / อ ำ เ ภ อ") และ both ยืดช่องว่างจนห่างมาก
+    // ในบรรทัดที่มีคำน้อย (Word ไม่ตัดข้อความไทยยาวที่ไม่มีวรรค)
+    const body = (runs) => para(runs, { first: DX.indent });
+    const address = (a, dotted) => run('บ้านเลขที่') + val(a?.house, 's', dotted) + run('หมู่ที่') + val(a?.moo, 's', dotted) + run('แขวง/ตำบล')
+      + val(a?.subdistrict, 'm', dotted) + run('เขต/อำเภอ') + val(a?.district, 'm', dotted) + run('จังหวัด') + val(a?.province, 'm', dotted);
+    const studentLine = (snap, n, dotted) => {
+      const born = dateParts(snap?.birth_date);
+      return run(`${thaiDigits(n)}.`) + val(fullName(snap), 'l', dotted) + run('เกิดวันที่') + val(born?.day, 's', dotted) + run('เดือน')
+        + val(born?.month, 'm', dotted) + run('พ.ศ.') + val(born?.year, 's', dotted) + run('เลขประจำตัวประชาชน') + val(snap?.national_id, 'm', dotted)
+        + run('นักเรียนชั้น') + val(gradeLong(snap?.grade), 'm', dotted);
+    };
+    // ครุฑลอยกลางหน้า ชิดขอบบนพื้นที่พิมพ์ สูง ๓ ซม. (EMU: ๑ ซม. = 360000)
+    const garuda = () => {
+      pictureId += 1;
+      const cy = 1080000;
+      const cx = Math.round(cy * 105.6 / 112.4);
+      return `<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="${pictureId}" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1">`
+        + '<wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="margin"><wp:align>center</wp:align></wp:positionH>'
+        + `<wp:positionV relativeFrom="margin"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/>`
+        + `<wp:docPr id="${pictureId}" name="ตราครุฑ ${pictureId}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr>`
+        + '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic>'
+        + `<pic:nvPicPr><pic:cNvPr id="${pictureId}" name="garuda.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdGaruda"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>`
+        + `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>`;
+    };
+
+    function request(records, school, pageBreak) {
+      const list = Array.isArray(records) ? records : [records];
+      const record = list[0];
+      const f = record.form || {};
+      const p = dateParts(f.request_date);
+      const lines = addressLines(school);
+      return [
+        para(run('แบบ พฐ.๑๙'), { jc: 'right', pageBreak }),
+        para(run('คำร้องขอย้ายนักเรียน'), { jc: 'center', after: 120 }),
+        para(run('เขียนที่') + val(school.name, 'l'), { left: DX.block }),
+        ...(lines.length ? lines.map((line) => para(run(thaiDigits(line)), { left: DX.block + 600 })) : [para(run(DOTS.xl), { left: DX.block })]),
+        para(run('วันที่') + val(p?.day, 's') + run('เดือน') + val(p?.month) + run('พ.ศ.') + val(p?.year, 's'), { left: DX.block, after: 120 }),
+        para(run('เรื่อง') + tab + run('ขอย้ายนักเรียน'), { tabs: [['left', DX.tabTopic]], before: 120 }),
+        para(run('เรียน') + tab + run('ผู้อำนวยการโรงเรียน') + val(schoolLabel(school.name), 'l'), { tabs: [['left', DX.tabTopic]], before: 60, after: 120 }),
+        body(run('ด้วย ข้าพเจ้า') + val(f.guardian_name, 'l') + run('อยู่') + address(f.guardian, true)
+          + run('มีความประสงค์ขอย้ายนักเรียนในปกครองของข้าพเจ้าซึ่งปัจจุบันเรียนอยู่ในสถานศึกษานี้ไปเข้าเรียนที่') + val(record.destination_school, 'l')
+          + run('แขวง/ตำบล') + val(f.dest_subdistrict) + run('เขต/อำเภอ') + val(f.dest_district) + run('จังหวัด') + val(f.dest_province) + run(' ดังนี้')),
+        ...list.map((r, i) => body(studentLine(r.student_snapshot || {}, i + 1, true))),
+        body(run('ทั้งนี้ เนื่องจาก') + val(f.reason, 'xl') + run('และการย้ายไปเข้าเรียนในโรงเรียนดังกล่าว นักเรียนจะพักอยู่') + address(f.new_address, true)),
+        body(run('จึงเรียนมาเพื่อโปรดพิจารณา')),
+        para(run('ขอแสดงความนับถือ'), { left: DX.closing, jc: 'center', before: 360 }),
+        para('', { exact: 600 }),
+        para(run('(ลงชื่อ)') + run(DOTS.l), { left: DX.closing, jc: 'center' }),
+        para(run('(') + val(f.guardian_name, 'l') + run(')'), { left: DX.closing, jc: 'center' }),
+        para(run('ผู้ปกครอง'), { left: DX.closing, jc: 'center' })
+      ].join('');
+    }
+
+    function letter(records, school, pageBreak) {
+      const list = Array.isArray(records) ? records : [records];
+      const record = list[0];
+      const f = record.form || {};
+      const date = dateParts(record.doc_date);
+      const position = clean(school.directorPosition) || `ผู้อำนวยการโรงเรียน${schoolLabel(school.name)}`;
+      const items = attachmentsOf(f);
+      return [
+        para(run('แบบ พฐ.๑๙/๑', { size: 28 }), { jc: 'right', exact: 360, pageBreak }),
+        // บรรทัด "ที่" อยู่ ๒.๐๕ ซม. จากขอบบน (ระดับช่วงล่างของครุฑ) เหมือนฉบับพิมพ์
+        para(garuda(), { exact: 1162 - 360 }),
+        para(run(`ที่ ${clean(record.doc_no) ? thaiDigits(clean(record.doc_no)) : DOTS.l}`) + tab + run(thaiDigits(clean(school.name))), { tabs: [['left', DX.owner]] }),
+        ...addressLines(school).map((line) => para(run(thaiDigits(line)), { left: DX.owner })),
+        para(run(date ? thaiDigits(`${date.day} ${date.month} ${date.year}`) : DOTS.l), { left: DX.half, before: 200, after: 160 }),
+        para(run('เรื่อง') + tab + run('ส่งนักเรียนขอย้ายมาเข้าเรียน'), { tabs: [['left', DX.tabTopic]], after: 80 }),
+        para(run('เรียน') + tab + run('ผู้อำนวยการโรงเรียน') + val(schoolLabel(record.destination_school), 'l', false), { tabs: [['left', DX.tabTopic]], after: 80 }),
+        ...items.map((a, i) => para((i ? '' : run('สิ่งที่ส่งมาด้วย')) + tab + run(`${thaiDigits(i + 1)}. ${thaiDigits(clean(a.label))}`) + tab
+          + run('จำนวน') + val(Number(a.count) > 0 ? String(Number(a.count)) : '', 's', false) + run('ฉบับ'), { tabs: [['left', DX.tabEnc], ['right', DX.width]], after: i === items.length - 1 ? 80 : 0 })),
+        body(run('ด้วย ') + val(f.guardian_name, 'l', false) + run('อยู่') + address(f.guardian, false) + run('ได้ขอย้ายนักเรียนในปกครองมาเข้าเรียนในสถานศึกษานี้ ได้แก่')),
+        ...list.map((r, i) => body(studentLine(r.student_snapshot || {}, i + 1, false))),
+        body(run('เนื่องจาก') + val(f.reason, 'xl', false) + run('อนึ่ง นักเรียนที่ย้ายมาเข้าเรียนนี้จะพักอยู่') + address(f.new_address, false)),
+        body(run('จึงเรียนมาเพื่อโปรดทราบและดำเนินการต่อไป')),
+        para(run('ขอแสดงความนับถือ'), { left: DX.closing, jc: 'center', before: 360 }),
+        para('', { exact: 907 }),
+        para(run(`(${clean(school.director) || DOTS.l})`), { left: DX.closing, jc: 'center' }),
+        para(run(thaiDigits(position)), { left: DX.closing, jc: 'center' }),
+        ...(clean(school.phone) ? [para('', { exact: 794 }), para(run(thaiDigits(clean(school.name)))), para(run(`โทร. ${thaiDigits(clean(school.phone))}`))] : [])
+      ].join('');
+    }
+    return { request, letter };
+  }
+
+  // ส่วนประกอบของไฟล์ .docx (ยกเว้นรูปครุฑ word/media/garuda.png ที่วาดในเบราว์เซอร์) — แยกไว้ให้ทดสอบได้โดยไม่ต้องมีเบราว์เซอร์
+  function buildDocxParts(records, school, { which = 'both', copies = 3 } = {}) {
+    const b = docxBuilder();
+    const pages = [];
+    const groups = requestGroups(records);
+    if (which !== 'bk20') groups.forEach((group) => pages.push((first) => b.request(group, school, !first)));
+    if (which !== 'bk19') groups.forEach((group) => {
+      for (let i = 0; i < Math.max(1, Math.min(5, Number(copies) || 1)); i += 1) pages.push((first) => b.letter(group, school, !first));
+    });
+    const NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
+      + 'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+      + 'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"';
+    const head = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+    const font = '<w:rFonts w:ascii="TH Sarabun New" w:hAnsi="TH Sarabun New" w:eastAsia="TH Sarabun New" w:cs="TH Sarabun New"/>';
+    return {
+      '[Content_Types].xml': `${head}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/></Types>`,
+      '_rels/.rels': `${head}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`,
+      'word/_rels/document.xml.rels': `${head}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdSettings" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/><Relationship Id="rIdGaruda" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/garuda.png"/></Relationships>`,
+      'word/settings.xml': `${head}<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:defaultTabStop w:val="720"/><w:characterSpacingControl w:val="doNotCompress"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`,
+      'word/styles.xml': `${head}<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr>${font}<w:sz w:val="32"/><w:szCs w:val="32"/><w:lang w:val="th-TH" w:eastAsia="en-US" w:bidi="th-TH"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>`,
+      'word/document.xml': `${head}<w:document ${NS}><w:body>${pages.map((page, i) => page(i === 0)).join('')}`
+        + '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="907" w:left="1701" w:header="709" w:footer="709" w:gutter="0"/></w:sectPr></w:body></w:document>'
+    };
+  }
+
+  // ครุฑลายเส้น SVG -> PNG ความสูง ๓ ซม. ที่ ๓๐๐ dpi (Word รุ่นเก่าไม่แสดง SVG)
+  async function garudaPng(base) {
+    const img = new global.Image();
+    img.src = `${base}${GARUDA}`;
+    await img.decode();
+    const canvas = doc.createElement('canvas');
+    canvas.height = 354;
+    canvas.width = Math.round(354 * 105.6 / 112.4);
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    return new Promise((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('วาดตราครุฑไม่สำเร็จ'))), 'image/png'));
+  }
+  // ตัวสร้างไฟล์ zip โหลดเมื่อกดดาวน์โหลดครั้งแรก (ตัวเดียวกับที่หน้าสำรองข้อมูลใช้)
+  function loadJsZip() {
+    if (global.JSZip) return Promise.resolve(global.JSZip);
+    return new Promise((resolve, reject) => {
+      const script = doc.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+      script.onload = () => (global.JSZip ? resolve(global.JSZip) : reject(new Error('โหลดตัวสร้างไฟล์ Word ไม่สำเร็จ')));
+      script.onerror = () => reject(new Error('โหลดตัวสร้างไฟล์ Word ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่'));
+      doc.head.appendChild(script);
+    });
+  }
+  async function downloadDocx(records, school, options) {
+    const [JSZip, png] = await Promise.all([loadJsZip(), garudaPng(school.base || '')]);
+    const zip = new JSZip();
+    Object.entries(buildDocxParts(records, school, options)).forEach(([name, content]) => zip.file(name, content));
+    zip.file('word/media/garuda.png', png);
+    const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    const who = records.length === 1 ? fullName(records[0].student_snapshot) : `${records.length}คน`;
+    const link = doc.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `เอกสารย้ายนักเรียน_${who.replace(/[\\/:*?"<>|\s]+/g, '_')}.docx`;
+    doc.body.appendChild(link);
+    link.click();
+    setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 1000);
+  }
+
   // ---------------------------------------------------------------- หน้าเว็บ
   const STYLE = `
 .pp5-tr{max-width:1100px;margin:0 auto;display:grid;gap:14px}
@@ -442,6 +607,7 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
 <div class="pp5-tr-actions">
   <button type="submit" class="btn btn-primary" data-save><i class="bi bi-printer"></i> ${editing ? 'บันทึกการแก้ไขและพิมพ์' : 'บันทึกและพิมพ์ พฐ.๑๙ + พฐ.๑๙/๑'}</button>
   <button type="button" class="btn btn-outline-secondary" data-preview>ดูตัวอย่าง (ยังไม่บันทึก)</button>
+  <button type="button" class="btn btn-outline-secondary" data-docx><i class="bi bi-file-earmark-word"></i> ดาวน์โหลด Word (ยังไม่บันทึก)</button>
   <span class="pp5-tr-hint">ช่องที่ว่างจะพิมพ์เป็นเส้นจุดให้เขียนด้วยมือ · ช่องลงชื่อเว้นว่างให้ลงนาม</span>
 </div>
 </form>`;
@@ -570,6 +736,15 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
         say('');
         try { openPrint(await buildRecords(input), { copies: input.copies }); } catch (error) { say(esc(error.message || error), 'err'); }
       });
+      $('[data-docx]').addEventListener('click', async (event) => {
+        const input = readForm();
+        const problem = validate(input);
+        if (problem) { say(problem, 'err'); return; }
+        const button = event.currentTarget;
+        button.disabled = true;
+        say('กำลังสร้างไฟล์ Word…', 'info');
+        try { await downloadDocx(await buildRecords(input), state.school, { copies: input.copies }); say('ดาวน์โหลดไฟล์ Word แล้ว (ยังไม่ได้บันทึกเรื่องย้าย)', 'ok'); } catch (error) { say(esc(error.message || error), 'err'); } finally { button.disabled = false; }
+      });
       $('[data-form]').addEventListener('submit', async (event) => {
         event.preventDefault();
         const input = readForm();
@@ -631,6 +806,7 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
   <td><span class="pp5-tr-pill ${esc(t.status)}">${esc(STATUS[t.status] || t.status)}</span></td>
   <td><div class="pp5-tr-row-actions">
     <button type="button" class="btn btn-sm btn-outline-primary" data-print><i class="bi bi-printer"></i> พิมพ์</button>
+    <button type="button" class="btn btn-sm btn-outline-primary" data-docx-row aria-label="ดาวน์โหลดไฟล์ Word"><i class="bi bi-file-earmark-word"></i> Word</button>
     ${open ? `<button type="button" class="btn btn-sm btn-outline-secondary" data-edit>แก้ไข</button>
     <button type="button" class="btn btn-sm btn-success" data-confirm>ยืนยันย้ายออก</button>
     <button type="button" class="btn btn-sm btn-outline-danger" data-cancel>ยกเลิกเรื่อง</button>` : ''}
@@ -643,6 +819,11 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
       body.querySelectorAll('tr[data-id]').forEach((tr) => {
         const t = state.transfers.find((x) => x.id === tr.dataset.id);
         tr.querySelector('[data-print]').addEventListener('click', () => openPrint([t], { copies: 3 }));
+        tr.querySelector('[data-docx-row]').addEventListener('click', async (event) => {
+          const button = event.currentTarget;
+          button.disabled = true;
+          try { await downloadDocx([t], state.school, { copies: 3 }); } catch (error) { say(esc(error.message || error), 'err'); } finally { button.disabled = false; }
+        });
         tr.querySelector('[data-edit]')?.addEventListener('click', () => { state.editing = t; selectTab('new'); });
         // ปุ่มสองจังหวะ (ไม่ใช้กล่องยืนยันของเบราว์เซอร์): กดครั้งแรกเปลี่ยนเป็น "กดอีกครั้งเพื่อยืนยัน"
         const twoStep = (button, label, run) => button?.addEventListener('click', async () => {
@@ -702,5 +883,5 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
     if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', watch, { once: true });
     else watch();
   }
-  global.PP5StudentTransfer = { shell, buildDocument, bk19, bk20, parseAddress, gradeLong, dateParts, thaiDigits };
+  global.PP5StudentTransfer = { shell, buildDocument, buildDocxParts, bk19, bk20, parseAddress, gradeLong, dateParts, thaiDigits };
 })(window);
