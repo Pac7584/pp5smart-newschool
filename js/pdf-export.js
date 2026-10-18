@@ -3491,6 +3491,12 @@
         const sigX = pageWidth / 2 + 25;
         let dirY = 206;
         doc.text('ขอแสดงความนับถือ', sigX, dirY, { align: 'center' });
+        // ลายเซ็น ผอ. บนปกเหมือนหน้าผลการเรียน (owner 2026-10-18: ปกว่าง แต่ตัวรายงานมีลายเซ็น)
+        if (meta?.includeSignatures !== false && (stu.directorSignature || meta?.directorSignature)) {
+          try {
+            doc.addImage(stu.directorSignature || meta.directorSignature, 'PNG', sigX - 15, dirY + 5, 30, 9.5);
+          } catch (_) {}
+        }
         dirY += 18;
         doc.text(`( ${directorName} )`, sigX, dirY, { align: 'center' });
         dirY += 6.5;
