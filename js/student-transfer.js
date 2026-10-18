@@ -83,11 +83,16 @@
     const p = dateParts(iso);
     return `วันที่${fill(p?.day, 's')}เดือน${fill(p?.month)}พ.ศ.${fill(p?.year, 's')}`;
   }
-  // แบบ พฐ. ใช้คำว่า "เขต/อำเภอ/กิ่งอำเภอ" ตามแบบฟอร์ม
+  // แบบฟอร์มพิมพ์ "เขต/อำเภอ/กิ่งอำเภอ" แต่กิ่งอำเภอยกเลิกแล้ว (2550) เจ้าของให้ตัดออก 2026-10-19 -> "เขต/อำเภอ"
   const address = (a) => `บ้านเลขที่${fill(a?.house, 's')}หมู่ที่${fill(a?.moo, 's')}แขวง/ตำบล${fill(a?.subdistrict)}`
-    + `เขต/อำเภอ/กิ่งอำเภอ${fill(a?.district)}จังหวัด${fill(a?.province)}`;
+    + `เขต/อำเภอ${fill(a?.district)}จังหวัด${fill(a?.province)}`;
   // ที่ตั้งโรงเรียนแยกบรรทัดตามที่พิมพ์ไว้ในตั้งค่า (ขึ้นบรรทัดใหม่ หรือคั่นด้วยจุลภาค)
-  const addressLines = (school) => clean(school.address) ? String(school.address).split(/\s*(?:\n|,)\s*/).map(clean).filter(Boolean) : [];
+  // ที่อยู่บรรทัดเดียว (ไม่มีขึ้นบรรทัด/จุลภาค) ขึ้นบรรทัดใหม่ก่อน "จังหวัด" เหมือนหนังสือจริง ไม่ตัดกลางชื่อจังหวัด
+  const addressLines = (school) => {
+    if (!clean(school.address)) return [];
+    const lines = String(school.address).split(/\s*(?:\n|,)\s*/).map(clean).filter(Boolean);
+    return lines.length === 1 ? lines[0].split(/\s+(?=(?:จังหวัด|จ\.)\S)/).map(clean).filter(Boolean) : lines;
+  };
   // "เขียนที่" บรรทัดแรกชื่อโรงเรียน บรรทัดต่อไปที่ตั้ง (ตามแบบมีเส้นจุดสองบรรทัด)
   const writtenAt = (school) => `<div class="block">เขียนที่${fill(school.name, 'l')}</div>`
     + (addressLines(school).length
@@ -114,7 +119,7 @@ ${writtenAt(school)}
 <p class="topic">เรียน&emsp;ผู้อำนวยการโรงเรียน${fill(schoolLabel(school.name), 'l')}</p>
 <p class="para">ด้วย ข้าพเจ้า${fill(f.guardian_name, 'l')}อยู่${address(f.guardian)}
 มีความประสงค์ขอย้ายนักเรียนในปกครองของข้าพเจ้าซึ่งปัจจุบันเรียนอยู่ในสถานศึกษานี้ไปเข้าเรียนที่${fill(record.destination_school, 'l')}
-แขวง/ตำบล${fill(dest.subdistrict)}เขต/อำเภอ/กิ่งอำเภอ${fill(dest.district)}จังหวัด${fill(dest.province)} ดังนี้</p>
+แขวง/ตำบล${fill(dest.subdistrict)}เขต/อำเภอ${fill(dest.district)}จังหวัด${fill(dest.province)} ดังนี้</p>
 ${list.map((r, i) => `<p class="para">${studentLine(r.student_snapshot || {}, i + 1)}</p>`).join('\n')}
 <p class="para">ทั้งนี้ เนื่องจาก${fill(f.reason, 'xl')}และการย้ายไปเข้าเรียนในโรงเรียนดังกล่าว
 นักเรียนจะพักอยู่${address(f.new_address)}</p>
