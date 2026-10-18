@@ -54,6 +54,22 @@
   }
 
   const schoolLabel = (name) => clean(name).replace(/^โรงเรียน\s*/, '');
+
+  // สิ่งที่ส่งมาด้วย (เจ้าของเลือก 2026-10-18: ติ๊กเลือกได้ พิมพ์เฉพาะที่ติ๊ก เรียงเลขใหม่) — ๓ ข้อแรกตามแบบ พฐ.19/1
+  // ติ๊กไว้ก่อน · ปพ.๖ และใบรับรองเวลาเรียนตามคู่มือการย้าย · form.attachments = [{ label, count }] เฉพาะที่ติ๊ก
+  const ATTACHMENTS = [
+    { key: 'pp9', label: 'ปพ.๙', on: true },
+    { key: 'pp1', label: 'ปพ.๑', on: true },
+    { key: 'health', label: 'บัตรบันทึกสุขภาพและหรือระเบียนสะสม', on: true },
+    { key: 'pp6', label: 'สมุดรายงานประจำตัวนักเรียน (ปพ.๖)', on: false },
+    { key: 'time', label: 'ใบรับรองเวลาเรียนและคะแนนเก็บ', on: false }
+  ];
+  // เรื่องที่บันทึกก่อนมีรายการติ๊ก (pp9/pp1/health) ยังพิมพ์ซ้ำได้: ใช้เฉพาะรายการที่มีจำนวน
+  function attachmentsOf(form) {
+    const f = form || {};
+    if (Array.isArray(f.attachments)) return f.attachments.filter((a) => clean(a?.label));
+    return ATTACHMENTS.slice(0, 3).map((a) => ({ label: a.label, count: f[a.key] })).filter((a) => Number(a.count) > 0);
+  }
   const fullName = (s) => clean(`${s?.prefix || ''}${s?.first_name || ''} ${s?.last_name || ''}`);
 
   // ---------------------------------------------------------------- เอกสาร พฐ.19 / พฐ.19/1 (ตัวบาง ไม่หนา ตามแบบราชการ)
@@ -128,10 +144,8 @@ ${list.map((r, i) => `<p class="para">${studentLine(r.student_snapshot || {}, i 
 <div class="letterdate">${date ? esc(thaiDigits(`${date.day} ${date.month} ${date.year}`)) : '<span class="blank l"></span>'}</div>
 <div class="row"><span>เรื่อง</span><span>ส่งนักเรียนขอย้ายมาเข้าเรียน</span></div>
 <div class="row"><span>เรียน</span><span>ผู้อำนวยการโรงเรียน${fill(schoolLabel(record.destination_school), 'l')}</span></div>
-<table class="enc">
-<tr><td>สิ่งที่ส่งมาด้วย</td><td>๑. ปพ.๙</td><td class="n">จำนวน${count(f.pp9)}ฉบับ</td></tr>
-<tr><td></td><td>๒. ปพ.๑</td><td class="n">จำนวน${count(f.pp1)}ฉบับ</td></tr>
-<tr><td></td><td>๓. บัตรบันทึกสุขภาพและหรือระเบียนสะสม</td><td class="n">จำนวน${count(f.health)}ฉบับ</td></tr></table>
+${attachmentsOf(f).length ? `<table class="enc">${attachmentsOf(f).map((a, i) => `<tr><td>${i ? '' : 'สิ่งที่ส่งมาด้วย'}</td>`
+  + `<td>${thaiDigits(i + 1)}. ${esc(thaiDigits(clean(a.label)))}</td><td class="n">จำนวน${count(a.count)}ฉบับ</td></tr>`).join('')}</table>` : ''}
 <p class="para">ด้วย ${fill(f.guardian_name, 'l')}อยู่${address(f.guardian)}
 ได้ขอย้ายนักเรียนในปกครองมาเข้าเรียนในสถานศึกษานี้ ได้แก่</p>
 ${list.map((r, i) => `<p class="para">${studentLine(r.student_snapshot || {}, i + 1)}</p>`).join('\n')}
@@ -236,6 +250,13 @@ ${sheets.join('\n')}
 .pp5-tr-msg{padding:10px 14px;border-radius:12px;font-weight:600}
 .pp5-tr-msg.info{background:#eff6ff;color:#1e40af}.pp5-tr-msg.ok{background:#dcfce7;color:#166534}.pp5-tr-msg.err{background:#fee2e2;color:#991b1b}
 .pp5-tr-row-actions{display:flex;gap:6px;flex-wrap:wrap}
+.pp5-tr-att{display:grid;gap:6px;margin-top:12px;padding:12px 14px;border:1px solid var(--border-color,#e2e8f0);border-radius:12px}
+.pp5-tr-att-head{font-weight:700}
+.pp5-tr-att-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pp5-tr-att-row .form-check-input{margin:0;width:1.15em;height:1.15em;flex:none}
+.pp5-tr-att-row [data-att-label]{max-width:280px;flex:1 1 180px}
+.pp5-tr-att-n{display:inline-flex;align-items:center;gap:6px;margin-left:auto;white-space:nowrap}
+.pp5-tr-att-n input{width:4.5em}
 .pp5-tr [hidden]{display:none!important}
 [data-theme="dark"] .pp5-tr-pill.requested{background:#713f12;color:#fef08a}[data-theme="dark"] .pp5-tr-pill.transferred{background:#14532d;color:#bbf7d0}
 [data-theme="dark"] .pp5-tr-pill.cancelled{background:#334155;color:#e2e8f0}
@@ -320,9 +341,14 @@ ${sheets.join('\n')}
       const last = state.transfers.find((t) => clean(t.doc_no));
       return last ? clean(last.doc_no).replace(/[0-9๐-๙]+\s*$/, '') : '';
     };
-    const guardianOf = (detail) => clean(detail?.guardian_name)
-      || clean(`${detail?.father_name || ''} ${detail?.father_last_name || ''}`)
-      || clean(`${detail?.mother_name || ''} ${detail?.mother_last_name || ''}`);
+    // ชื่อ + นามสกุล (ข้อมูล DMC เก็บแยกช่อง; ถ้าชื่อมีนามสกุลอยู่แล้วไม่ต่อซ้ำ)
+    const joinName = (first, last) => (clean(last) && !clean(first).endsWith(clean(last)) ? clean(`${first || ''} ${last}`) : clean(first));
+    const guardianChoices = (detail) => [
+      { key: 'guardian', name: clean(detail?.guardian_name), label: `ผู้ปกครองตามทะเบียน${clean(detail?.guardian_relation) ? ` (${clean(detail.guardian_relation)})` : ''}` },
+      { key: 'father', name: joinName(detail?.father_name, detail?.father_last_name), label: 'บิดา' },
+      { key: 'mother', name: joinName(detail?.mother_name, detail?.mother_last_name), label: 'มารดา' }
+    ].filter((c) => c.name);
+    state.guardianChoices = [];
 
     function snapshotOf(student, detail) {
       return {
@@ -339,6 +365,21 @@ ${sheets.join('\n')}
 <label>แขวง/ตำบล<input class="form-control" name="${prefix}_subdistrict" maxlength="80" value="${esc(a.subdistrict)}"></label>
 <label>เขต/อำเภอ<input class="form-control" name="${prefix}_district" maxlength="80" value="${esc(a.district)}"></label>
 <label>จังหวัด<input class="form-control" name="${prefix}_province" maxlength="80" value="${esc(a.province)}"></label>`;
+    }
+
+    // saved: รายการที่บันทึกไว้ (โหมดแก้ไข) หรือ null = ค่าเริ่มต้นตามแบบ
+    function attachmentRows(saved) {
+      const byLabel = new Map((saved || []).map((a) => [clean(a.label), a]));
+      const known = new Set(ATTACHMENTS.map((a) => a.label));
+      const other = (saved || []).find((a) => !known.has(clean(a.label)));
+      const row = (key, label, on, count, editable) => `<div class="pp5-tr-att-row">
+  <input type="checkbox" class="form-check-input" data-att-on="${key}" aria-label="แนบ ${esc(label || 'อื่น ๆ')}"${on ? ' checked' : ''}>
+  ${editable ? `<input class="form-control form-control-sm" data-att-label="${key}" maxlength="120" placeholder="อื่น ๆ (ระบุ)" value="${esc(label)}">` : `<span>${esc(label)}</span>`}
+  <span class="pp5-tr-att-n">จำนวน <input class="form-control form-control-sm" type="number" min="0" max="9" data-att-count="${key}" value="${esc(count)}"> ฉบับ</span></div>`;
+      return ATTACHMENTS.map((a) => {
+        const s = byLabel.get(a.label);
+        return row(a.key, a.label, saved ? !!s : a.on, s ? s.count : 1, false);
+      }).join('') + row('other', other?.label || '', !!other, other ? other.count : 1, true);
     }
 
     function renderNew() {
@@ -374,7 +415,8 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
 </div>
 <h3>๓. ผู้ปกครองที่ยื่นคำร้อง</h3>
 <div class="pp5-tr-grid">
-  <label class="wide">ชื่อ-สกุลผู้ปกครอง (พร้อมคำนำหน้า)<input class="form-control" name="guardian_name" maxlength="160" value="${esc(f.guardian_name)}"></label>
+  <label>ผู้ยื่นคำร้อง<select class="form-select" name="guardian_pick" data-guardian-pick><option value="custom">พิมพ์เอง</option></select></label>
+  <label class="wide">ชื่อ-สกุลผู้ยื่นคำร้อง (พร้อมคำนำหน้า)<input class="form-control" name="guardian_name" maxlength="160" value="${esc(f.guardian_name)}"></label>
   ${addressFields('guardian', f.guardian)}
 </div>
 <h3>๔. ที่พักของนักเรียนหลังย้าย</h3>
@@ -385,10 +427,11 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
   <label class="wide">เลขที่หนังสือ (ที่ ...)<input class="form-control" name="doc_no" maxlength="80" value="${esc(editing ? editing.doc_no || '' : lastPrefix())}" placeholder="เช่น ศธ ๐๔๐๐๑.๐๐๑/๑๒๓"></label>
   <label>วันที่เขียนคำร้อง (พฐ.๑๙)<input class="form-control" type="date" name="request_date" value="${esc(f.request_date || todayIso())}"></label>
   <label>วันที่ออกหนังสือ (พฐ.๑๙/๑)<input class="form-control" type="date" name="doc_date" value="${esc(editing?.doc_date || todayIso())}"></label>
-  <label>ปพ.๙ (ฉบับ)<input class="form-control" type="number" min="0" max="9" name="pp9" value="${esc(f.pp9 ?? 1)}"></label>
-  <label>ปพ.๑ (ฉบับ)<input class="form-control" type="number" min="0" max="9" name="pp1" value="${esc(f.pp1 ?? 1)}"></label>
-  <label>บัตรบันทึกสุขภาพ/ระเบียนสะสม (ฉบับ)<input class="form-control" type="number" min="0" max="9" name="health" value="${esc(f.health ?? 1)}"></label>
   <label>พิมพ์ พฐ.๑๙/๑ (ชุด)<input class="form-control" type="number" min="1" max="5" name="copies" value="3"></label>
+</div>
+<div class="pp5-tr-att" data-attachments role="group" aria-label="สิ่งที่ส่งมาด้วย">
+  <div class="pp5-tr-att-head">สิ่งที่ส่งมาด้วย <span class="pp5-tr-hint">(พิมพ์เฉพาะรายการที่ติ๊ก เรียงเลขให้เอง)</span></div>
+  ${attachmentRows(editing ? attachmentsOf(f) : null)}
 </div>
 <p class="pp5-tr-hint" style="margin:6px 0 0">พฐ.๑๙/๑ ทำ ๓ ชุด: ส่งโรงเรียนปลายทาง ๑ ชุด · ให้ผู้ปกครองถือไป ๑ ชุด · เก็บไว้ที่โรงเรียน ๑ ชุด · พี่น้องที่ย้ายพร้อมกันอยู่ในหนังสือฉบับเดียว</p>
 <div class="pp5-tr-actions">
@@ -422,7 +465,20 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
       const form = $('[data-form]');
       const parsed = parseAddress(detail.address);
       const setIfEmpty = (name, value) => { const el = form.elements[name]; if (el && !clean(el.value) && clean(value)) el.value = clean(value); };
-      setIfEmpty('guardian_name', guardianOf(detail));
+      // ตัวเลือกผู้ยื่นคำร้อง (เจ้าของเลือก 2026-10-18): ผู้ปกครองตามทะเบียน (ค่าเริ่มต้น) / บิดา / มารดา / พิมพ์เอง
+      const pick = form.elements.guardian_pick;
+      const previous = new Set(state.guardianChoices.map((c) => c.name));
+      state.guardianChoices = guardianChoices(detail);
+      pick.innerHTML = state.guardianChoices.map((c) => `<option value="${c.key}">${esc(c.label)}: ${esc(c.name)}</option>`).join('')
+        + '<option value="custom">พิมพ์เอง</option>';
+      const nameEl = form.elements.guardian_name;
+      if (!clean(nameEl.value) || previous.has(clean(nameEl.value))) {
+        const first = state.guardianChoices[0];
+        pick.value = first ? first.key : 'custom';
+        if (first) nameEl.value = first.name;
+      } else {
+        pick.value = state.guardianChoices.find((c) => c.name === clean(nameEl.value))?.key || 'custom';
+      }
       setIfEmpty('guardian_house', parsed.house);
       setIfEmpty('guardian_moo', parsed.moo);
       setIfEmpty('guardian_subdistrict', detail.subdistrict);
@@ -434,7 +490,12 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
       const form = $('[data-form]');
       const v = (name) => clean(form.elements[name]?.value);
       const addr = (p) => ({ house: v(`${p}_house`), moo: v(`${p}_moo`), subdistrict: v(`${p}_subdistrict`), district: v(`${p}_district`), province: v(`${p}_province`) });
-      const n = (name) => Math.max(0, Math.min(9, Number(v(name)) || 0));
+      const attachments = [...form.querySelectorAll('[data-att-on]')].filter((box) => box.checked).map((box) => {
+        const key = box.dataset.attOn;
+        const label = key === 'other' ? clean(form.querySelector('[data-att-label="other"]')?.value) : ATTACHMENTS.find((a) => a.key === key)?.label;
+        const count = Math.max(0, Math.min(9, Number(form.querySelector(`[data-att-count="${key}"]`)?.value) || 0));
+        return { label, count };
+      }).filter((a) => clean(a.label));
       return {
         destination_school: v('destination_school'),
         doc_no: v('doc_no') || null,
@@ -443,7 +504,7 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
         form: {
           dest_subdistrict: v('dest_subdistrict'), dest_district: v('dest_district'), dest_province: v('dest_province'),
           reason: v('reason'), guardian_name: v('guardian_name'), guardian: addr('guardian'), new_address: addr('new'),
-          request_date: v('request_date') || null, pp9: n('pp9'), pp1: n('pp1'), health: n('health')
+          request_date: v('request_date') || null, attachments
         }
       };
     }
@@ -487,6 +548,12 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
         renderDocNos();
         if (box.checked) prefillFromStudent();
       }));
+      $('[data-guardian-pick]').addEventListener('change', (e) => {
+        const nameEl = $('[data-form]').elements.guardian_name;
+        const choice = state.guardianChoices.find((c) => c.key === e.target.value);
+        if (choice) nameEl.value = choice.name;
+        else { nameEl.value = ''; nameEl.focus(); }
+      });
       $('[data-copy-address]').addEventListener('click', () => {
         const form = $('[data-form]');
         ['house', 'moo', 'subdistrict', 'district', 'province'].forEach((k) => { form.elements[`new_${k}`].value = form.elements[`guardian_${k}`].value; });
