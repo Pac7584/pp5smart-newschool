@@ -2465,11 +2465,14 @@ function enhanceSupabaseStudentScoresSummaryPage_() {
     button.disabled = true;
     button.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> กำลังสร้าง PDF...';
     try {
-      const grade = frame.querySelector('#gradeSelect')?.value;
-      const classNo = frame.querySelector('#classSelect')?.value;
+      // PDF ต้องเป็นชั้น/ห้อง/ภาคเดียวกับตารางที่แสดงอยู่ (appData.currentData ของหน้า) ไม่ใช่ค่าที่เพิ่งเปลี่ยนในช่องเลือก
+      const shown = window.appData?.currentData?.success ? window.appData.currentData : null;
+      if (!shown && window.appData && 'currentData' in window.appData) throw new Error('กรุณารอให้ตารางโหลดเสร็จก่อน');
+      const grade = shown?.grade || frame.querySelector('#gradeSelect')?.value;
+      const classNo = shown?.classNo || frame.querySelector('#classSelect')?.value;
       if (!grade || !classNo) throw new Error('กรุณาเลือกชั้นและห้องก่อน');
       showStatus('info', 'กำลังสร้าง PDF', 'กรุณารอสักครู่ ระบบกำลังจัดหน้าตารางสรุปผลการเรียน');
-      const term = frame.querySelector('#termSelect')?.value || 'year';
+      const term = shown?.term || frame.querySelector('#termSelect')?.value || 'year';
       // Same order as the table on screen: เลขที่ / รหัสนักเรียน / ชาย → หญิง.
       const sortMode = frame.querySelector('.score-sort-btn.active')?.getAttribute('data-sort') || 'no';
       const result = await window.GasServer.exportStudentScoresPDF(grade, classNo, term, sortMode);
