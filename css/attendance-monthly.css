@@ -473,3 +473,16 @@
     z-index: 20 !important;
   }
 }
+
+/* ตัวเลือกเดือน: 3 คอลัมน์เสมอ ปุ่มย่อได้ — แบบ 4 คอลัมน์ล้นกรอบ ทำให้ เม.ย./ส.ค./ธ.ค. หลุดออกนอกกล่อง
+   เมื่อตัวอักษรกว้างกว่าที่คาด (owner 2026-10-18 "เดือนสิงหา ธันวา หายไป") */
+#thaiMonthPicker .thai-month-picker-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#thaiMonthPicker .thai-month-picker-grid .btn {
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: .25em;
+}
