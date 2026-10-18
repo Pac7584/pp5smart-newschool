@@ -8865,4 +8865,6 @@
   global.google.script.run = createRunner();
   global.google.script.history = { push() {}, replace() {}, setChangeHandler() {} };
   global.GasServer = server;
+  // ใบรับรองเวลาเรียน (js/student-transfer.js) ใช้ผลคุณลักษณะ / อ่าน คิดวิเคราะห์ เขียน / กิจกรรม ชุดเดียวกับ ปพ.6
+  global.PP5ReportAssessmentSummary = reportAssessmentSummary;
 })(window);

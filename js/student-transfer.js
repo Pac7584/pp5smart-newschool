@@ -195,6 +195,18 @@ b,strong,h1,h2,h3{font-weight:400}
 .closing{margin:24px 0 0 40%;text-align:center}.closing .signspace{height:1.6cm}
 .contact{margin-top:1.4cm}
 .sign{margin:22px 0 0 40%;text-align:center;line-height:1.5}.sign .gap{height:30px}
+.cert .ctitle{text-align:center;font-size:18pt}
+.cert .csub{text-align:center;margin-bottom:6px}
+.cert .para{margin-bottom:4px;line-height:1.15}
+.ct{width:100%;border-collapse:collapse;margin:4px 0;font-size:13pt;line-height:1.1}
+.ct th,.ct td{border:1px solid #000;padding:1px 6px;font-weight:400;vertical-align:middle}
+.ct th{text-align:center}.ct td.c{text-align:center}
+.ct tr.grp td{background:#f1f1f1}
+.ct .w1{width:2.4cm}.ct .w2{width:2.2cm}.ct .w3{width:1.6cm}.ct .w4{width:3.2cm}.ct .w5{width:6.2cm}
+.cnote{font-size:13pt;margin:4px 0 0}
+.csigns{display:flex;justify-content:space-between;gap:8px;margin-top:14px}
+.csign{text-align:center;line-height:1.35;flex:1;font-size:14pt}.csign .blank.l{width:8em}
+.cissued{text-align:right;margin-top:8px;font-size:13pt}
 @media screen{body{background:#e5e7eb;padding:16px}.sheet{background:#fff;width:210mm;max-width:100%;min-height:297mm;margin:0 auto 16px;padding:20mm 20mm 16mm 30mm;box-shadow:0 2px 10px rgba(0,0,0,.15)}
 .bk20 .code{right:20mm;top:calc(20mm - 1.2em)}}`;
 
@@ -392,6 +404,102 @@ ${sheets.join('\n')}
     setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 1000);
   }
 
+  // ---------------------------------------------------------------- ใบรับรองเวลาเรียน/ผลการเรียน (เจ้าของขอ 2026-10-19)
+  // ข้อตกลง: เวลาเรียนรวมทั้งภาคจากเช็คชื่อรายวัน (ระบบไม่มีชั่วโมงที่ขาดรายวิชา) · คะแนนระหว่างเรียน เต็ม/ได้ · ไม่มีหน่วยกิต
+  // (ประถม) · คุณลักษณะ / อ่าน คิดวิเคราะห์ เขียน ประเมินรายคน จึงสรุปใต้ตาราง (ใช้ฟังก์ชันเดียวกับ ปพ.6) · ลงนาม ครูประจำชั้น
+  // + หัวหน้างานวิชาการ + ผู้อำนวยการ
+  // ชั่วโมงต่อภาค: วิชาเฉพาะภาค (semester 1/2) = hours_per_year ของภาคนั้น · วิชาทั้งปี = ครึ่งหนึ่ง
+  function certificateRows(subjects, scores, term) {
+    const byId = new Map((scores || []).map((row) => [String(row.subject_id), row]));
+    const breakdownOf = (row) => {
+      let raw = row?.score_breakdown || {};
+      if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch (_) { raw = {}; } }
+      return raw && typeof raw === 'object' ? raw : {};
+    };
+    const configOf = (subject) => {
+      let raw = subject?.score_config || {};
+      if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch (_) { raw = {}; } }
+      return raw && typeof raw === 'object' ? raw : {};
+    };
+    return (subjects || [])
+      .filter((s) => s.active !== false && (!Number(s.semester) || Number(s.semester) === Number(term)))
+      .map((s) => {
+        const row = byId.get(String(s.id));
+        const breakdown = breakdownOf(row);
+        const rounds = Array.isArray(breakdown.fullScores) ? breakdown.fullScores.reduce((sum, v) => sum + (Number(v) || 0), 0) : 0;
+        const full = rounds > 0 ? rounds : (Number(configOf(s).formative_max) || 70);
+        const got = row ? (row.formative_score ?? breakdown.mid ?? null) : null;
+        const yearHours = Number(s.hours_per_year);
+        const hours = Number.isFinite(yearHours) && yearHours > 0 ? (Number(s.semester) ? yearHours : yearHours / 2) : null;
+        return { code: clean(s.code), name: clean(s.name), type: clean(s.subject_type), hours, full, got: got === null || got === '' ? null : Number(got) };
+      })
+      .sort((a, b) => a.code.localeCompare(b.code, 'th', { numeric: true }) || a.name.localeCompare(b.name, 'th'));
+  }
+  // กิจกรรมพัฒนาผู้เรียน: ชั่วโมงจากวิชาประเภทกิจกรรม (จับคู่ตามชื่อ) · ผลจากการประเมินกิจกรรมของ ปพ.6
+  const ACTIVITY_MATCH = [/แนะแนว/, /ลูกเสือ|เนตรนารี|ยุวกาชาด|ผู้บำเพ็ญ/, /ชุมนุม/, /สังคม|สาธารณ/];
+  function certificateActivities(rows, summaryItems) {
+    const activityRows = (rows || []).filter((r) => r.type === 'กิจกรรม');
+    return ACTIVITY_MATCH.map((pattern, i) => {
+      const item = (summaryItems || [])[i] || {};
+      const label = clean(item.label).replace(/^\d+\.\s*/, '') || ['กิจกรรมแนะแนว', 'ลูกเสือ-เนตรนารี', 'ชุมนุม', 'เพื่อสังคมและสาธารณประโยชน์'][i];
+      const hours = activityRows.filter((r) => pattern.test(r.name)).reduce((sum, r) => sum + (Number(r.hours) || 0), 0);
+      const val = clean(item.val);
+      return { label, hours: hours || null, result: val && val !== 'ยังไม่ประเมิน' ? val : 'ยังไม่ประเมิน' };
+    });
+  }
+  function certificateAttendance(rows) {
+    const counted = (rows || []).filter((r) => ['present', 'leave', 'absent', 'late'].includes(String(r.status)));
+    const count = (status) => counted.filter((r) => r.status === status).length;
+    const present = count('present') + count('late');
+    const dates = counted.map((r) => String(r.attendance_date)).sort();
+    return { present, leave: count('leave'), absent: count('absent'), total: counted.length, from: dates[0] || '', to: dates[dates.length - 1] || '' };
+  }
+
+  const num = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? '-' : thaiDigits(String(Math.round(Number(v) * 100) / 100)));
+  const longDate = (iso) => { const p = dateParts(iso); return p ? thaiDigits(`${p.day} ${p.month} ${p.year}`) : ''; };
+  function certificateSheet(c, school) {
+    const snap = c.student || {};
+    const att = c.attendance || {};
+    const pct = att.total ? Math.round((att.present / att.total) * 10000) / 100 : null;
+    const subjectRows = (type, title) => {
+      const list = (c.rows || []).filter((r) => r.type === type);
+      if (!list.length) return '';
+      return `<tr class="grp"><td colspan="5">${title}</td></tr>` + list.map((r) => `<tr><td class="c">${esc(thaiDigits(r.code)) || '-'}</td><td>${esc(r.name)}</td>`
+        + `<td class="c">${num(r.hours)}</td><td class="c">${num(r.full)}</td><td class="c">${num(r.got)}</td></tr>`).join('');
+    };
+    const position = clean(school.directorPosition) || `ผู้อำนวยการโรงเรียน${schoolLabel(school.name)}`;
+    const signer = (name, role) => `<div class="csign"><div>ลงชื่อ<span class="blank l"></span></div><div>(${clean(name) ? esc(clean(name)) : '<span class="blank l"></span>'})</div><div>${esc(thaiDigits(role))}</div></div>`;
+    return `<section class="sheet cert">
+<div class="ctitle">ใบรับรองเวลาเรียนและผลการเรียน</div>
+<div class="csub">${esc(thaiDigits(clean(school.name)))} ${esc(thaiDigits(addressLines(school).join(' ')))}</div>
+<p class="para">ขอรับรองว่า${fill(fullName(snap), 'l')}เลขประจำตัว${fill(c.studentId, 's')}ศึกษาอยู่ชั้น${fill(gradeLong(snap.grade))}
+ภาคเรียนที่${fill(String(c.term), 's')}ปีการศึกษา${fill(c.year, 's')} มีเวลาเรียนและผลการเรียน ตั้งแต่วันที่${fill(longDate(att.from), 'l')}ถึงวันที่${fill(longDate(att.to), 'l')} ดังนี้</p>
+<table class="ct"><thead><tr><th rowspan="2" class="w1">รหัสวิชา</th><th rowspan="2">ชื่อวิชา</th><th rowspan="2" class="w2">ชั่วโมง<br>ต่อภาค</th><th colspan="2">คะแนนระหว่างเรียน</th></tr>
+<tr><th class="w3">เต็ม</th><th class="w3">ได้</th></tr></thead><tbody>
+${subjectRows('พื้นฐาน', 'สาระพื้นฐาน')}${subjectRows('เพิ่มเติม', 'สาระเพิ่มเติม')}
+</tbody></table>
+<table class="ct"><thead><tr><th>กิจกรรมพัฒนาผู้เรียน</th><th class="w2">ชั่วโมงต่อภาค</th><th class="w4">ผลการประเมิน</th></tr></thead><tbody>
+${(c.activities || []).map((a) => `<tr><td>${esc(a.label)}</td><td class="c">${num(a.hours)}</td><td class="c">${esc(a.result)}</td></tr>`).join('')}
+</tbody></table>
+<table class="ct"><tbody>
+<tr><td class="w5">เวลาเรียน</td><td>มาเรียน ${num(att.present)} วัน ลา ${num(att.leave)} วัน ขาด ${num(att.absent)} วัน จากวันเรียน ${num(att.total)} วัน${pct === null ? '' : ` (ร้อยละ ${num(pct)})`}</td></tr>
+<tr><td>คุณลักษณะอันพึงประสงค์</td><td>${esc(clean(c.character) || 'ยังไม่ประเมิน')}</td></tr>
+<tr><td>การอ่าน คิดวิเคราะห์ และเขียน</td><td>${esc(clean(c.reading) || 'ยังไม่ประเมิน')}</td></tr>
+</tbody></table>
+<p class="cnote">หมายเหตุ คะแนนระหว่างเรียนและเวลาเรียนเป็นข้อมูลที่บันทึกในระบบถึงวันที่ออกใบรับรองนี้</p>
+<div class="csigns">${signer(c.homeroom, 'ครูประจำชั้น')}${signer(school.academicHead, 'หัวหน้างานวิชาการ')}${signer(school.director, position)}</div>
+<div class="cissued">ออกให้ ณ วันที่ ${esc(longDate(c.issued))}</div>
+</section>`;
+  }
+  function buildCertificateDocument(list, school) {
+    const endScript = '<' + '/script>';
+    const title = list.length === 1 ? `ใบรับรองเวลาเรียน ${fullName(list[0].student)}` : `ใบรับรองเวลาเรียน ${list.length} คน`;
+    return `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>${esc(title)}</title>
+<style>${printStyle(esc(school.base || ''))}</style></head><body>
+${list.map((c) => certificateSheet(c, school)).join('\n')}
+<script>(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(function(){setTimeout(function(){window.print();},300);});${endScript}</body></html>`;
+  }
+
   // ---------------------------------------------------------------- หน้าเว็บ
   const STYLE = `
 .pp5-tr{max-width:1100px;margin:0 auto;display:grid;gap:14px}
@@ -460,11 +568,13 @@ ${sheets.join('\n')}
 
     const settings = await global.PP5Data.settings.get();
     state.year = String(settings.academicYear || settings.academic_year || '');
+    state.semester = Number(settings.semester) === 2 ? 2 : 1;
     state.school = {
       name: settings.school_name || settings.schoolName || '',
       address: settings.school_address || settings.schoolAddress || '',
       director: settings.director_name || settings.directorName || '',
       directorPosition: settings.director_position || '',
+      academicHead: settings.academic_head || settings.academicHead || '',
       phone: settings.school_phone || settings.schoolPhone || settings.phone || '',
       base: new URL('.', global.location.href).href
     };
@@ -608,6 +718,7 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
   <button type="submit" class="btn btn-primary" data-save><i class="bi bi-printer"></i> ${editing ? 'บันทึกการแก้ไขและพิมพ์' : 'บันทึกและพิมพ์ พฐ.๑๙ + พฐ.๑๙/๑'}</button>
   <button type="button" class="btn btn-outline-secondary" data-preview>ดูตัวอย่าง (ยังไม่บันทึก)</button>
   <button type="button" class="btn btn-outline-secondary" data-docx><i class="bi bi-file-earmark-word"></i> ดาวน์โหลด Word (ยังไม่บันทึก)</button>
+  <button type="button" class="btn btn-outline-secondary" data-cert><i class="bi bi-card-checklist"></i> พิมพ์ใบรับรองเวลาเรียน</button>
   <span class="pp5-tr-hint">ช่องที่ว่างจะพิมพ์เป็นเส้นจุดให้เขียนด้วยมือ · ช่องลงชื่อเว้นว่างให้ลงนาม</span>
 </div>
 </form>`;
@@ -698,18 +809,60 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
     // พิมพ์ในกรอบซ่อนของหน้าเดิม (เจ้าของแจ้ง 2026-10-19 "ไม่ตอบสนองทุกปุ่ม"): หน้าต่างใหม่ที่สั่งพิมพ์ค้างอยู่หลังหน้าต่างอื่น
     // ล็อกหน้าเดิมทั้งหน้า · กล่องพิมพ์ขึ้นบนหน้าปัจจุบัน ปิดแล้วใช้งานต่อได้ และไม่โดนบล็อกป๊อปอัป
     function openPrint(records, options) {
+      return printHtml(buildDocument(records, state.school, options));
+    }
+    function printHtml(html) {
       doc.getElementById('pp5TransferPrintFrame')?.remove();
       const frame = doc.createElement('iframe');
       frame.id = 'pp5TransferPrintFrame';
       frame.title = 'เอกสารสำหรับพิมพ์';
       frame.setAttribute('aria-hidden', 'true');
       frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
-      frame.srcdoc = buildDocument(records, state.school, options);
+      frame.srcdoc = html;
       doc.body.appendChild(frame);
       frame.addEventListener('load', () => {
         frame.contentWindow?.addEventListener('afterprint', () => setTimeout(() => frame.remove(), 500));
       }, { once: true });
       return true;
+    }
+
+    // ข้อมูลใบรับรองเวลาเรียนของนักเรียน 1 คน (ภาคเรียนปัจจุบันของระบบ)
+    async function loadCertificate(studentId, snap) {
+      const year = state.year;
+      const term = state.semester;
+      const grade = clean(snap?.grade);
+      const room = clean(snap?.room);
+      const take = (res) => { if (res.error) throw res.error; return res.data || []; };
+      const [subjects, scores, assessments, attendance, teacher] = await Promise.all([
+        client().from('subjects').select('id,code,name,subject_type,hours_per_year,semester,score_config,active').eq('grade', grade).eq('active', true).then(take),
+        client().from('scores').select('subject_id,formative_score,score_breakdown').eq('student_id', studentId).eq('academic_year', year).eq('semester', term).then(take),
+        client().from('assessments').select('assessment_type,criteria_code,score,semester').eq('student_id', studentId).eq('academic_year', year).then(take),
+        client().from('attendance_daily').select('attendance_date,status').eq('student_id', studentId).eq('academic_year', year).order('attendance_date').limit(1000).then(take),
+        client().from('teacher_assignments').select('teacher_name').eq('grade', grade).eq('room', room).eq('academic_year', year).limit(1).then(take).catch(() => [])
+      ]);
+      const rows = certificateRows(subjects, scores, term);
+      const summary = typeof global.PP5ReportAssessmentSummary === 'function' ? global.PP5ReportAssessmentSummary(assessments, String(term)) : null;
+      return {
+        studentId, student: snap, year, term, rows,
+        activities: certificateActivities(rows, summary?.activities?.items),
+        attendance: certificateAttendance(attendance),
+        character: summary?.character?.result || '', reading: summary?.reading?.result || '',
+        homeroom: teacher[0]?.teacher_name || '', issued: todayIso()
+      };
+    }
+    async function printCertificates(items, button) {
+      if (button) button.disabled = true;
+      say('กำลังรวบรวมเวลาเรียนและคะแนน…', 'info');
+      try {
+        const list = [];
+        for (const item of items) list.push(await loadCertificate(item.id, item.snapshot));
+        printHtml(buildCertificateDocument(list, state.school));
+        say(`พิมพ์ใบรับรองเวลาเรียน ${list.length} คน · ภาคเรียนที่ ${state.semester}/${state.year}`, 'ok');
+      } catch (error) {
+        say(esc(error.message || error), 'err');
+      } finally {
+        if (button) button.disabled = false;
+      }
     }
 
     function validate(input) {
@@ -744,6 +897,11 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
         if (problem) { say(problem, 'err'); return; }
         say('');
         try { openPrint(await buildRecords(input), { copies: input.copies }); } catch (error) { say(esc(error.message || error), 'err'); }
+      });
+      $('[data-cert]').addEventListener('click', (event) => {
+        const items = selectedStudents().map((i) => ({ id: i.id, snapshot: i.snapshot || snapshotOf(i.student, null) }));
+        if (!items.length) { say('กรุณาเลือกนักเรียนอย่างน้อย ๑ คน', 'err'); return; }
+        printCertificates(items, event.currentTarget);
       });
       $('[data-docx]').addEventListener('click', async (event) => {
         const input = readForm();
@@ -812,6 +970,7 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
   <td><div class="pp5-tr-row-actions">
     <button type="button" class="btn btn-sm btn-outline-primary" data-print><i class="bi bi-printer"></i> พิมพ์</button>
     <button type="button" class="btn btn-sm btn-outline-primary" data-docx-row aria-label="ดาวน์โหลดไฟล์ Word"><i class="bi bi-file-earmark-word"></i> Word</button>
+    <button type="button" class="btn btn-sm btn-outline-primary" data-cert-row><i class="bi bi-card-checklist"></i> ใบรับรอง</button>
     ${open ? `<button type="button" class="btn btn-sm btn-outline-secondary" data-edit>แก้ไข</button>
     <button type="button" class="btn btn-sm btn-success" data-confirm>ยืนยันย้ายออก</button>
     <button type="button" class="btn btn-sm btn-outline-danger" data-cancel>ยกเลิกเรื่อง</button>` : ''}
@@ -824,6 +983,7 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
       body.querySelectorAll('tr[data-id]').forEach((tr) => {
         const t = state.transfers.find((x) => x.id === tr.dataset.id);
         tr.querySelector('[data-print]').addEventListener('click', () => openPrint([t], { copies: 3 }));
+        tr.querySelector('[data-cert-row]').addEventListener('click', (event) => printCertificates([{ id: t.student_id, snapshot: t.student_snapshot }], event.currentTarget));
         tr.querySelector('[data-docx-row]').addEventListener('click', async (event) => {
           const button = event.currentTarget;
           button.disabled = true;
@@ -888,5 +1048,5 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
     if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', watch, { once: true });
     else watch();
   }
-  global.PP5StudentTransfer = { shell, buildDocument, buildDocxParts, bk19, bk20, parseAddress, gradeLong, dateParts, thaiDigits };
+  global.PP5StudentTransfer = { shell, buildDocument, buildDocxParts, buildCertificateDocument, certificateRows, certificateActivities, certificateAttendance, bk19, bk20, parseAddress, gradeLong, dateParts, thaiDigits };
 })(window);
