@@ -434,7 +434,14 @@ ${sheets.join('\n')}
         const hours = Number.isFinite(yearHours) && yearHours > 0 ? (Number(s.semester) ? yearHours : yearHours / 2) : null;
         return { code: clean(s.code), name: clean(s.name), type: clean(s.subject_type), hours, full, got: got === null || got === '' ? null : Number(got) };
       })
-      .sort((a, b) => a.code.localeCompare(b.code, 'th', { numeric: true }) || a.name.localeCompare(b.name, 'th'));
+      .sort((a, b) => (subjectOrder(a.name) - subjectOrder(b.name)) || a.code.localeCompare(b.code, 'th', { numeric: true }) || a.name.localeCompare(b.name, 'th'));
+  }
+  // ลำดับวิชาเดียวกับ ปพ.6 (PARENT_SUBJECT_ORDER_ ใน gas-bridge): ภาษาไทย คณิต วิทย์ ... หน้าที่พลเมือง การป้องกันการทุจริต
+  // เดิมเรียงตามรหัสวิชา จึงได้ ค ง ท พ ว ... (owner 2026-10-18 "ไม่เรียงตามวิชาเหมือนที่เราเคยเรียง")
+  const SUBJECT_ORDER = ['ภาษาไทย', 'คณิตศาสตร์', 'วิทยาศาสตร์', 'เทคโนโลยี', 'สังคมศึกษา', 'ประวัติศาสตร์', 'สุขศึกษา', 'ศิลปะ', 'การงาน', 'ภาษาอังกฤษ', 'หน้าที่พลเมือง', 'การป้องกัน'];
+  function subjectOrder(name) {
+    const index = SUBJECT_ORDER.findIndex((item) => String(name || '').includes(item));
+    return index < 0 ? 999 : index;
   }
   // กิจกรรมพัฒนาผู้เรียน: ชั่วโมงจากวิชาประเภทกิจกรรม (จับคู่ตามชื่อ) · ผลจากการประเมินกิจกรรมของ ปพ.6
   const ACTIVITY_MATCH = [/แนะแนว/, /ลูกเสือ|เนตรนารี|ยุวกาชาด|ผู้บำเพ็ญ/, /ชุมนุม/, /สังคม|สาธารณ/];
