@@ -379,6 +379,46 @@
     return finish(doc, meta);
   }
 
+  // สรุปวันมาเรียนแต่ละเดือน: เลือกตัวอักษรใหญ่ที่สุดที่ตารางยังกว้างไม่เกินหน้า A4 (190 มม.) และไม่เกินความสูงหน้าแรก
+  // วัดจากข้อความจริง (ชื่อยาวสุด หัวคอลัมน์ ตัวเลข) แทนความกว้างตายตัว — เดิม 5.4pt เล็กจนอ่านไม่ออก (owner 2026-10-18)
+  function fitMatrixColumns(doc, head, body, startY) {
+    const tableWidth = 190;
+    const rowsHeight = 248 - startY; // ตารางจบไม่เกิน 248 มม. ช่องลงชื่อจึงอยู่หน้าเดียวกัน (addSignatures)
+    const measure = (value, style) => {
+      doc.setFont('Sarabun', style);
+      return Math.max(...String(value).split('\n').map((line) => doc.getTextWidth(line)));
+    };
+    let best = null;
+    for (let fontSize = 11; fontSize >= 5; fontSize -= 0.25) {
+      const padding = { top: fontSize * 0.14, bottom: fontSize * 0.14, left: 0.7, right: 0.7 };
+      doc.setFontSize(fontSize);
+      const widths = head.map((label, index) => {
+        let width = measure(label, 'bold');
+        body.forEach((row) => { width = Math.max(width, measure(row[index], 'normal')); });
+        return width + padding.left + padding.right + 0.4;
+      });
+      const total = widths.reduce((sum, width) => sum + width, 0);
+      const lineHeight = fontSize * 0.3528 * 1.15;
+      const rowPad = padding.top + padding.bottom;
+      const height = (lineHeight * 2 + rowPad) + body.length * (lineHeight + rowPad);
+      best = { fontSize, padding, widths, total };
+      // ห้องใหญ่: ยอมขึ้นหน้า 2 เมื่อตัวอักษรต้องเล็กกว่า 6.5pt จึงจะพอหน้าเดียว
+      if (total <= tableWidth && (height <= rowsHeight || fontSize <= 6.5)) break;
+    }
+    // ที่เหลือ: ให้ช่องชื่อกว้างขึ้นเล็กน้อย แล้วแบ่งเท่า ๆ กันให้ตารางเต็มความกว้างหน้า
+    let spare = tableWidth - best.total;
+    if (spare > 0) {
+      const toName = Math.min(spare, 12);
+      best.widths[2] += toName;
+      spare -= toName;
+      best.widths = best.widths.map((width, index) => (index === 2 ? width : width + spare / (best.widths.length - 1)));
+    } else if (spare < 0) {
+      best.widths = best.widths.map((width) => width * (tableWidth / best.total));
+    }
+    doc.setFont('Sarabun', 'normal');
+    return best;
+  }
+
   async function createMatrix(matrix, options) {
     const { doc, meta, startY } = await createDocument('สรุปวันมาเรียนแต่ละเดือน', options);
     const months = matrix?.months || [];
@@ -388,14 +428,15 @@
       ...months.map((month) => number(student.monthlyData?.[month.key])),
       number(student.totalPresent), number(student.totalDays), `${number(student.percentage).toFixed(1)}%`
     ]);
-    const columnStyles = { 0: { cellWidth: 6 }, 1: { cellWidth: 12 }, 2: { cellWidth: 42, halign: 'left' } };
-    for (let index = 3; index < head.length; index += 1) columnStyles[index] = { cellWidth: index < head.length - 3 ? 8.1 : 10.5 };
+    const fit = fitMatrixColumns(doc, head, body, startY);
+    const columnStyles = {};
+    fit.widths.forEach((cellWidth, index) => { columnStyles[index] = index === 2 ? { cellWidth, halign: 'left' } : { cellWidth }; });
     runAutoTable(doc, tableDefaults({
       startY,
       head: [head],
       body,
-      styles: { font: 'Sarabun', fontSize: 5.4, cellPadding: 0.8, lineColor: [0, 0, 0], lineWidth: 0.18, valign: 'middle', halign: 'center' },
-      headStyles: { font: 'Sarabun', fontStyle: 'bold', fontSize: 5.2, fillColor: [242, 242, 242], textColor: [0, 0, 0] },
+      styles: { font: 'Sarabun', fontSize: fit.fontSize, cellPadding: fit.padding, lineColor: [0, 0, 0], lineWidth: 0.18, valign: 'middle', halign: 'center', overflow: 'linebreak' },
+      headStyles: { font: 'Sarabun', fontStyle: 'bold', fontSize: fit.fontSize, fillColor: [242, 242, 242], textColor: [0, 0, 0] },
       columnStyles
     }));
     addSignatures(doc, meta, doc.lastAutoTable?.finalY);
