@@ -204,8 +204,9 @@ b,strong,h1,h2,h3{font-weight:400}
 .ct tr.grp td{background:#f1f1f1}
 .ct .w1{width:2.4cm}.ct .w2{width:2.2cm}.ct .w3{width:1.6cm}.ct .w4{width:3.2cm}.ct .w5{width:6.2cm}
 .cnote{font-size:13pt;margin:4px 0 0}
-.csigns{display:flex;justify-content:space-between;gap:8px;margin-top:14px}
-.csign{text-align:center;line-height:1.35;flex:1;font-size:14pt}.csign .blank.l{width:8em}
+.csigns{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin-top:14px}
+.csign{text-align:center;line-height:1.35;font-size:14pt}.csign .blank.l{width:7em}.csign .role{white-space:nowrap}
+.cert .clogo{display:block;height:2.2cm;max-width:5cm;object-fit:contain;margin:0 auto 4px}
 .cissued{text-align:right;margin-top:8px;font-size:13pt}
 @media screen{body{background:#e5e7eb;padding:16px}.sheet{background:#fff;width:210mm;max-width:100%;min-height:297mm;margin:0 auto 16px;padding:20mm 20mm 16mm 30mm;box-shadow:0 2px 10px rgba(0,0,0,.15)}
 .bk20 .code{right:20mm;top:calc(20mm - 1.2em)}}`;
@@ -457,6 +458,18 @@ ${sheets.join('\n')}
 
   const num = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? '-' : thaiDigits(String(Math.round(Number(v) * 100) / 100)));
   const longDate = (iso) => { const p = dateParts(iso); return p ? thaiDigits(`${p.day} ${p.month} ${p.year}`) : ''; };
+  // ตราโรงเรียนจากหน้าตั้งค่า: รูปที่ฝังไว้ ลิงก์รูป หรือรหัสไฟล์ Google Drive
+  function logoSrc(value) {
+    const v = clean(value);
+    if (!v) return '';
+    if (/^(?:data:image\/|https?:\/\/|blob:)/i.test(v)) {
+      const id = /^data:/i.test(v) ? '' : (v.match(/(?:\/d\/|[?&]id=)([-\w]{20,})/) || [])[1];
+      return id ? `https://lh3.googleusercontent.com/d/${id}` : v;
+    }
+    if (/^[-\w]{20,}$/.test(v)) return `https://lh3.googleusercontent.com/d/${v}`;
+    if (/^[A-Za-z0-9+/=\s]+$/.test(v) && v.length > 100) return `data:image/png;base64,${v.replace(/\s/g, '')}`;
+    return '';
+  }
   function certificateSheet(c, school) {
     const snap = c.student || {};
     const att = c.attendance || {};
@@ -468,9 +481,10 @@ ${sheets.join('\n')}
         + `<td class="c">${num(r.hours)}</td><td class="c">${num(r.full)}</td><td class="c">${num(r.got)}</td></tr>`).join('');
     };
     const position = clean(school.directorPosition) || `ผู้อำนวยการโรงเรียน${schoolLabel(school.name)}`;
-    const signer = (name, role) => `<div class="csign"><div>ลงชื่อ<span class="blank l"></span></div><div>(${clean(name) ? esc(clean(name)) : '<span class="blank l"></span>'})</div><div>${esc(thaiDigits(role))}</div></div>`;
+    const signer = (name, role) => `<div class="csign"><div>ลงชื่อ<span class="blank l"></span></div><div>(${clean(name) ? esc(clean(name)) : '<span class="blank l"></span>'})</div><div class="role">${esc(thaiDigits(role))}</div></div>`;
+    const logo = logoSrc(school.logo);
     return `<section class="sheet cert">
-<div class="ctitle">ใบรับรองเวลาเรียนและผลการเรียน</div>
+${logo ? `<img class="clogo" src="${esc(logo)}" alt="">` : ''}<div class="ctitle">ใบรับรองเวลาเรียนและผลการเรียน</div>
 <div class="csub">${esc(thaiDigits(clean(school.name)))} ${esc(thaiDigits(addressLines(school).join(' ')))}</div>
 <p class="para">ขอรับรองว่า${fill(fullName(snap), 'l')}เลขประจำตัว${fill(c.studentId, 's')}ศึกษาอยู่ชั้น${fill(gradeLong(snap.grade))}
 ภาคเรียนที่${fill(String(c.term), 's')}ปีการศึกษา${fill(c.year, 's')} มีเวลาเรียนและผลการเรียน ตั้งแต่วันที่${fill(longDate(att.from), 'l')}ถึงวันที่${fill(longDate(att.to), 'l')} ดังนี้</p>
@@ -495,7 +509,8 @@ ${(c.activities || []).map((a) => `<tr><td>${esc(a.label)}</td><td class="c">${n
     const endScript = '<' + '/script>';
     const title = list.length === 1 ? `ใบรับรองเวลาเรียน ${fullName(list[0].student)}` : `ใบรับรองเวลาเรียน ${list.length} คน`;
     return `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>${esc(title)}</title>
-<style>${printStyle(esc(school.base || ''))}</style></head><body>
+<style>${printStyle(esc(school.base || ''))}
+.cert .ctitle{font-weight:700}</style></head><body>
 ${list.map((c) => certificateSheet(c, school)).join('\n')}
 <script>(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(function(){setTimeout(function(){window.print();},300);});${endScript}</body></html>`;
   }
@@ -587,6 +602,7 @@ ${list.map((c) => certificateSheet(c, school)).join('\n')}
       director: settings.director_name || settings.directorName || '',
       directorPosition: settings.director_position || '',
       academicHead: settings.academic_head || settings.academicHead || '',
+      logo: settings.logo_base64 || settings.logoDataUrl || settings.logo || '',
       phone: settings.school_phone || settings.schoolPhone || settings.phone || '',
       base: new URL('.', global.location.href).href
     };
