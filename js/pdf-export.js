@@ -3971,8 +3971,12 @@
           doc.text('ผู้ปกครอง', boxX + colW + colW / 2, footerY + 11.5, { align: 'center' });
         }
 
-        const tComment1 = text(stu.teacherCommentTerm1 || stu.teacherComment || '');
-        const tComment2 = text(stu.teacherCommentTerm2 || stu.teacherComment || '');
+        // ความเห็นแยกตามภาค ไม่ยืมความเห็นภาค 1 ไปใส่ภาค 2 และพิมพ์ภาคเรียนที่ 1 = ช่องภาค 2 ว่าง (owner 2026-10-18)
+        // teacherComment (ค่าเดียว) ใช้เฉพาะข้อมูลแบบเก่าที่ไม่มีความเห็นรายภาค
+        const hasTermComments = stu.teacherCommentTerm1 !== undefined || stu.teacherCommentTerm2 !== undefined;
+        const printedTerm = String(report?.term ?? options?.term ?? '');
+        const tComment1 = text(hasTermComments ? (stu.teacherCommentTerm1 || '') : (stu.teacherComment || ''));
+        const tComment2 = printedTerm === '1' ? '' : text(hasTermComments ? (stu.teacherCommentTerm2 || '') : '');
 
         renderTermCommentBox('ภาคเรียนที่ 1', 28, tComment1);
         renderTermCommentBox('ภาคเรียนที่ 2', 146, tComment2);
