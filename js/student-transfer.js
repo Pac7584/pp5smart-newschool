@@ -695,11 +695,20 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
       }));
     }
 
+    // พิมพ์ในกรอบซ่อนของหน้าเดิม (เจ้าของแจ้ง 2026-10-19 "ไม่ตอบสนองทุกปุ่ม"): หน้าต่างใหม่ที่สั่งพิมพ์ค้างอยู่หลังหน้าต่างอื่น
+    // ล็อกหน้าเดิมทั้งหน้า · กล่องพิมพ์ขึ้นบนหน้าปัจจุบัน ปิดแล้วใช้งานต่อได้ และไม่โดนบล็อกป๊อปอัป
     function openPrint(records, options) {
-      const win = global.open('', '_blank');
-      if (!win) { say('เบราว์เซอร์บล็อกหน้าต่างพิมพ์ กรุณาอนุญาตป๊อปอัปของเว็บนี้ แล้วกดอีกครั้ง', 'err'); return false; }
-      win.document.write(buildDocument(records, state.school, options));
-      win.document.close();
+      doc.getElementById('pp5TransferPrintFrame')?.remove();
+      const frame = doc.createElement('iframe');
+      frame.id = 'pp5TransferPrintFrame';
+      frame.title = 'เอกสารสำหรับพิมพ์';
+      frame.setAttribute('aria-hidden', 'true');
+      frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+      frame.srcdoc = buildDocument(records, state.school, options);
+      doc.body.appendChild(frame);
+      frame.addEventListener('load', () => {
+        frame.contentWindow?.addEventListener('afterprint', () => setTimeout(() => frame.remove(), 500));
+      }, { once: true });
       return true;
     }
 
@@ -752,8 +761,6 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
         if (problem) { say(problem, 'err'); return; }
         const button = $('[data-save]');
         button.disabled = true;
-        // เปิดหน้าต่างพิมพ์ทันทีที่กด (ก่อนรอฐานข้อมูล) เพื่อไม่ให้เบราว์เซอร์บล็อกป๊อปอัป
-        const win = global.open('', '_blank');
         try {
           const records = await buildRecords(input);
           const saved = [];
@@ -772,15 +779,13 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
             }
             saved.push(data);
           }
-          if (win) { win.document.write(buildDocument(saved, state.school, { copies: input.copies })); win.document.close(); }
-          else say('บันทึกแล้ว แต่เบราว์เซอร์บล็อกหน้าต่างพิมพ์ — กด "พิมพ์" ในแท็บประวัติการย้ายได้', 'info');
+          openPrint(saved, { copies: input.copies });
           await loadTransfers();
           state.selected.clear();
           state.editing = null;
           say(`✅ บันทึกเรื่องย้าย ${saved.length} คนแล้ว (สถานะ: ส่งเรื่องแล้ว) · นักเรียนยังอยู่ในรายชื่อห้องจนกว่าจะกด "ยืนยันย้ายออก" ในแท็บประวัติ`, 'ok');
           renderNew();
         } catch (error) {
-          if (win) win.close();
           say(missingSchema(error) ? SETUP_HINT : esc(error.message || error), 'err');
         } finally {
           button.disabled = false;
