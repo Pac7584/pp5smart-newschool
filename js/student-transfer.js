@@ -1,0 +1,634 @@
+// นักเรียนย้ายออก (owner 2026-10-18: "เพิ่มเมนูนักเรียนย้าย เลือกนักเรียนแล้วออกเอกสารให้ ผอ.เซ็น")
+// ข้อตกลงกับเจ้าของ: รอบแรกพิมพ์ แบบ พฐ.19 (คำร้องผู้ปกครอง) + พฐ.19/1 (หนังสือส่งตัว ๓ ชุด) ตามคู่มือที่เจ้าของส่งมา
+//   2026-10-18 (แทน บค.19/บค.20 เดิม) · เก็บประวัติ · ตัวอักษรบาง ไม่มีตัวหนา ·
+//   นักเรียนออกจากรายชื่อห้องเมื่อผู้ดูแลกด "ยืนยันย้ายออก" เท่านั้น · เลขที่หนังสือกรอกเอง (จำคำนำหน้าให้)
+//   ช่องลงชื่อเว้นว่างให้เซ็นด้วยมือ · ตราครุฑลายเส้น assets/brand/garuda-line.svg (Wikimedia Commons, สาธารณสมบัติ)
+// หน้า "นักเรียนย้ายออก" (student_transfer) เฉพาะผู้ดูแล: ① ทำเรื่องย้าย  ② ประวัติการย้าย (พิมพ์ซ้ำ/แก้/ยืนยัน/ยกเลิก)
+// ฐานข้อมูล: supabase/migrations/202610180035_student_transfers.sql (ตาราง student_transfers + pp5_confirm_student_transfer)
+(function initStudentTransfer(global) {
+  'use strict';
+  const doc = global.document;
+  const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const client = () => global.PP5Data?.client;
+  const MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม',
+    'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+  const THAI_DIGITS = '๐๑๒๓๔๕๖๗๘๙';
+  const GARUDA = 'assets/brand/garuda-line.svg';
+  const REASONS = ['ย้ายตามผู้ปกครอง', 'ผู้ปกครองย้ายที่อยู่', 'ผู้ปกครองย้ายที่ทำงาน', 'ใกล้ที่พักอาศัย'];
+  const missingSchema = (error) => /student_transfers|pp5_confirm_student_transfer|schema cache|does not exist|PGRST20[25]/i
+    .test(String(error?.message || error?.code || ''));
+  const SETUP_HINT = 'เมนูนี้ยังไม่พร้อม: ผู้ดูแลต้องรัน SQL <b>202610180035_student_transfers.sql</b> ใน Supabase ก่อน';
+
+  // ---------------------------------------------------------------- ตัวช่วยข้อความในเอกสาร
+  const thaiDigits = (value) => String(value ?? '').replace(/[0-9]/g, (d) => THAI_DIGITS[d]);
+  const clean = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
+
+  // วันที่ ISO (ค.ศ. หรือ พ.ศ.) -> { day, month, year พ.ศ. }
+  function dateParts(value) {
+    const m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(String(value || ''));
+    if (!m) return null;
+    const year = Number(m[1]);
+    const month = Number(m[2]);
+    const day = Number(m[3]);
+    if (!month || month > 12 || !day || day > 31) return null;
+    return { day, month: MONTHS[month - 1], year: year < 2400 ? year + 543 : year };
+  }
+  const todayIso = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  // "ป.3" -> "ประถมศึกษาปีที่ 3"
+  function gradeLong(grade) {
+    const m = /^(อ|ป|ม)\.?\s*(\d+)/.exec(clean(grade));
+    if (!m) return clean(grade);
+    return ({ อ: 'อนุบาลปีที่ ', ป: 'ประถมศึกษาปีที่ ', ม: 'มัธยมศึกษาปีที่ ' })[m[1]] + m[2];
+  }
+
+  // ที่อยู่ข้อความเดียวจาก DMC เช่น "12/3 ม.4 ต.บ้านใหม่" -> บ้านเลขที่ + หมู่
+  function parseAddress(text) {
+    const value = clean(text);
+    const house = (/^(?:บ้านเลขที่\s*)?([0-9][0-9/\-]*)/.exec(value) || [])[1] || '';
+    const moo = (/(?:หมู่(?:ที่)?|ม\.)\s*([0-9]+)/.exec(value) || [])[1] || '';
+    return { house, moo };
+  }
+
+  const schoolLabel = (name) => clean(name).replace(/^โรงเรียน\s*/, '');
+  const fullName = (s) => clean(`${s?.prefix || ''}${s?.first_name || ''} ${s?.last_name || ''}`);
+
+  // ---------------------------------------------------------------- เอกสาร พฐ.19 / พฐ.19/1 (ตัวบาง ไม่หนา ตามแบบราชการ)
+  // ตามคู่มือการย้ายนักเรียน (เจ้าของส่งมา 2026-10-18): พฐ.19 คำร้องผู้ปกครอง · พฐ.19/1 หนังสือส่งตัว ๓ ชุด (แทน บค.20)
+  // ค่าที่กรอกพิมพ์ทับเส้นจุดแบบฟอร์ม (ตัวปกติ ไม่หนา) · ค่าว่างพิมพ์เป็นเส้นจุดให้เขียนด้วยมือ
+  const fill = (value, width = 'm') => {
+    const v = clean(value);
+    return v ? `<span class="v">${esc(thaiDigits(v))}</span>` : `<span class="blank ${width}"></span>`;
+  };
+  function dateLine(iso) {
+    const p = dateParts(iso);
+    return `วันที่${fill(p?.day, 's')}เดือน${fill(p?.month)}พ.ศ.${fill(p?.year, 's')}`;
+  }
+  // แบบ พฐ. ใช้คำว่า "เขต/อำเภอ/กิ่งอำเภอ" ตามแบบฟอร์ม
+  const address = (a) => `บ้านเลขที่${fill(a?.house, 's')}หมู่ที่${fill(a?.moo, 's')}แขวง/ตำบล${fill(a?.subdistrict)}`
+    + `เขต/อำเภอ/กิ่งอำเภอ${fill(a?.district)}จังหวัด${fill(a?.province)}`;
+  // ที่ตั้งโรงเรียนแยกบรรทัดตามที่พิมพ์ไว้ในตั้งค่า (ขึ้นบรรทัดใหม่ หรือคั่นด้วยจุลภาค)
+  const addressLines = (school) => clean(school.address) ? String(school.address).split(/\s*(?:\n|,)\s*/).map(clean).filter(Boolean) : [];
+  // "เขียนที่" บรรทัดแรกชื่อโรงเรียน บรรทัดต่อไปที่ตั้ง (ตามแบบมีเส้นจุดสองบรรทัด)
+  const writtenAt = (school) => `<div class="block">เขียนที่${fill(school.name, 'l')}</div>`
+    + (addressLines(school).length
+      ? addressLines(school).map((line) => `<div class="block indent">${esc(thaiDigits(line))}</div>`).join('')
+      : '<div class="block"><span class="blank xl"></span></div>');
+  function studentLine(snap, n = 1) {
+    const born = dateParts(snap?.birth_date);
+    return `${thaiDigits(n)}.${fill(fullName(snap), 'l')}เกิดวันที่${fill(born?.day, 's')}เดือน${fill(born?.month)}พ.ศ.${fill(born?.year, 's')}`
+      + `เลขประจำตัวประชาชน${fill(snap?.national_id)}นักเรียนชั้น${fill(gradeLong(snap?.grade))}`;
+  }
+
+  // แบบ พฐ.19 (คำร้องขอย้ายนักเรียน) — พี่น้องที่ยื่นพร้อมกันอยู่ในคำร้องฉบับเดียว (ข้อ ๑. ๒. ตามแบบ)
+  function bk19(records, school) {
+    const list = Array.isArray(records) ? records : [records];
+    const record = list[0];
+    const f = record.form || {};
+    const dest = { subdistrict: f.dest_subdistrict, district: f.dest_district, province: f.dest_province };
+    return `<section class="sheet bk19">
+<div class="code">แบบ พฐ.๑๙</div>
+<div class="title">คำร้องขอย้ายนักเรียน</div>
+${writtenAt(school)}
+<div class="block">${dateLine(f.request_date)}</div>
+<p class="topic">เรื่อง&emsp;ขอย้ายนักเรียน</p>
+<p class="topic">เรียน&emsp;ผู้อำนวยการโรงเรียน${fill(schoolLabel(school.name), 'l')}</p>
+<p class="para">ด้วย ข้าพเจ้า${fill(f.guardian_name, 'l')}อยู่${address(f.guardian)}
+มีความประสงค์ขอย้ายนักเรียนในปกครองของข้าพเจ้าซึ่งปัจจุบันเรียนอยู่ในสถานศึกษานี้ไปเข้าเรียนที่${fill(record.destination_school, 'l')}
+แขวง/ตำบล${fill(dest.subdistrict)}เขต/อำเภอ/กิ่งอำเภอ${fill(dest.district)}จังหวัด${fill(dest.province)} ดังนี้</p>
+${list.map((r, i) => `<p class="para">${studentLine(r.student_snapshot || {}, i + 1)}</p>`).join('\n')}
+<p class="para">ทั้งนี้ เนื่องจาก${fill(f.reason, 'xl')}และการย้ายไปเข้าเรียนในโรงเรียนดังกล่าว
+นักเรียนจะพักอยู่${address(f.new_address)}</p>
+<p class="para">จึงเรียนมาเพื่อโปรดพิจารณา</p>
+<div class="sign"><div>ขอแสดงความนับถือ</div><div class="gap"></div>
+<div>(ลงชื่อ)<span class="blank l"></span></div><div>(${fill(f.guardian_name, 'l')})</div><div>ผู้ปกครอง</div></div>
+</section>`;
+  }
+
+  // แบบ พฐ.19/1 (หนังสือส่งนักเรียนไปเข้าเรียนในสถานศึกษาที่ขอย้ายเข้า) — พี่น้องอยู่ในหนังสือฉบับเดียว ข้อ ๑. ๒.
+  function bk20(records, school) {
+    const list = Array.isArray(records) ? records : [records];
+    const record = list[0];
+    const f = record.form || {};
+    const count = (n) => fill(Number(n) > 0 ? String(Number(n)) : '', 's');
+    const position = clean(school.directorPosition) || `ผู้อำนวยการโรงเรียน${schoolLabel(school.name)}`;
+    // วางตามหนังสือภายนอก (ระเบียบงานสารบรรณ): ครุฑ ๓ ซม. กลางหน้า · "ที่" ชิดซ้าย และชื่อ/ที่ตั้งโรงเรียนด้านขวา
+    // บรรทัดแรกอยู่ระดับช่วงล่างของครุฑ · วันที่เริ่มกึ่งกลางหน้า · ลงท้าย ชื่อในวงเล็บ + ตำแหน่ง (เว้นที่ลงนาม)
+    const date = dateParts(record.doc_date);
+    return `<section class="sheet bk20 letter">
+<div class="code">แบบ พฐ.๑๙/๑</div>
+<div class="letterhead">
+  <img class="garuda" src="${esc(school.base)}${GARUDA}" alt="ตราครุฑ">
+  <div class="docno">ที่ ${clean(record.doc_no) ? esc(thaiDigits(clean(record.doc_no))) : '<span class="blank l"></span>'}</div>
+  <div class="owner"><div>${esc(thaiDigits(clean(school.name)))}</div>${addressLines(school).map((line) => `<div>${esc(thaiDigits(line))}</div>`).join('')}</div>
+</div>
+<div class="letterdate">${date ? esc(thaiDigits(`${date.day} ${date.month} ${date.year}`)) : '<span class="blank l"></span>'}</div>
+<div class="row"><span>เรื่อง</span><span>ส่งนักเรียนขอย้ายมาเข้าเรียน</span></div>
+<div class="row"><span>เรียน</span><span>ผู้อำนวยการโรงเรียน${fill(schoolLabel(record.destination_school), 'l')}</span></div>
+<table class="enc">
+<tr><td>สิ่งที่ส่งมาด้วย</td><td>๑. ปพ.๙</td><td class="n">จำนวน${count(f.pp9)}ฉบับ</td></tr>
+<tr><td></td><td>๒. ปพ.๑</td><td class="n">จำนวน${count(f.pp1)}ฉบับ</td></tr>
+<tr><td></td><td>๓. บัตรบันทึกสุขภาพและหรือระเบียนสะสม</td><td class="n">จำนวน${count(f.health)}ฉบับ</td></tr></table>
+<p class="para">ด้วย ${fill(f.guardian_name, 'l')}อยู่${address(f.guardian)}
+ได้ขอย้ายนักเรียนในปกครองมาเข้าเรียนในสถานศึกษานี้ ได้แก่</p>
+${list.map((r, i) => `<p class="para">${studentLine(r.student_snapshot || {}, i + 1)}</p>`).join('\n')}
+<p class="para">เนื่องจาก${fill(f.reason, 'xl')}อนึ่ง นักเรียนที่ย้ายมาเข้าเรียนนี้จะพักอยู่${address(f.new_address)}</p>
+<p class="para">จึงเรียนมาเพื่อโปรดทราบและดำเนินการต่อไป</p>
+<div class="closing"><div>ขอแสดงความนับถือ</div><div class="signspace"></div>
+<div>(${clean(school.director) ? esc(clean(school.director)) : '<span class="blank l"></span>'})</div><div>${esc(thaiDigits(position))}</div></div>
+${clean(school.phone) ? `<div class="contact"><div>${esc(thaiDigits(clean(school.name)))}</div><div>โทร. ${esc(thaiDigits(clean(school.phone)))}</div></div>` : ''}
+</section>`;
+  }
+
+  // ฟอนต์หนังสือราชการ TH Sarabun New ๑๖ พอยต์ (ติดตั้งในเครื่องโรงเรียนเกือบทุกเครื่อง) — เทียบกับหนังสือจริงที่เจ้าของส่งมา
+  // 2026-10-18: Sarabun ของ Google เส้นหนาและตัวใหญ่กว่าแม้ตั้งน้ำหนักบาง · เครื่องที่ไม่มีฟอนต์ราชการใช้ Sarabun ของระบบแทน
+  // ไม่มีตัวหนาในเอกสาร
+  const printStyle = (base) => `
+@font-face{font-family:'PP5Sarabun';src:url('${base}assets/fonts/Sarabun-Regular.ttf') format('truetype');font-weight:400;font-style:normal}
+@page{size:A4;margin:20mm 20mm 16mm 30mm}
+*{box-sizing:border-box}
+body{margin:0;font-family:'TH Sarabun New','TH SarabunPSK','TH SarabunIT๙','PP5Sarabun',sans-serif;font-weight:400;font-size:16pt;line-height:1.2;color:#000}
+b,strong,h1,h2,h3{font-weight:400}
+.letter .v{border-bottom:0;padding:0 .15em}
+.block.indent{padding-left:2.2em}
+.sheet{position:relative;page-break-after:always;break-after:page}
+.sheet:last-child{page-break-after:auto;break-after:auto}
+.code{text-align:right}
+.title{text-align:center;margin:2px 0 6px}
+.block{margin-left:55%}
+.topic{margin:6px 0}
+.para{text-indent:2.5cm;margin:2px 0;text-align:justify;text-justify:inter-character}
+.v{border-bottom:1px dotted #000;padding:0 .25em}
+.blank{display:inline-block;border-bottom:1px dotted #000;height:1.15em;vertical-align:baseline;margin:0 .15em}
+.blank.s{width:2.8em}.blank.m{width:7em}.blank.l{width:12em}.blank.xl{width:22em}
+.bk20 .code{position:absolute;right:0;top:-1.2em}
+.letterhead{position:relative;min-height:3cm;padding-top:2.05cm}
+.letterhead .garuda{position:absolute;top:0;left:50%;transform:translateX(-50%);height:3cm}
+.letterhead .docno{position:absolute;left:0;top:2.05cm}
+.letterhead .owner{margin-left:calc(50% + 1.8cm)}
+.letterdate{margin:10px 0 8px 50%}
+.row{display:grid;grid-template-columns:1.6cm 1fr;margin:6px 0}
+.enc{border-collapse:collapse;margin:5px 0;width:100%}.enc td{padding:0 10px 0 0;vertical-align:top}
+.enc td:first-child{width:2.9cm;white-space:nowrap}.enc td.n{text-align:right;white-space:nowrap;padding-right:0}
+.closing{margin:24px 0 0 40%;text-align:center}.closing .signspace{height:1.6cm}
+.contact{margin-top:1.4cm}
+.sign{margin:22px 0 0 40%;text-align:center;line-height:1.5}.sign .gap{height:30px}
+@media screen{body{background:#e5e7eb;padding:16px}.sheet{background:#fff;width:210mm;max-width:100%;min-height:297mm;margin:0 auto 16px;padding:20mm 20mm 16mm 30mm;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+.bk20 .code{right:20mm;top:calc(20mm - 1.2em)}}`;
+
+  // พี่น้องที่บันทึกพร้อมกัน (ผู้ปกครอง ปลายทาง เหตุผล วันที่ ที่พัก เลขหนังสือเดียวกัน) รวมเป็น พฐ.19 / พฐ.19/1 ฉบับเดียว
+  function requestGroups(records) {
+    const groups = new Map();
+    records.forEach((r) => {
+      const f = r.form || {};
+      const key = JSON.stringify([clean(f.guardian_name), clean(r.destination_school), f.request_date || '', clean(f.reason),
+        f.new_address || {}, f.guardian || {}, clean(r.doc_no), r.doc_date || '']);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(r);
+    });
+    return [...groups.values()];
+  }
+
+  // records: แถว student_transfers (หรือร่างที่ยังไม่บันทึก) · which: 'both' | 'bk19' | 'bk20'
+  function buildDocument(records, school, { which = 'both', copies = 3 } = {}) {
+    const sheets = [];
+    const groups = requestGroups(records);
+    if (which !== 'bk20') groups.forEach((group) => sheets.push(bk19(group, school)));
+    if (which !== 'bk19') groups.forEach((group) => {
+      for (let i = 0; i < Math.max(1, Math.min(5, Number(copies) || 1)); i += 1) sheets.push(bk20(group, school));
+    });
+    const title = records.length === 1 ? `เอกสารย้ายนักเรียน ${fullName(records[0].student_snapshot)}` : `เอกสารย้ายนักเรียน ${records.length} คน`;
+    const endScript = '<' + '/script>';
+    return `<!doctype html><html lang="th"><head><meta charset="utf-8"><title>${esc(title)}</title>
+<style>${printStyle(esc(school.base || ''))}</style></head><body>
+${sheets.join('\n')}
+<script>Promise.all([document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()].concat(Array.from(document.images).map(function(i){return i.complete?0:new Promise(function(r){i.onload=i.onerror=r;});}))).then(function(){setTimeout(function(){window.print();},300);});${endScript}</body></html>`;
+  }
+
+  // ---------------------------------------------------------------- หน้าเว็บ
+  const STYLE = `
+.pp5-tr{max-width:1100px;margin:0 auto;display:grid;gap:14px}
+.pp5-tr-card{background:var(--bg-card,#fff);border:1px solid var(--border-color,#e2e8f0);border-radius:16px;padding:18px 20px;box-shadow:0 2px 10px rgba(15,23,42,.05)}
+.pp5-tr-head h2{margin:0;font-size:1.35rem;font-weight:800}
+.pp5-tr-head p{margin:4px 0 0;color:var(--text-secondary,#64748b)}
+.pp5-tr-tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--border-color,#e2e8f0);margin:12px 0 0}
+.pp5-tr-tabs button{border:0;background:none;padding:9px 14px;font-weight:600;color:var(--text-secondary,#64748b);border-radius:9px 9px 0 0;cursor:pointer}
+.pp5-tr-tabs button[aria-selected="true"]{color:var(--primary);box-shadow:inset 0 -3px 0 var(--primary);background:color-mix(in srgb,var(--primary) 7%,transparent)}
+.pp5-tr h3{font-size:1.02rem;font-weight:700;margin:16px 0 8px}
+.pp5-tr h3:first-child{margin-top:0}
+.pp5-tr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px 14px}
+.pp5-tr-grid label,.pp5-tr-pick label.f{display:grid;gap:4px;font-weight:600;font-size:.9rem}
+.pp5-tr-grid .wide{grid-column:1/-1}
+.pp5-tr-pick{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+.pp5-tr-pick select{min-width:110px}
+.pp5-tr-students{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;margin-top:10px;max-height:300px;overflow:auto;padding:2px}
+.pp5-tr-students label{display:flex;gap:8px;align-items:center;padding:7px 10px;border:1px solid var(--border-color,#e2e8f0);border-radius:10px;cursor:pointer}
+.pp5-tr-students label:has(input:checked){border-color:var(--primary);background:color-mix(in srgb,var(--primary) 8%,transparent)}
+.pp5-tr-hint{color:var(--text-secondary,#64748b);font-size:.88rem}
+.pp5-tr table{width:100%;border-collapse:collapse}
+.pp5-tr th,.pp5-tr td{padding:8px;border-bottom:1px solid var(--border-color,#eef2f7);text-align:left;vertical-align:middle}
+.pp5-tr-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.pp5-tr-pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.82rem;font-weight:700;white-space:nowrap}
+.pp5-tr-pill.requested{background:#fef9c3;color:#854d0e}.pp5-tr-pill.transferred{background:#dcfce7;color:#166534}.pp5-tr-pill.cancelled{background:#e2e8f0;color:#475569}
+.pp5-tr-msg{padding:10px 14px;border-radius:12px;font-weight:600}
+.pp5-tr-msg.info{background:#eff6ff;color:#1e40af}.pp5-tr-msg.ok{background:#dcfce7;color:#166534}.pp5-tr-msg.err{background:#fee2e2;color:#991b1b}
+.pp5-tr-row-actions{display:flex;gap:6px;flex-wrap:wrap}
+.pp5-tr [hidden]{display:none!important}
+[data-theme="dark"] .pp5-tr-pill.requested{background:#713f12;color:#fef08a}[data-theme="dark"] .pp5-tr-pill.transferred{background:#14532d;color:#bbf7d0}
+[data-theme="dark"] .pp5-tr-pill.cancelled{background:#334155;color:#e2e8f0}
+@media (max-width:640px){.pp5-tr-card{padding:14px}.pp5-tr-hide-sm{display:none}}`;
+
+  function shell() {
+    return `<div class="pp5-tr" id="pp5TransferPage"><style>${STYLE}</style>
+<div class="pp5-tr-card pp5-tr-head">
+  <h2><i class="bi bi-box-arrow-right" style="color:var(--primary)"></i> นักเรียนย้ายออก</h2>
+  <p>เลือกนักเรียน กรอกข้อมูลการย้าย แล้วพิมพ์ แบบ พฐ.๑๙ (คำร้องผู้ปกครอง) และ พฐ.๑๙/๑ (หนังสือส่งตัว) ให้ผู้อำนวยการลงนาม</p>
+  <div class="pp5-tr-tabs" role="tablist">
+    <button type="button" role="tab" data-tab="new" aria-selected="true">ทำเรื่องย้าย</button>
+    <button type="button" role="tab" data-tab="history" aria-selected="false">ประวัติการย้าย</button>
+  </div>
+</div>
+<div class="pp5-tr-msg" data-msg hidden role="status"></div>
+<div class="pp5-tr-card" data-body><div class="pp5-tr-hint">กำลังโหลด…</div></div>
+</div>`;
+  }
+
+  async function mount(root) {
+    const state = {
+      isAdmin: String(global.localStorage?.getItem('role') || '').toLowerCase() === 'admin',
+      year: '', school: {}, students: [], transfers: [], tab: 'new', editing: null, selected: new Set(), details: new Map(),
+      grade: '', room: ''
+    };
+    const $ = (sel) => root.querySelector(sel);
+    const body = $('[data-body]');
+    const say = (text, kind) => { const box = $('[data-msg]'); box.hidden = !text; box.className = `pp5-tr-msg ${kind || 'info'}`; box.innerHTML = text || ''; };
+    if (!state.isAdmin) { body.innerHTML = '<div class="pp5-tr-hint">เมนูนี้สำหรับผู้ดูแลระบบ (งานทะเบียน)</div>'; return; }
+
+    const settings = await global.PP5Data.settings.get();
+    state.year = String(settings.academicYear || settings.academic_year || '');
+    state.school = {
+      name: settings.school_name || settings.schoolName || '',
+      address: settings.school_address || settings.schoolAddress || '',
+      director: settings.director_name || settings.directorName || '',
+      directorPosition: settings.director_position || '',
+      phone: settings.school_phone || settings.schoolPhone || settings.phone || '',
+      base: new URL('.', global.location.href).href
+    };
+
+    async function loadStudents() {
+      const rows = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await client().from('students')
+          .select('id,national_id,prefix,first_name,last_name,grade,room,student_number')
+          .eq('status', 'active').order('grade').order('room').order('student_number').range(from, from + 999);
+        if (error) throw error;
+        rows.push(...(data || []));
+        if (!data || data.length < 1000) break;
+      }
+      state.students = rows;
+    }
+    async function loadTransfers() {
+      const { data, error } = await client().from('student_transfers').select('*').order('created_at', { ascending: false }).limit(300);
+      if (error) throw error;
+      state.transfers = data || [];
+    }
+    async function loadDetails(ids) {
+      const missing = ids.filter((id) => !state.details.has(id));
+      for (let i = 0; i < missing.length; i += 100) {
+        const chunk = missing.slice(i, i + 100);
+        const { data, error } = await client().from('student_details')
+          .select('student_id,birth_date,address,subdistrict,district,province,father_name,father_last_name,mother_name,mother_last_name,guardian_name,guardian_relation')
+          .in('student_id', chunk);
+        if (error) throw error;
+        chunk.forEach((id) => state.details.set(id, null));
+        (data || []).forEach((row) => state.details.set(String(row.student_id), row));
+      }
+    }
+
+    try {
+      await Promise.all([loadStudents(), loadTransfers()]);
+    } catch (error) {
+      body.innerHTML = `<div class="pp5-tr-msg err">${missingSchema(error) ? SETUP_HINT : esc(error.message || error)}</div>`;
+      return;
+    }
+
+    const studentById = (id) => state.students.find((s) => String(s.id) === String(id));
+    const lastPrefix = () => {
+      const last = state.transfers.find((t) => clean(t.doc_no));
+      return last ? clean(last.doc_no).replace(/[0-9๐-๙]+\s*$/, '') : '';
+    };
+    const guardianOf = (detail) => clean(detail?.guardian_name)
+      || clean(`${detail?.father_name || ''} ${detail?.father_last_name || ''}`)
+      || clean(`${detail?.mother_name || ''} ${detail?.mother_last_name || ''}`);
+
+    function snapshotOf(student, detail) {
+      return {
+        prefix: student.prefix || '', first_name: student.first_name || '', last_name: student.last_name || '',
+        national_id: student.national_id || '', birth_date: detail?.birth_date || '', grade: student.grade || '',
+        room: student.room || '', student_number: student.student_number ?? null
+      };
+    }
+
+    // ---------------- แท็บ ทำเรื่องย้าย
+    function addressFields(prefix, a = {}) {
+      return `<label>บ้านเลขที่<input class="form-control" name="${prefix}_house" maxlength="30" value="${esc(a.house)}"></label>
+<label>หมู่ที่<input class="form-control" name="${prefix}_moo" maxlength="10" value="${esc(a.moo)}"></label>
+<label>แขวง/ตำบล<input class="form-control" name="${prefix}_subdistrict" maxlength="80" value="${esc(a.subdistrict)}"></label>
+<label>เขต/อำเภอ<input class="form-control" name="${prefix}_district" maxlength="80" value="${esc(a.district)}"></label>
+<label>จังหวัด<input class="form-control" name="${prefix}_province" maxlength="80" value="${esc(a.province)}"></label>`;
+    }
+
+    function renderNew() {
+      const editing = state.editing;
+      const f = editing?.form || {};
+      // อนุบาล -> ประถม -> มัธยม (ฐานข้อมูลเรียงตามตัวอักษร ทำให้ อ. ไปอยู่ท้าย ม.)
+      const rank = (g) => { const m = /^(อ|ป|ม)\.?\s*(\d+)/.exec(clean(g)); return m ? ({ อ: 0, ป: 100, ม: 200 })[m[1]] + Number(m[2]) : 999; };
+      const grades = [...new Set(state.students.map((s) => s.grade))].sort((a, b) => rank(a) - rank(b) || String(a).localeCompare(String(b), 'th'));
+      if (!state.grade || !grades.includes(state.grade)) state.grade = grades[0] || '';
+      const rooms = [...new Set(state.students.filter((s) => s.grade === state.grade).map((s) => String(s.room)))];
+      if (!rooms.includes(state.room)) state.room = rooms[0] || '';
+      const list = state.students.filter((s) => s.grade === state.grade && String(s.room) === state.room);
+      body.innerHTML = `
+${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเรื่องย้ายของ <b>${esc(fullName(editing.student_snapshot))}</b> <button type="button" class="btn btn-sm btn-outline-secondary" data-cancel-edit>เลิกแก้ไข</button></div>` : `
+<h3>๑. เลือกนักเรียน</h3>
+<div class="pp5-tr-pick">
+  <label class="f">ชั้น<select class="form-select" data-grade>${grades.map((g) => `<option${g === state.grade ? ' selected' : ''}>${esc(g)}</option>`).join('')}</select></label>
+  <label class="f">ห้อง<select class="form-select" data-room>${rooms.map((r) => `<option${r === state.room ? ' selected' : ''}>${esc(r)}</option>`).join('')}</select></label>
+  <span class="pp5-tr-hint">เลือกได้หลายคน (เช่น พี่น้องที่ย้ายพร้อมกัน) · ข้อมูลผู้ปกครองและที่อยู่ใช้ร่วมกัน</span>
+</div>
+<div class="pp5-tr-students" role="group" aria-label="นักเรียนในห้อง">${list.map((s) => `<label><input type="checkbox" data-student="${esc(s.id)}"${state.selected.has(String(s.id)) ? ' checked' : ''}>
+  <span>${esc(s.student_number ?? '')}. ${esc(fullName(s))}</span></label>`).join('') || '<div class="pp5-tr-hint">ไม่มีนักเรียนในห้องนี้</div>'}</div>
+<div class="pp5-tr-hint" data-selected-note style="margin-top:6px"></div>`}
+<form data-form novalidate>
+<h3>๒. โรงเรียนที่จะย้ายไป</h3>
+<div class="pp5-tr-grid">
+  <label class="wide">ชื่อโรงเรียนปลายทาง *<input class="form-control" name="destination_school" required maxlength="200" value="${esc(editing?.destination_school)}" placeholder="เช่น โรงเรียนบ้านหนองแวง"></label>
+  <label>แขวง/ตำบล<input class="form-control" name="dest_subdistrict" maxlength="80" value="${esc(f.dest_subdistrict)}"></label>
+  <label>เขต/อำเภอ<input class="form-control" name="dest_district" maxlength="80" value="${esc(f.dest_district)}"></label>
+  <label>จังหวัด<input class="form-control" name="dest_province" maxlength="80" value="${esc(f.dest_province)}"></label>
+  <label class="wide">เหตุผลที่ย้าย *<input class="form-control" name="reason" required maxlength="300" list="pp5TransferReasons" value="${esc(f.reason)}" autocomplete="off"></label>
+  <datalist id="pp5TransferReasons">${REASONS.map((r) => `<option value="${esc(r)}">`).join('')}</datalist>
+</div>
+<h3>๓. ผู้ปกครองที่ยื่นคำร้อง</h3>
+<div class="pp5-tr-grid">
+  <label class="wide">ชื่อ-สกุลผู้ปกครอง (พร้อมคำนำหน้า)<input class="form-control" name="guardian_name" maxlength="160" value="${esc(f.guardian_name)}"></label>
+  ${addressFields('guardian', f.guardian)}
+</div>
+<h3>๔. ที่พักของนักเรียนหลังย้าย</h3>
+<div class="pp5-tr-actions" style="margin-top:0"><button type="button" class="btn btn-sm btn-outline-primary" data-copy-address>ใช้ที่อยู่เดียวกับผู้ปกครอง</button></div>
+<div class="pp5-tr-grid" style="margin-top:8px">${addressFields('new', f.new_address)}</div>
+<h3>๕. หนังสือส่งตัว (พฐ.๑๙/๑)</h3>
+<div class="pp5-tr-grid">
+  <label class="wide">เลขที่หนังสือ (ที่ ...)<input class="form-control" name="doc_no" maxlength="80" value="${esc(editing ? editing.doc_no || '' : lastPrefix())}" placeholder="เช่น ศธ ๐๔๐๐๑.๐๐๑/๑๒๓"></label>
+  <label>วันที่เขียนคำร้อง (พฐ.๑๙)<input class="form-control" type="date" name="request_date" value="${esc(f.request_date || todayIso())}"></label>
+  <label>วันที่ออกหนังสือ (พฐ.๑๙/๑)<input class="form-control" type="date" name="doc_date" value="${esc(editing?.doc_date || todayIso())}"></label>
+  <label>ปพ.๙ (ฉบับ)<input class="form-control" type="number" min="0" max="9" name="pp9" value="${esc(f.pp9 ?? 1)}"></label>
+  <label>ปพ.๑ (ฉบับ)<input class="form-control" type="number" min="0" max="9" name="pp1" value="${esc(f.pp1 ?? 1)}"></label>
+  <label>บัตรบันทึกสุขภาพ/ระเบียนสะสม (ฉบับ)<input class="form-control" type="number" min="0" max="9" name="health" value="${esc(f.health ?? 1)}"></label>
+  <label>พิมพ์ พฐ.๑๙/๑ (ชุด)<input class="form-control" type="number" min="1" max="5" name="copies" value="3"></label>
+</div>
+<p class="pp5-tr-hint" style="margin:6px 0 0">พฐ.๑๙/๑ ทำ ๓ ชุด: ส่งโรงเรียนปลายทาง ๑ ชุด · ให้ผู้ปกครองถือไป ๑ ชุด · เก็บไว้ที่โรงเรียน ๑ ชุด · พี่น้องที่ย้ายพร้อมกันอยู่ในหนังสือฉบับเดียว</p>
+<div class="pp5-tr-actions">
+  <button type="submit" class="btn btn-primary" data-save><i class="bi bi-printer"></i> ${editing ? 'บันทึกการแก้ไขและพิมพ์' : 'บันทึกและพิมพ์ พฐ.๑๙ + พฐ.๑๙/๑'}</button>
+  <button type="button" class="btn btn-outline-secondary" data-preview>ดูตัวอย่าง (ยังไม่บันทึก)</button>
+  <span class="pp5-tr-hint">ช่องที่ว่างจะพิมพ์เป็นเส้นจุดให้เขียนด้วยมือ · ช่องลงชื่อเว้นว่างให้ลงนาม</span>
+</div>
+</form>`;
+      bindNew();
+      renderDocNos();
+    }
+
+    function selectedStudents() {
+      if (state.editing) return [{ id: state.editing.student_id, snapshot: state.editing.student_snapshot, transfer: state.editing }];
+      return [...state.selected].map((id) => studentById(id)).filter(Boolean).map((s) => ({ id: String(s.id), student: s }));
+    }
+
+    function renderDocNos() {
+      const note = $('[data-selected-note]');
+      const items = selectedStudents();
+      if (note) note.textContent = items.length ? `เลือกแล้ว ${items.length} คน: ${items.map((i) => fullName(i.student)).join(', ')}` : 'ยังไม่ได้เลือกนักเรียน';
+    }
+
+    // เติมผู้ปกครอง/ที่อยู่จากข้อมูลนักเรียนคนแรกที่เลือก (เฉพาะช่องที่ยังว่าง)
+    async function prefillFromStudent() {
+      const items = selectedStudents();
+      if (!items.length || state.editing) return;
+      try { await loadDetails(items.map((i) => i.id)); } catch (error) { say(esc(error.message || error), 'err'); return; }
+      const detail = state.details.get(items[0].id);
+      if (!detail) return;
+      const form = $('[data-form]');
+      const parsed = parseAddress(detail.address);
+      const setIfEmpty = (name, value) => { const el = form.elements[name]; if (el && !clean(el.value) && clean(value)) el.value = clean(value); };
+      setIfEmpty('guardian_name', guardianOf(detail));
+      setIfEmpty('guardian_house', parsed.house);
+      setIfEmpty('guardian_moo', parsed.moo);
+      setIfEmpty('guardian_subdistrict', detail.subdistrict);
+      setIfEmpty('guardian_district', detail.district);
+      setIfEmpty('guardian_province', detail.province);
+    }
+
+    function readForm() {
+      const form = $('[data-form]');
+      const v = (name) => clean(form.elements[name]?.value);
+      const addr = (p) => ({ house: v(`${p}_house`), moo: v(`${p}_moo`), subdistrict: v(`${p}_subdistrict`), district: v(`${p}_district`), province: v(`${p}_province`) });
+      const n = (name) => Math.max(0, Math.min(9, Number(v(name)) || 0));
+      return {
+        destination_school: v('destination_school'),
+        doc_no: v('doc_no') || null,
+        doc_date: v('doc_date') || null,
+        copies: Math.max(1, Math.min(5, Number(v('copies')) || 3)),
+        form: {
+          dest_subdistrict: v('dest_subdistrict'), dest_district: v('dest_district'), dest_province: v('dest_province'),
+          reason: v('reason'), guardian_name: v('guardian_name'), guardian: addr('guardian'), new_address: addr('new'),
+          request_date: v('request_date') || null, pp9: n('pp9'), pp1: n('pp1'), health: n('health')
+        }
+      };
+    }
+
+    async function buildRecords(input) {
+      const items = selectedStudents();
+      await loadDetails(items.filter((i) => i.student).map((i) => i.id));
+      return items.map((i) => ({
+        id: i.transfer?.id || null,
+        student_id: i.id,
+        academic_year: i.transfer?.academic_year || state.year,
+        destination_school: input.destination_school,
+        doc_no: input.doc_no,
+        doc_date: input.doc_date,
+        form: input.form,
+        student_snapshot: i.transfer ? i.transfer.student_snapshot : snapshotOf(i.student, state.details.get(i.id))
+      }));
+    }
+
+    function openPrint(records, options) {
+      const win = global.open('', '_blank');
+      if (!win) { say('เบราว์เซอร์บล็อกหน้าต่างพิมพ์ กรุณาอนุญาตป๊อปอัปของเว็บนี้ แล้วกดอีกครั้ง', 'err'); return false; }
+      win.document.write(buildDocument(records, state.school, options));
+      win.document.close();
+      return true;
+    }
+
+    function validate(input) {
+      if (!selectedStudents().length) return 'กรุณาเลือกนักเรียนอย่างน้อย ๑ คน';
+      if (!input.destination_school) return 'กรุณากรอกชื่อโรงเรียนปลายทาง';
+      if (!input.form.reason) return 'กรุณากรอกเหตุผลที่ย้าย';
+      return '';
+    }
+
+    function bindNew() {
+      $('[data-cancel-edit]')?.addEventListener('click', () => { state.editing = null; say(''); renderNew(); });
+      $('[data-grade]')?.addEventListener('change', (e) => { state.grade = e.target.value; state.room = ''; renderNew(); });
+      $('[data-room]')?.addEventListener('change', (e) => { state.room = e.target.value; renderNew(); });
+      root.querySelectorAll('[data-student]').forEach((box) => box.addEventListener('change', () => {
+        if (box.checked) state.selected.add(box.dataset.student); else state.selected.delete(box.dataset.student);
+        renderDocNos();
+        if (box.checked) prefillFromStudent();
+      }));
+      $('[data-copy-address]').addEventListener('click', () => {
+        const form = $('[data-form]');
+        ['house', 'moo', 'subdistrict', 'district', 'province'].forEach((k) => { form.elements[`new_${k}`].value = form.elements[`guardian_${k}`].value; });
+      });
+      $('[data-preview]').addEventListener('click', async () => {
+        const input = readForm();
+        const problem = validate(input);
+        if (problem) { say(problem, 'err'); return; }
+        say('');
+        try { openPrint(await buildRecords(input), { copies: input.copies }); } catch (error) { say(esc(error.message || error), 'err'); }
+      });
+      $('[data-form]').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const input = readForm();
+        const problem = validate(input);
+        if (problem) { say(problem, 'err'); return; }
+        const button = $('[data-save]');
+        button.disabled = true;
+        // เปิดหน้าต่างพิมพ์ทันทีที่กด (ก่อนรอฐานข้อมูล) เพื่อไม่ให้เบราว์เซอร์บล็อกป๊อปอัป
+        const win = global.open('', '_blank');
+        try {
+          const records = await buildRecords(input);
+          const saved = [];
+          for (const record of records) {
+            const row = {
+              destination_school: record.destination_school, doc_no: record.doc_no, doc_date: record.doc_date,
+              form: record.form, student_snapshot: record.student_snapshot
+            };
+            const query = record.id
+              ? client().from('student_transfers').update(row).eq('id', record.id).select('*').single()
+              : client().from('student_transfers').insert({ ...row, student_id: record.student_id, academic_year: record.academic_year }).select('*').single();
+            const { data, error } = await query;
+            if (error) {
+              if (/duplicate|unique/i.test(error.message || '')) throw new Error(`${fullName(record.student_snapshot)} มีเรื่องย้ายที่ยังไม่ปิดอยู่แล้ว ดูได้ในแท็บ "ประวัติการย้าย"`);
+              throw error;
+            }
+            saved.push(data);
+          }
+          if (win) { win.document.write(buildDocument(saved, state.school, { copies: input.copies })); win.document.close(); }
+          else say('บันทึกแล้ว แต่เบราว์เซอร์บล็อกหน้าต่างพิมพ์ — กด "พิมพ์" ในแท็บประวัติการย้ายได้', 'info');
+          await loadTransfers();
+          state.selected.clear();
+          state.editing = null;
+          say(`✅ บันทึกเรื่องย้าย ${saved.length} คนแล้ว (สถานะ: ส่งเรื่องแล้ว) · นักเรียนยังอยู่ในรายชื่อห้องจนกว่าจะกด "ยืนยันย้ายออก" ในแท็บประวัติ`, 'ok');
+          renderNew();
+        } catch (error) {
+          if (win) win.close();
+          say(missingSchema(error) ? SETUP_HINT : esc(error.message || error), 'err');
+        } finally {
+          button.disabled = false;
+        }
+      });
+    }
+
+    // ---------------- แท็บ ประวัติการย้าย
+    const STATUS = { requested: 'ส่งเรื่องแล้ว', transferred: 'ย้ายออกแล้ว', cancelled: 'ยกเลิก' };
+    function thaiShortDate(iso) {
+      const p = dateParts(iso);
+      return p ? `${p.day} ${p.month.slice(0, 3)}${p.month.length > 3 ? '.' : ''} ${String(p.year).slice(2)}` : '-';
+    }
+    function renderHistory() {
+      const rows = state.transfers.map((t) => {
+        const snap = t.student_snapshot || {};
+        const open = t.status === 'requested';
+        return `<tr data-id="${esc(t.id)}">
+  <td>${esc(thaiShortDate(t.doc_date || t.created_at))}</td>
+  <td><strong>${esc(fullName(snap))}</strong><div class="pp5-tr-hint">${esc(snap.grade || '')}/${esc(snap.room || '')}</div></td>
+  <td class="pp5-tr-hide-sm">${esc(t.destination_school)}</td>
+  <td class="pp5-tr-hide-sm">${esc(t.doc_no || '-')}</td>
+  <td><span class="pp5-tr-pill ${esc(t.status)}">${esc(STATUS[t.status] || t.status)}</span></td>
+  <td><div class="pp5-tr-row-actions">
+    <button type="button" class="btn btn-sm btn-outline-primary" data-print><i class="bi bi-printer"></i> พิมพ์</button>
+    ${open ? `<button type="button" class="btn btn-sm btn-outline-secondary" data-edit>แก้ไข</button>
+    <button type="button" class="btn btn-sm btn-success" data-confirm>ยืนยันย้ายออก</button>
+    <button type="button" class="btn btn-sm btn-outline-danger" data-cancel>ยกเลิกเรื่อง</button>` : ''}
+  </div></td></tr>`;
+      }).join('');
+      body.innerHTML = `<p class="pp5-tr-hint" style="margin-top:0">"ยืนยันย้ายออก" เมื่อการย้ายเสร็จแล้ว (เช่น เขตพื้นที่อนุญาตหรือโรงเรียนใหม่รับแล้ว): นักเรียนจะออกจากรายชื่อห้อง
+ส่วนผลการเรียน เวลาเรียน และประวัติทั้งหมดยังเก็บไว้</p>
+<div style="overflow-x:auto"><table><thead><tr><th>วันที่</th><th>นักเรียน</th><th class="pp5-tr-hide-sm">ย้ายไป</th><th class="pp5-tr-hide-sm">เลขที่หนังสือ</th><th>สถานะ</th><th></th></tr></thead>
+<tbody>${rows || '<tr><td colspan="6" class="pp5-tr-hint">ยังไม่มีเรื่องย้าย</td></tr>'}</tbody></table></div>`;
+      body.querySelectorAll('tr[data-id]').forEach((tr) => {
+        const t = state.transfers.find((x) => x.id === tr.dataset.id);
+        tr.querySelector('[data-print]').addEventListener('click', () => openPrint([t], { copies: 3 }));
+        tr.querySelector('[data-edit]')?.addEventListener('click', () => { state.editing = t; selectTab('new'); });
+        // ปุ่มสองจังหวะ (ไม่ใช้กล่องยืนยันของเบราว์เซอร์): กดครั้งแรกเปลี่ยนเป็น "กดอีกครั้งเพื่อยืนยัน"
+        const twoStep = (button, label, run) => button?.addEventListener('click', async () => {
+          if (!button.dataset.armed) {
+            button.dataset.armed = '1';
+            button.textContent = label;
+            setTimeout(() => { if (button.isConnected && button.dataset.armed) { delete button.dataset.armed; renderHistory(); } }, 6000);
+            return;
+          }
+          button.disabled = true;
+          try { await run(); await Promise.all([loadTransfers(), loadStudents()]); renderHistory(); } catch (error) { say(esc(error.message || error), 'err'); button.disabled = false; }
+        });
+        twoStep(tr.querySelector('[data-confirm]'), 'กดอีกครั้งเพื่อยืนยัน', async () => {
+          const { error } = await client().rpc('pp5_confirm_student_transfer', { p_transfer_id: t.id });
+          if (error) throw error;
+          say(`✅ ยืนยันย้ายออกแล้ว: ${esc(fullName(t.student_snapshot))} ออกจากรายชื่อห้อง ${esc(t.student_snapshot?.grade || '')}/${esc(t.student_snapshot?.room || '')}`, 'ok');
+        });
+        twoStep(tr.querySelector('[data-cancel]'), 'กดอีกครั้งเพื่อยกเลิก', async () => {
+          const { error } = await client().from('student_transfers').update({ status: 'cancelled' }).eq('id', t.id);
+          if (error) throw error;
+          say(`ยกเลิกเรื่องย้ายของ ${esc(fullName(t.student_snapshot))} แล้ว นักเรียนยังอยู่ในห้องเดิม`, 'info');
+        });
+      });
+    }
+
+    function selectTab(tab) {
+      state.tab = tab;
+      root.querySelectorAll('[data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+      if (tab === 'new') renderNew(); else renderHistory();
+    }
+    root.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { say(''); if (b.dataset.tab === 'new') state.editing = null; selectTab(b.dataset.tab); }));
+    selectTab('new');
+  }
+
+  // ----------------------------------------------------------------
+  function apply() {
+    const root = doc?.getElementById('pp5TransferPage');
+    if (root && !root.__pp5Mounted) {
+      root.__pp5Mounted = true;
+      mount(root).catch((error) => {
+        const box = root.querySelector('[data-body]');
+        if (box) box.innerHTML = `<div class="pp5-tr-msg err">${missingSchema(error) ? SETUP_HINT : esc(error.message || error)}</div>`;
+      });
+    }
+  }
+  function watch() {
+    const frame = doc?.getElementById('contentFrame');
+    if (!frame || frame.__pp5Transfer) return;
+    frame.__pp5Transfer = true;
+    if (typeof global.MutationObserver === 'function') new global.MutationObserver(apply).observe(frame, { childList: true, subtree: true });
+    apply();
+  }
+
+  global.GAS_PAGES = global.GAS_PAGES || {};
+  global.GAS_PAGES.student_transfer = shell();
+  if (doc) {
+    if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', watch, { once: true });
+    else watch();
+  }
+  global.PP5StudentTransfer = { shell, buildDocument, bk19, bk20, parseAddress, gradeLong, dateParts, thaiDigits };
+})(window);
