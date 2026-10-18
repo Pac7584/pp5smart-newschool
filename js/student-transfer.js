@@ -536,6 +536,11 @@ ${list.map((c) => certificateSheet(c, school)).join('\n')}
 .pp5-tr-att-n{display:inline-flex;align-items:center;gap:6px;margin-left:auto;white-space:nowrap}
 .pp5-tr-att-n input{width:4.5em}
 .pp5-tr [hidden]{display:none!important}
+.pp5-tr-preview{position:fixed;inset:0;z-index:2000;background:rgba(15,23,42,.72);display:flex;flex-direction:column;padding:12px;gap:8px}
+.pp5-tr-preview-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;color:#0f172a;border-radius:12px;padding:10px 14px}
+.pp5-tr-preview-bar strong{font-size:1rem}
+.pp5-tr-preview-hint{color:#475569;font-size:.88rem;flex:1 1 220px}
+.pp5-tr-preview iframe{flex:1;width:100%;border:0;border-radius:12px;background:#e5e7eb}
 [data-theme="dark"] .pp5-tr-pill.requested{background:#713f12;color:#fef08a}[data-theme="dark"] .pp5-tr-pill.transferred{background:#14532d;color:#bbf7d0}
 [data-theme="dark"] .pp5-tr-pill.cancelled{background:#334155;color:#e2e8f0}
 @media (max-width:640px){.pp5-tr-card{padding:14px}.pp5-tr-hide-sm{display:none}}`;
@@ -563,7 +568,14 @@ ${list.map((c) => certificateSheet(c, school)).join('\n')}
     };
     const $ = (sel) => root.querySelector(sel);
     const body = $('[data-body]');
-    const say = (text, kind) => { const box = $('[data-msg]'); box.hidden = !text; box.className = `pp5-tr-msg ${kind || 'info'}`; box.innerHTML = text || ''; };
+    // ข้อความแสดงทั้งบนสุดของหน้า และข้างปุ่มบันทึก (ถ้ามีฟอร์ม) จะได้เห็นทุกครั้งที่กด
+    const say = (text, kind) => {
+      root.querySelectorAll('[data-msg],[data-form-msg]').forEach((box) => {
+        box.hidden = !text;
+        box.className = `pp5-tr-msg ${kind || 'info'}`;
+        box.innerHTML = text || '';
+      });
+    };
     if (!state.isAdmin) { body.innerHTML = '<div class="pp5-tr-hint">เมนูนี้สำหรับผู้ดูแลระบบ (งานทะเบียน)</div>'; return; }
 
     const settings = await global.PP5Data.settings.get();
@@ -647,7 +659,12 @@ ${list.map((c) => certificateSheet(c, school)).join('\n')}
 <label>จังหวัด<input class="form-control" name="${prefix}_province" maxlength="80" value="${esc(a.province)}"></label>`;
     }
 
-    // saved: รายการที่บันทึกไว้ (โหมดแก้ไข) หรือ null = ค่าเริ่มต้นตามแบบ
+    // เรื่องใหม่ใช้รายการสิ่งที่ส่งมาด้วยของเรื่องล่าสุดเป็นค่าเริ่มต้น (เจ้าของขอ 2026-10-19 ไม่ต้องติ๊กใหม่ทุกครั้ง)
+    function lastAttachments() {
+      const last = state.transfers.find((t) => Array.isArray(t.form?.attachments));
+      return last ? last.form.attachments : null;
+    }
+    // saved: รายการที่บันทึกไว้ (โหมดแก้ไข / เรื่องล่าสุด) หรือ null = ค่าเริ่มต้นตามแบบ
     function attachmentRows(saved) {
       const byLabel = new Map((saved || []).map((a) => [clean(a.label), a]));
       const known = new Set(ATTACHMENTS.map((a) => a.label));
@@ -711,9 +728,10 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
 </div>
 <div class="pp5-tr-att" data-attachments role="group" aria-label="สิ่งที่ส่งมาด้วย">
   <div class="pp5-tr-att-head">สิ่งที่ส่งมาด้วย <span class="pp5-tr-hint">(พิมพ์เฉพาะรายการที่ติ๊ก เรียงเลขให้เอง)</span></div>
-  ${attachmentRows(editing ? attachmentsOf(f) : null)}
+  ${attachmentRows(editing ? attachmentsOf(f) : lastAttachments())}
 </div>
 <p class="pp5-tr-hint" style="margin:6px 0 0">พฐ.๑๙/๑ ทำ ๓ ชุด: ส่งโรงเรียนปลายทาง ๑ ชุด · ให้ผู้ปกครองถือไป ๑ ชุด · เก็บไว้ที่โรงเรียน ๑ ชุด · พี่น้องที่ย้ายพร้อมกันอยู่ในหนังสือฉบับเดียว</p>
+<div class="pp5-tr-msg" data-form-msg hidden role="status" style="margin-top:12px"></div>
 <div class="pp5-tr-actions">
   <button type="submit" class="btn btn-primary" data-save><i class="bi bi-printer"></i> ${editing ? 'บันทึกการแก้ไขและพิมพ์' : 'บันทึกและพิมพ์ พฐ.๑๙ + พฐ.๑๙/๑'}</button>
   <button type="button" class="btn btn-outline-secondary" data-preview>ดูตัวอย่าง (ยังไม่บันทึก)</button>
@@ -806,23 +824,51 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
       }));
     }
 
-    // พิมพ์ในกรอบซ่อนของหน้าเดิม (เจ้าของแจ้ง 2026-10-19 "ไม่ตอบสนองทุกปุ่ม"): หน้าต่างใหม่ที่สั่งพิมพ์ค้างอยู่หลังหน้าต่างอื่น
-    // ล็อกหน้าเดิมทั้งหน้า · กล่องพิมพ์ขึ้นบนหน้าปัจจุบัน ปิดแล้วใช้งานต่อได้ และไม่โดนบล็อกป๊อปอัป
+    // ดูตัวอย่างก่อนพิมพ์ (เจ้าของขอ 2026-10-19 "อยากให้โหลดเป็น pdf ก่อนจะได้ตรวจสอบ"): เอกสารแสดงในกรอบบนหน้าเดิม
+    // ตรวจแล้วกด "พิมพ์ / บันทึกเป็น PDF" · ไม่เปิดหน้าต่างใหม่ (หน้าต่างพิมพ์ที่ค้างอยู่หลังหน้าต่างอื่นเคยล็อกทั้งหน้า)
     function openPrint(records, options) {
-      return printHtml(buildDocument(records, state.school, options));
+      const names = records.map((r) => fullName(r.student_snapshot)).filter(Boolean);
+      return printHtml(buildDocument(records, state.school, options), `เอกสารย้ายนักเรียน ${names.slice(0, 3).join(' ')}${names.length > 3 ? ' และคนอื่น' : ''}`);
     }
-    function printHtml(html) {
-      doc.getElementById('pp5TransferPrintFrame')?.remove();
-      const frame = doc.createElement('iframe');
-      frame.id = 'pp5TransferPrintFrame';
-      frame.title = 'เอกสารสำหรับพิมพ์';
-      frame.setAttribute('aria-hidden', 'true');
-      frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
-      frame.srcdoc = html;
-      doc.body.appendChild(frame);
-      frame.addEventListener('load', () => {
-        frame.contentWindow?.addEventListener('afterprint', () => setTimeout(() => frame.remove(), 500));
+    function printHtml(html, title) {
+      doc.getElementById('pp5TransferPreview')?.remove();
+      const overlay = doc.createElement('div');
+      overlay.id = 'pp5TransferPreview';
+      overlay.className = 'pp5-tr-preview';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-label', 'ตัวอย่างเอกสารก่อนพิมพ์');
+      overlay.innerHTML = `<div class="pp5-tr-preview-bar"><strong>${esc(title)}</strong>
+<span class="pp5-tr-preview-hint">ตรวจเอกสารก่อน แล้วกดพิมพ์ · ต้องการไฟล์ PDF ให้เลือกเครื่องพิมพ์ "บันทึกเป็น PDF"</span>
+<button type="button" class="btn btn-primary btn-sm" data-pv-print disabled><i class="bi bi-printer"></i> พิมพ์ / บันทึกเป็น PDF</button>
+<button type="button" class="btn btn-light btn-sm" data-pv-close>ปิด</button></div>
+<iframe title="ตัวอย่างเอกสาร"></iframe>`;
+      doc.body.appendChild(overlay);
+      const previousOverflow = doc.body.style.overflow;
+      doc.body.style.overflow = 'hidden';
+      const frame = overlay.querySelector('iframe');
+      const printButton = overlay.querySelector('[data-pv-print]');
+      const close = () => { overlay.remove(); doc.body.style.overflow = previousOverflow; doc.removeEventListener('keydown', onKey); };
+      const onKey = (event) => { if (event.key === 'Escape') close(); };
+      doc.addEventListener('keydown', onKey);
+      overlay.querySelector('[data-pv-close]').addEventListener('click', close);
+      frame.addEventListener('load', async () => {
+        const fdoc = frame.contentDocument;
+        try {
+          await Promise.all([fdoc.fonts?.ready, ...Array.from(fdoc.images).map((img) => (img.complete ? null : new Promise((r) => { img.onload = img.onerror = r; })))]);
+        } catch (_) { /* print anyway */ }
+        printButton.disabled = false;
+        printButton.focus();
       }, { once: true });
+      printButton.addEventListener('click', () => {
+        // ชื่อไฟล์ PDF มาจากชื่อหน้า: ตั้งชื่อเอกสารชั่วคราวระหว่างพิมพ์
+        const previousTitle = doc.title;
+        doc.title = title;
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+        setTimeout(() => { doc.title = previousTitle; }, 1500);
+      });
+      frame.srcdoc = html.replace(/<script>[\s\S]*?<\/script>/, '');
       return true;
     }
 
@@ -856,8 +902,8 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
       try {
         const list = [];
         for (const item of items) list.push(await loadCertificate(item.id, item.snapshot));
-        printHtml(buildCertificateDocument(list, state.school));
-        say(`พิมพ์ใบรับรองเวลาเรียน ${list.length} คน · ภาคเรียนที่ ${state.semester}/${state.year}`, 'ok');
+        printHtml(buildCertificateDocument(list, state.school), `ใบรับรองเวลาเรียน ${list.map((c) => fullName(c.student)).slice(0, 3).join(' ')}`);
+        say(`ใบรับรองเวลาเรียน ${list.length} คน · ภาคเรียนที่ ${state.semester}/${state.year}`, 'ok');
       } catch (error) {
         say(esc(error.message || error), 'err');
       } finally {
@@ -865,10 +911,14 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
       }
     }
 
+    // ข้อมูลไม่ครบ: ข้อความขึ้นข้างปุ่มด้วย และเลื่อนไปช่องที่ขาด (เจ้าของแจ้ง "บันทึกและพิมพ์ไม่ตอบสนอง" —
+    // ข้อความเคยขึ้นเฉพาะบนสุดของหน้าซึ่งเลื่อนพ้นจอไปแล้ว)
     function validate(input) {
-      if (!selectedStudents().length) return 'กรุณาเลือกนักเรียนอย่างน้อย ๑ คน';
-      if (!input.destination_school) return 'กรุณากรอกชื่อโรงเรียนปลายทาง';
-      if (!input.form.reason) return 'กรุณากรอกเหตุผลที่ย้าย';
+      const form = $('[data-form]');
+      const goTo = (el) => { el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); el?.focus?.({ preventScroll: true }); };
+      if (!selectedStudents().length) { goTo($('.pp5-tr-students')); return 'กรุณาเลือกนักเรียนอย่างน้อย ๑ คน'; }
+      if (!input.destination_school) { goTo(form?.elements.destination_school); return 'กรุณากรอกชื่อโรงเรียนปลายทาง'; }
+      if (!input.form.reason) { goTo(form?.elements.reason); return 'กรุณากรอกเหตุผลที่ย้าย'; }
       return '';
     }
 
@@ -941,8 +991,8 @@ ${editing ? `<div class="pp5-tr-msg info">กำลังแก้ไขเร�
           await loadTransfers();
           state.selected.clear();
           state.editing = null;
-          say(`✅ บันทึกเรื่องย้าย ${saved.length} คนแล้ว (สถานะ: ส่งเรื่องแล้ว) · นักเรียนยังอยู่ในรายชื่อห้องจนกว่าจะกด "ยืนยันย้ายออก" ในแท็บประวัติ`, 'ok');
           renderNew();
+          say(`✅ บันทึกเรื่องย้าย ${saved.length} คนแล้ว (สถานะ: ส่งเรื่องแล้ว) · นักเรียนยังอยู่ในรายชื่อห้องจนกว่าจะกด "ยืนยันย้ายออก" ในแท็บประวัติ`, 'ok');
         } catch (error) {
           say(missingSchema(error) ? SETUP_HINT : esc(error.message || error), 'err');
         } finally {
