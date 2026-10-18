@@ -24,7 +24,8 @@
   });
 
   const OPTIONAL_SCHEMA_CODES = new Set(['42P01', '42703', 'PGRST200', 'PGRST204', 'PGRST205', '42501']);
-  const ACTIVE_ROLES = new Set(['admin', 'teacher', 'parent']);
+  // registrar = เจ้าหน้าที่ธุรการ (งานทะเบียน, SQL 202610180036)
+  const ACTIVE_ROLES = new Set(['admin', 'teacher', 'parent', 'registrar']);
 
   function appError(message, cause, code) {
     const error = new Error(message);

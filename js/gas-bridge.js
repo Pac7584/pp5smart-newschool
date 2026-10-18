@@ -303,7 +303,7 @@
         .maybeSingle();
       if (error) throw new Error(error.message || 'ตรวจสอบสิทธิ์ผู้ปกครองไม่สำเร็จ');
       if (!link) throw new Error('ไม่มีสิทธิ์ดูข้อมูลของนักเรียนคนนี้');
-    } else if (role !== 'admin' && role !== 'teacher') {
+    } else if (role !== 'admin' && role !== 'teacher' && role !== 'registrar') {
       throw new Error('บัญชีนี้ไม่มีสิทธิ์ดูข้อมูลนักเรียน');
     }
     const student = await data.students.get(id);
@@ -424,7 +424,7 @@
   async function dashboardScope_() {
     const state = await data.auth.requireUser();
     const role = text(state.profile.role).toLowerCase();
-    if (role !== 'admin' && role !== 'teacher') throw new Error('บัญชีนี้ไม่มีสิทธิ์ดูข้อมูลนี้');
+    if (role !== 'admin' && role !== 'teacher' && role !== 'registrar') throw new Error('บัญชีนี้ไม่มีสิทธิ์ดูข้อมูลนี้');
     const academicYear = text(await currentYear()).trim();
     const grade = role === 'teacher' ? text(state.profile.className).trim() : '';
     const room = grade ? text(state.profile.room).trim() : '';
@@ -518,6 +518,17 @@
   async function currentYear() {
     const settings = await data.settings.get();
     return text(settings.academicYear || settings.academic_year);
+  }
+
+  // งานทะเบียนนักเรียน (เพิ่ม/แก้/จำหน่าย): ผู้ดูแลระบบ หรือเจ้าหน้าที่ธุรการ (registrar, SQL 036)
+  async function requireRegistrarOrAdmin() {
+    const state = await data.auth.requireUser();
+    if (state.profile.role !== 'admin' && state.profile.role !== 'registrar') {
+      const error = new Error('รายการนี้สำหรับผู้ดูแลระบบหรือเจ้าหน้าที่ธุรการเท่านั้น');
+      error.code = 'FORBIDDEN';
+      throw error;
+    }
+    return state;
   }
 
   async function requireAdmin() {
@@ -5533,7 +5544,7 @@
     },
     async getStudentsForDeleteByClass(grade, classNo) { return data.students.list({ grade, room: classNo, active: false }); },
     async addNewStudent(values) {
-      await requireAdmin();
+      await requireRegistrarOrAdmin();
       const studentId = text(values?.id || values?.studentId || values?.student_id || values?.studentCode).trim();
       if (!studentId) throw new Error('กรุณาระบุรหัสนักเรียน');
       const existing = await data.students.get(studentId);
@@ -8630,7 +8641,7 @@
           .maybeSingle();
         if (error) throw new Error(error.message || 'ตรวจสอบสิทธิ์ผู้ปกครองไม่สำเร็จ');
         if (!link) throw new Error('ไม่มีสิทธิ์ดูใบรายงานของนักเรียนคนนี้');
-      } else if (role !== 'admin' && role !== 'teacher') {
+      } else if (role !== 'admin' && role !== 'teacher' && role !== 'registrar') {
         throw new Error('บัญชีนี้ไม่มีสิทธิ์สร้างใบรายงาน');
       }
       const finalOptions = {

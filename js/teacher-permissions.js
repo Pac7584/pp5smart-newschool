@@ -32,6 +32,11 @@
     'subject_assessment_summary',
     // นักเรียนเสี่ยง มส. ทุกวิชาของห้อง (owner 2026-10-16) — อ่านอย่างเดียว ผ่าน getRoomAttendanceRisk (คู่ ชั้น/ห้อง ของครูประจำชั้น)
     'attendance_risk']);
+  // เจ้าหน้าที่ธุรการ (registrar, SQL 202610180036, owner 2026-10-18): งานทะเบียนนักเรียน + ย้ายออก + ดูผลการเรียน/เวลาเรียน
+  // ใช้เสมอ (ไม่ขึ้นกับสวิตช์ขอบเขตครู) — ฐานข้อมูลกันซ้ำอีกชั้น: แก้คะแนน/เช็คชื่อ/ยืนยันย้ายออกไม่ได้
+  const REGISTRAR = new Set(['home_hub','change_password','help_page','academic_calendar',
+    'studentList','addStudent','deleteStudent','student_transfer','export_pdf_page','parent_info_report',
+    'semester_attendance_summary','attendance_table','student_scores_summary','report_card_generator']);
   // หน้าประเมินเดิม 3 หน้า: ครูประจำวิชาเปิดได้ด้วย แล้วเลือก "วิชา · ห้อง" ที่แถบด้านบน (js/subject-assessment.js)
   // ผลจะลงแถว subj_* ของวิชานั้น — สิทธิ์จริงตรวจที่ SQL 202610150034
   const SHARED_ASSESSMENT = new Set(['characteristic_assessment','rtw5_assessment','competency_assessment']);
@@ -140,6 +145,7 @@
   // ignoreMode: ใช้แยกข้อความ "สลับโหมดก่อน" ออกจาก "ไม่ได้รับสิทธิ์" — สิทธิ์จริงไม่ขึ้นกับโหมด
   function pageAllowed(page, ctx, ignoreMode) {
     if (PUBLIC.has(page)) return true;
+    if (ctx.role === 'registrar') return REGISTRAR.has(page);
     if (!ctx.enabled || ctx.role === 'admin') return true;
     if (ctx.role === 'parent') return PARENT.has(page);
     if (ctx.role !== 'teacher') return false;
@@ -166,6 +172,10 @@
   }
   async function authorizeMethod(name, args) {
     const ctx = await context();
+    if (ctx.role === 'registrar') {
+      if (ADMIN_METHODS.test(name)) return fail('ส่วนนี้เป็นงานของผู้ดูแลระบบ');
+      return ctx;
+    }
     if (!ctx.enabled || ctx.role === 'admin') return ctx;
     if (ctx.role !== 'teacher') return ctx; // Parent bridge methods already verify their linked student IDs.
     if (ADMIN_METHODS.test(name)) fail('ส่วนนี้เป็นงานของผู้ดูแลระบบ');
@@ -400,7 +410,7 @@
       const ctx=await context();
       uiContext=ctx;
       global.PP5WorkMode?.apply?.(ctx);
-      if (!ctx.enabled) return;
+      if (!ctx.enabled && ctx.role !== 'registrar') return;
       global.document?.querySelectorAll('.nav-item[data-page], .hub-card[data-page]').forEach((item)=>{
         item.hidden=!pageAllowed(item.dataset.page,ctx);
         item.style.display=item.hidden?'none':'';
@@ -409,7 +419,7 @@
       restrictGradeChoices();
     } catch (_) { /* include() and database policies still deny requests */ }
   }
-  global.PP5Permissions = { context,pageAllowed,authorizePage,authorizeMethod,replace,enable,mount,refreshMenu,installGuards };
+  global.PP5Permissions = { context,pageAllowed,authorizePage,authorizeMethod,replace,enable,mount,refreshMenu,installGuards,registrarPages:[...REGISTRAR] };
   global.GAS_PAGES.teacher_access = shell();
   installGuards();
   global.document?.addEventListener('pp5:page-rendered',refreshMenu);

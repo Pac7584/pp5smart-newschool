@@ -43,6 +43,8 @@ ${PAGE} #usersTable tr.user-card:hover{background:#f8faff}
 .au-role{display:inline-flex;align-items:center;gap:5px;font-size:.8rem;font-weight:700;padding:.18rem .65rem;border-radius:999px}
 .au-role.admin{background:color-mix(in srgb,#6366f1 14%,transparent);color:#4f46e5}
 .au-role.teacher{background:color-mix(in srgb,#0ea5e9 14%,transparent);color:#0369a1}
+.au-role.registrar{background:color-mix(in srgb,#f59e0b 16%,transparent);color:#92400e}
+[data-theme="dark"] .au-role.registrar{color:#fcd34d}
 .au-role.parent{background:color-mix(in srgb,#10b981 14%,transparent);color:#047857}
 [data-theme="dark"] .au-role.admin{color:#a5b4fc} [data-theme="dark"] .au-role.teacher{color:#7dd3fc} [data-theme="dark"] .au-role.parent{color:#6ee7b7}
 .au-jobs{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
@@ -77,7 +79,8 @@ ${PAGE} .pp5-reg-panel{border-radius:16px!important}
   ${PAGE} #usersTable tr.user-card td:nth-child(5){grid-area:act;align-self:center}
   ${PAGE} #usersTable tr.user-card td:nth-child(5) > div{flex-wrap:nowrap!important}}`;
 
-  const ROLE = { admin: ['ผู้ดูแลระบบ', 'bi-shield-lock'], teacher: ['ครู', 'bi-person-workspace'], parent: ['ผู้ปกครอง', 'bi-people'] };
+  const ROLE = { admin: ['ผู้ดูแลระบบ', 'bi-shield-lock'], teacher: ['ครู', 'bi-person-workspace'], parent: ['ผู้ปกครอง', 'bi-people'],
+    registrar: ['เจ้าหน้าที่ธุรการ', 'bi-folder2-open'] };
   let jobs = null;
   let jobsLoading = null;
 
@@ -121,7 +124,7 @@ ${PAGE} .pp5-reg-panel{border-radius:16px!important}
       // อ่านสิทธิ์จากป้ายเดิมของหน้าครั้งแรกแล้วจำไว้ (รอบต่อไปป้ายเป็นภาษาไทยแล้ว)
       if (!tr.dataset.auRole) {
         const roleText = text(cells[2]?.textContent);
-        tr.dataset.auRole = /admin/i.test(roleText) ? 'admin' : /parent/i.test(roleText) ? 'parent' : 'teacher';
+        tr.dataset.auRole = /registrar|ธุรการ/i.test(roleText) ? 'registrar' : /admin/i.test(roleText) ? 'admin' : /parent/i.test(roleText) ? 'parent' : 'teacher';
       }
       const role = tr.dataset.auRole;
       if (cells[2]) cells[2].innerHTML = `<span class="au-role ${role}"><i class="bi ${ROLE[role][1]}"></i>${ROLE[role][0]}</span>`;

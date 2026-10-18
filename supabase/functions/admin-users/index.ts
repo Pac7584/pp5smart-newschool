@@ -331,7 +331,7 @@ Deno.serve(async (request) => {
       const password = String(body.password || '');
       const role = String(body.role || 'teacher');
       if (!username || !email || password.length < 10) return json({ error: 'Username, email and password (10+ chars) are required' }, 400);
-      if (!['admin', 'teacher', 'parent'].includes(role)) return json({ error: 'Invalid role' }, 400);
+      if (!['admin', 'teacher', 'parent', 'registrar'].includes(role)) return json({ error: 'Invalid role' }, 400);
       const studentIds = normalizeStudentIds(body.studentIds);
       if (role !== 'parent' && studentIds.length) return json({ error: 'Only parents can have student links' }, 400);
       await validateStudentIds(adminClient, studentIds);
@@ -411,7 +411,7 @@ Deno.serve(async (request) => {
       for (const [input, column] of Object.entries(mapping)) {
         if (Object.hasOwn(body, input)) profileChanges[column] = body[input];
       }
-      if (profileChanges.role && !['admin', 'teacher', 'parent'].includes(String(profileChanges.role))) {
+      if (profileChanges.role && !['admin', 'teacher', 'parent', 'registrar'].includes(String(profileChanges.role))) {
         return json({ error: 'Invalid role' }, 400);
       }
       if (userId === callerData.user.id && profileChanges.role && profileChanges.role !== 'admin') {

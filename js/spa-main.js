@@ -391,7 +391,8 @@ function displayUserInfo() {
 
   if (userRoleBadgeEl) {
     // ครู: ป้ายตามโหมดการทำงานที่ผู้ดูแลมอบหมาย (js/work-mode.js) — ครูประจำชั้น / ครูประจำวิชา
-    userRoleBadgeEl.textContent = role === 'admin' ? 'ผู้ดูแลระบบ' : (role === 'parent' ? 'ผู้ปกครอง' : (window.PP5WorkMode?.label?.() || 'ครู'));
+    userRoleBadgeEl.textContent = role === 'admin' ? 'ผู้ดูแลระบบ' : (role === 'parent' ? 'ผู้ปกครอง'
+      : (role === 'registrar' ? 'เจ้าหน้าที่ธุรการ' : (window.PP5WorkMode?.label?.() || 'ครู')));
     userRoleBadgeEl.className = 'badge ' + (role === 'admin' ? 'bg-danger' : (role === 'parent' ? 'bg-info' : 'bg-primary'));
   }
 
@@ -4885,6 +4886,8 @@ function ensureDefaultFavorites_() {
   if (existing.length) return;
   if (role === 'admin') {
     setFavorites_(['home_hub','new_settings_editor','logo_management','subjectManager','teacher_editor']);
+  } else if (role === 'registrar') {
+    setFavorites_(['home_hub','studentList','deleteStudent','student_transfer','export_pdf_page']);
   } else {
     setFavorites_(['home_hub','attendance_daily','score_table_viewer','studentList','export_pdf_page']);
   }
@@ -5166,9 +5169,23 @@ document.addEventListener('DOMContentLoaded', async function() {
   const role = localStorage.getItem('role') || 'teacher';
   // console.log('👤 Role:', role);
   
-  // Remove admin-only if not admin
-  if (role !== 'admin') {
+  // Remove admin-only if not admin (เจ้าหน้าที่ธุรการใช้รายการหน้าของตัวเองด้านล่างแทน)
+  if (role !== 'admin' && role !== 'registrar') {
     document.querySelectorAll('.admin-only').forEach(el => el.remove());
+  }
+  // เจ้าหน้าที่ธุรการ (registrar, SQL 036): เหลือเฉพาะเมนูงานทะเบียน/ย้ายออก/ดูผล ตาม PP5Permissions.registrarPages
+  if (role === 'registrar') {
+    const allowed = (window.PP5Permissions && window.PP5Permissions.registrarPages) || ['home_hub', 'change_password', 'help_page'];
+    document.querySelectorAll('.nav-item').forEach(function(item) {
+      const link = item.querySelector('[data-page], [onclick]');
+      const target = item.getAttribute('data-page') || link?.getAttribute('data-page')
+        || ((link?.getAttribute('onclick') || '').match(/navigateTo\('([^']+)'\)/) || [])[1] || '';
+      if (item.querySelector('#logoutBtn, #logoutLink')) return;
+      if (!allowed.includes(target)) item.remove();
+    });
+    document.querySelectorAll('.menu-group').forEach(function(group) {
+      if (!group.querySelector('.nav-item')) group.remove();
+    });
   }
 
   function removeMasterOnly_(){
@@ -8496,6 +8513,21 @@ function renderDashboardWatchlist_(frame, anchor) {
 function enhanceSupabaseHomeHubPage_() {
   const frame = document.getElementById('contentFrame');
   if (!frame) return;
+
+  // เจ้าหน้าที่ธุรการ: การ์ดในหน้าหลักกรองด้วย data-roles (admin/teacher/parent) จึงเติม registrar ให้การ์ดของหน้าที่เปิดได้
+  // ทั้งตอนแสดงและตอนค้นหา (ช่องค้นหาอ่าน data-roles ทุกครั้ง) — สิทธิ์จริงยังตรวจที่ include() และฐานข้อมูล
+  if ((localStorage.getItem('role') || '') === 'registrar') {
+    const allowed = (window.PP5Permissions && window.PP5Permissions.registrarPages) || [];
+    frame.querySelectorAll('.hub-card[data-page]').forEach((card) => {
+      if (!allowed.includes(card.getAttribute('data-page'))) return;
+      const roles = String(card.getAttribute('data-roles') || '').split(',').map((r) => r.trim()).filter(Boolean);
+      if (!roles.includes('registrar')) card.setAttribute('data-roles', roles.concat('registrar').join(','));
+      card.classList.remove('is-hidden');
+    });
+    frame.querySelectorAll('.hub-section').forEach((section) => {
+      if (section.querySelector('.hub-card:not(.is-hidden)')) section.classList.remove('is-empty');
+    });
+  }
 
   // ── อัปเดตคำทักทายให้แสดง "ชื่อ นามสกุล" แทน "ชื่อผู้ใช้" ──
   updateHubSubLineWithFullName_();
