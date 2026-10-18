@@ -6025,6 +6025,25 @@ function enhanceSupabaseReportCardGeneratorPage_(withScores) {
       // the switch is created after the first sync: apply the ม. rule to it now
       syncYearOption();
     }
+
+    // สวิตช์ลายเซ็นเฉพาะการพิมพ์ครั้งนี้ (ลายเซ็น ผอ. / วิชาการ / ครูประจำชั้น และตราประทับ ทั้งปกและหน้าผลการเรียน)
+    // ค่าเริ่มต้นตามหน้าตั้งค่าลายเซ็น ไม่บันทึกกลับ  gas-bridge อ่าน #pp6SignatureToggle ตอนสร้าง PDF (owner 2026-10-18)
+    if (!frame.querySelector('#pp6SignatureWrapper')) {
+      const sign = document.createElement('label');
+      sign.id = 'pp6SignatureWrapper';
+      sign.title = 'เปิด: ใส่ลายเซ็น ผอ. หัวหน้าวิชาการ ครูประจำชั้น และตราประทับ ตามที่บันทึกไว้ในหน้าตั้งค่าลายเซ็น · ปิด: เว้นช่องให้ลงชื่อด้วยมือ';
+      sign.style.cssText = 'display:flex;align-items:center;gap:6px;margin:0 0 0 10px;padding:3px 10px;border:1px solid rgba(37,99,235,.45);background:rgba(37,99,235,.08);border-radius:999px;font-size:.8rem;font-weight:600;color:#1e40af;white-space:nowrap;cursor:pointer;';
+      sign.innerHTML = '<span class="form-check form-switch m-0" style="min-height:0;padding-left:2.2em"><input class="form-check-input" type="checkbox" role="switch" id="pp6SignatureToggle" checked style="cursor:pointer"></span><span>ลายเซ็น ผอ. / ตรา</span>';
+      termContainer.appendChild(sign);
+      const signToggle = sign.querySelector('#pp6SignatureToggle');
+      signToggle.addEventListener('change', () => { signToggle.dataset.touched = '1'; });
+      if (typeof google !== 'undefined' && google.script?.run) {
+        google.script.run
+          .withSuccessHandler((sigs) => { if (sigs && !signToggle.dataset.touched) signToggle.checked = sigs.includeSignatures !== false; })
+          .withFailureHandler(() => {})
+          .getSchoolSignatures();
+      }
+    }
   }
 
   injectFormatAndTermSelector();

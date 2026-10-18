@@ -3248,6 +3248,11 @@
     if (extraOptions?.interimWatermark === false || (typeof extraOptions?.interimWatermark !== 'boolean' && pageInterimToggle && !pageInterimToggle.checked)) {
       options.suppressDraftWatermark = true;
     }
+    // ลายเซ็นและตรา: ค่าที่ส่งมา > สวิตช์ "ลายเซ็น" บนหน้าพิมพ์ ปพ.6 (#pp6SignatureToggle เฉพาะครั้งนี้)
+    // > ค่าของโรงเรียนในหน้าตั้งค่าลายเซ็น (owner 2026-10-18)  ฉบับย้อนหลังไม่มีลายเซ็นเสมอ
+    const pageSignatureToggle = typeof document !== 'undefined' && typeof document?.getElementById === 'function' ? document.getElementById('pp6SignatureToggle') : null;
+    if (typeof extraOptions?.includeSignatures === 'boolean') options.includeSignatures = extraOptions.includeSignatures;
+    else if (pageSignatureToggle) options.includeSignatures = pageSignatureToggle.checked;
     if (extraOptions?.historical) options.includeSignatures = false;
 
     enrichedStudents.forEach((stu) => {
