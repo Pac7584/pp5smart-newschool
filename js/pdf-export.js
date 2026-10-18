@@ -422,7 +422,9 @@
   async function createMatrix(matrix, options) {
     const { doc, meta, startY } = await createDocument('สรุปวันมาเรียนแต่ละเดือน', options);
     const months = matrix?.months || [];
-    const head = ['ที่', 'รหัส', 'ชื่อ-นามสกุล', ...months.map((month) => `${text(month.shortName)}\n${text(month.year)}`), 'รวมมา', 'รวมวัน', 'ร้อยละ'];
+    // ใต้ชื่อเดือนแสดงจำนวนวันเรียนจริงของเดือนนั้น (เหมือนตารางบนจอ) แทนปี พ.ศ. — ปีอยู่ที่หัวรายงานแล้ว (owner 2026-10-18)
+    const schoolDaysLabel = (month) => (Number(month.schoolDays) > 0 ? `${Number(month.schoolDays)} วัน` : '-');
+    const head = ['ที่', 'รหัส', 'ชื่อ-นามสกุล', ...months.map((month) => `${text(month.shortName)}\n${schoolDaysLabel(month)}`), 'รวมมา', 'รวมวัน', 'ร้อยละ'];
     const body = (matrix?.students || []).map((student, index) => [
       index + 1, text(student.id), text(student.name),
       ...months.map((month) => number(student.monthlyData?.[month.key])),
