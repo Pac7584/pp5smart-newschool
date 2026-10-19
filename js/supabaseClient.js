@@ -497,7 +497,9 @@
         // ข้อความลายน้ำที่โรงเรียนพิมพ์เอง (ว่าง = ใช้ข้อความเดิมของระบบ) ไม่เกิน 60 ตัวอักษร
         interimWatermarkText: asText(data.settings_json?.interim_watermark_text).replace(/\s+/g, ' ').trim().slice(0, 60),
         // แบบประเมินอ่าน คิดวิเคราะห์ และเขียน (js/rtw-mode.js): 'subject' 8 กลุ่มสาระ | 'criteria' 5 เกณฑ์ | 'auto' ยังไม่เลือก
-        rtwMode: ['subject', 'criteria'].includes(data.settings_json?.rtw_mode) ? data.settings_json.rtw_mode : 'auto'
+        rtwMode: ['subject', 'criteria'].includes(data.settings_json?.rtw_mode) ? data.settings_json.rtw_mode : 'auto',
+        // ผลประเมินทั้งปีใช้ผลภาค 1 เมื่อยังไม่มีผลภาค 2 (ค่าเริ่มต้นปิด)
+        annualFromTerm1: data.settings_json?.annual_from_first_term === true
       };
     },
 
@@ -571,6 +573,11 @@
     async setRtwMode(mode) {
       const value = ['subject', 'criteria'].includes(mode) ? mode : 'auto';
       return this.patchSettingsJson('rtw_mode', value, 'บันทึกแบบประเมินอ่าน คิด เขียนไม่สำเร็จ');
+    },
+
+    // สวิตช์ "ผลทั้งปีใช้ผลภาค 1 เมื่อยังไม่มีผลภาค 2": settings_json.annual_from_first_term
+    async setAnnualFromTerm1(on) {
+      return this.patchSettingsJson('annual_from_first_term', on === true, 'บันทึกการตั้งค่าผลประเมินทั้งปีไม่สำเร็จ');
     },
 
     // ข้อความลายน้ำที่พิมพ์เอง: ช่องว่างหลายช่องรวมเป็นช่องเดียว ไม่เกิน 60 ตัวอักษร  ว่าง = กลับไปใช้ข้อความเดิม

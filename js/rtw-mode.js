@@ -64,13 +64,37 @@
     box.innerHTML = '<legend class="form-label fw-semibold mb-1" style="float:none;width:auto;font-size:inherit">แบบประเมินการอ่าน คิดวิเคราะห์ และเขียนของโรงเรียน</legend>'
       + Object.entries(MODES).map(([key, item]) => `<div class="form-check"><input class="form-check-input" type="radio" name="pp5RtwMode" id="pp5RtwMode_${key}" value="${key}" disabled>`
         + `<label class="form-check-label" for="pp5RtwMode_${key}"><span class="fw-semibold">${item.label}</span><span class="d-block small text-muted">${item.help}</span></label></div>`).join('')
-      + '<div class="field-help">เลือกแล้วบันทึกทันที · ใช้กับปก ปพ.5 รวมเล่ม ปพ.5 รายวิชา ปพ.6 และรายงานหน้าเดียว ให้ได้ผลตรงกัน · ผลที่กรอกไว้ในแบบอื่นยังเก็บอยู่ เปลี่ยนกลับได้ <span id="pp5RtwModeStatus" class="small"></span></div>';
+      + '<div class="field-help">เลือกแล้วบันทึกทันที · ใช้กับปก ปพ.5 รวมเล่ม ปพ.5 รายวิชา ปพ.6 และรายงานหน้าเดียว ให้ได้ผลตรงกัน · ผลที่กรอกไว้ในแบบอื่นยังเก็บอยู่ เปลี่ยนกลับได้ <span id="pp5RtwModeStatus" class="small"></span></div>'
+      // owner 2026-10-19: ผลทั้งปีเมื่อยังไม่มีภาค 2 — ปิด (ค่าเริ่มต้น) = "ยังไม่ประเมิน" · เปิด = ใช้ผลภาค 1 ของด้านนั้น
+      + '<div class="form-check form-switch mt-3"><input class="form-check-input" type="checkbox" role="switch" id="pp5AnnualFromTerm1" disabled>'
+      + '<label class="form-check-label fw-semibold" for="pp5AnnualFromTerm1">ผลประเมินทั้งปี: ถ้ายังไม่มีผลภาคเรียนที่ 2 ให้ใช้ผลภาคเรียนที่ 1</label></div>'
+      + '<div class="field-help">ใช้กับผลประเมิน 4 ด้าน (อ่าน คิด เขียน · คุณลักษณะ · สมรรถนะ · กิจกรรม) ใน ปพ.6 / รายงานหน้าเดียว / สรุปรายชั้นที่เลือก "ทั้งปี" · '
+      + 'ปิด = ยังไม่ประเมินจนกว่าจะมีผลภาค 2 หรือผลรายปี · เปิด = ด้านที่ยังไม่มีภาค 2 ใช้ผลภาค 1 (ด้านที่มีภาค 2 แล้วใช้ภาค 2) <span id="pp5AnnualFromTerm1Status" class="small"></span></div>';
     after.insertAdjacentElement('afterend', box);
     const radios = [...box.querySelectorAll('input[name="pp5RtwMode"]')];
     const status = box.querySelector('#pp5RtwModeStatus');
     const show = (message, tone) => { status.textContent = message ? ' · ' + message : ''; status.className = 'small' + (tone ? ' text-' + tone : ''); };
     const check = (mode) => radios.forEach((radio) => { radio.checked = radio.value === mode; });
     refresh().then((mode) => { check(mode); radios.forEach((radio) => { radio.disabled = false; }); });
+    const annual = box.querySelector('#pp5AnnualFromTerm1');
+    const annualStatus = box.querySelector('#pp5AnnualFromTerm1Status');
+    const showAnnual = (message, tone) => { annualStatus.textContent = message ? ' · ' + message : ''; annualStatus.className = 'small' + (tone ? ' text-' + tone : ''); };
+    Promise.resolve(global.PP5Data?.settings?.get?.()).then((settings) => { annual.checked = settings?.annualFromTerm1 === true; annual.disabled = false; })
+      .catch(() => { annual.disabled = false; });
+    annual.addEventListener('change', async () => {
+      const wanted = annual.checked;
+      annual.disabled = true;
+      showAnnual('กำลังบันทึก...', 'muted');
+      try {
+        await global.PP5Data.settings.setAnnualFromTerm1(wanted);
+        showAnnual('บันทึกแล้ว', 'success');
+      } catch (error) {
+        annual.checked = !wanted;
+        showAnnual((error && error.message) || 'บันทึกไม่สำเร็จ', 'danger');
+      } finally {
+        annual.disabled = false;
+      }
+    });
     radios.forEach((radio) => radio.addEventListener('change', async () => {
       if (!radio.checked) return;
       const before = cached();

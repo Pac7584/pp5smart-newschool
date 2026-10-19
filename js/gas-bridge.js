@@ -1447,6 +1447,15 @@
   async function rtwMode_() {
     try { return rtwModeOf_(await data.settings.get()); } catch (_) { return 'auto'; }
   }
+  // กฎผลประเมินของโรงเรียนสำหรับ reportAssessmentSummary: แบบอ่านฯ + สวิตช์ "ผลทั้งปีใช้ผลภาค 1 เมื่อยังไม่มีภาค 2"
+  // (owner 2026-10-19, settings_json.annual_from_first_term ค่าเริ่มต้นปิด = ภาค 1 อย่างเดียวยังไม่ใช่ผลทั้งปี)
+  function assessmentRulesOf_(settings) {
+    const term1Fallback = settings?.annualFromTerm1 ?? settings?.settings_json?.annual_from_first_term;
+    return { rtwMode: rtwModeOf_(settings), term1Fallback: term1Fallback === true };
+  }
+  async function assessmentRules_() {
+    try { return assessmentRulesOf_(await data.settings.get()); } catch (_) { return { rtwMode: 'auto', term1Fallback: false }; }
+  }
   const rtwScoreOk_ = (v) => v !== '' && v !== null && v !== undefined && Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 3;
   // 8 กลุ่มสาระ → ระดับ 3/2/1/0 (หลักเดิมของปก ปพ.5 และ ปพ.6) · ไม่ครบ 8 = null
   function rtwSubjectLevel_(scores) {
@@ -2830,10 +2839,12 @@
   // Only explicit saved criteria produce an official assessment result.
   // School policy: ยึดผลการประเมินของภาคเรียนที่ 2 เป็นผลตัดสินสิ้นปีการศึกษา (term === 'year')
   // rtwMode: แบบประเมินอ่านฯ ของโรงเรียน (rtwModeOf_, owner 2026-10-19) ไม่ส่ง = 'auto'
-  function reportAssessmentSummary(rows, term, rtwMode = 'auto') {
+  // rules: กฎของโรงเรียน (assessmentRulesOf_) หรือแบบอ่านฯ เป็นข้อความ ('subject' / 'criteria' / 'auto') ไม่ส่ง = ค่าเริ่มต้น
+  function reportAssessmentSummary(rows, term, rules = 'auto') {
     const annual = !['1', '2'].includes(String(term));
     const pending = 'ยังไม่ประเมิน';
-    const mode = rtwModeOf_({ rtwMode });
+    const mode = rtwModeOf_({ rtwMode: typeof rules === 'string' ? rules : rules?.rtwMode });
+    const term1Fallback = typeof rules === 'object' && rules?.term1Fallback === true;
     let selected = [];
     if (annual) {
       const term2Rows = (rows || []).filter((row) => Number(row.semester) === 2);
@@ -2843,7 +2854,12 @@
     } else {
       selected = (rows || []).filter((row) => Number(row.semester) === Number(term));
     }
-    const byType = (type) => selected.filter((row) => row.assessment_type === type);
+    // สวิตช์เปิด: ด้านใดยังไม่มีผลภาค 2 หรือผลรายปี ใช้ผลภาค 1 ของด้านนั้น (ด้านอื่นที่มีภาค 2 ยังใช้ภาค 2)
+    const term1Rows = annual && term1Fallback ? (rows || []).filter((row) => Number(row.semester) === 1) : [];
+    const byType = (type) => {
+      const chosen = selected.filter((row) => row.assessment_type === type);
+      return chosen.length ? chosen : term1Rows.filter((row) => row.assessment_type === type);
+    };
     const gradeQuality = (value) => {
       if (value === null || value === undefined || value === '' || !Number.isFinite(Number(value)) || Number(value) < 0 || Number(value) > 3) return pending;
       return Number(value) >= 2.5 ? 'ดีเยี่ยม' : Number(value) >= 2 ? 'ดี' : Number(value) >= 1 ? 'ผ่าน' : 'ปรับปรุง';
@@ -3070,7 +3086,7 @@
       const studentComments = commentRows.filter((c) => String(c.student_id) === studentId);
 
       const studentAssessmentRows = classAssessmentRows.filter((row) => String(row.student_id) === studentId);
-      const assessments = reportAssessmentSummary(studentAssessmentRows, term, rtwModeOf_(settings));
+      const assessments = reportAssessmentSummary(studentAssessmentRows, term, assessmentRulesOf_(settings));
       let actCounter = 0;
       let subjCounter = 0;
       const processedSubjects = subjects.map((sub) => {
@@ -3388,7 +3404,7 @@
       };
     });
     const assessRows = await optionalTable('assessments', (query) => query.eq('student_id', student.id).eq('academic_year', academicYear));
-    const assessments = reportAssessmentSummary(assessRows, term, await rtwMode_());
+    const assessments = reportAssessmentSummary(assessRows, term, await assessmentRules_());
     const options = await attendancePrintOptions(student.grade, student.classNo, 'รายงานผลการเรียนหน้าเดียว');
     options.academicYear = academicYear;
     options.meta = ['ชั้น ' + student.grade + ' ห้อง ' + student.classNo, 'ปีการศึกษา ' + academicYear, term === 'year' ? 'รายปี' : 'ภาคเรียนที่ ' + term].join('   ');
@@ -3617,7 +3633,7 @@
   async function buildClassAssessmentSummary(grade, classNo, termInput) {
     const term = await classSummaryTerm(termInput);
     const academicYear = text(await currentYear());
-    const rtwMode = await rtwMode_();
+    const assessmentRules = await assessmentRules_();
     const room = text(classNo);
     const [gradeStudents, allSubjects] = await Promise.all([
       data.students.list({ grade, academicYear }),
@@ -3684,7 +3700,7 @@
     const classRanks = rankMap(classItems);
 
     const students = classItems.map((item) => {
-      const assess = reportAssessmentSummary(assessByStudent[item.id] || [], term, rtwMode);
+      const assess = reportAssessmentSummary(assessByStudent[item.id] || [], term, assessmentRules);
       const fullName = studentDisplayName(item.student);
       return {
         studentId: item.id,
@@ -5159,7 +5175,7 @@
     });
     // Annual SAR and PP6 use the school's confirmed rule:
     // Assessment results from Semester 2 serve as the final annual evaluation.
-    const annualAssessments = students.map((student) => reportAssessmentSummary(rowsByStudent[text(student.id)] || [], 'year', rtwModeOf_(settings)));
+    const annualAssessments = students.map((student) => reportAssessmentSummary(rowsByStudent[text(student.id)] || [], 'year', assessmentRulesOf_(settings)));
     const compileDimension = (type) => {
       const key = { rtw: 'reading', characteristic: 'character', competency: 'competency' }[type];
       const counts = { total: 0, excellent: 0, good: 0, pass: 0, fail: 0, pending: 0 };
