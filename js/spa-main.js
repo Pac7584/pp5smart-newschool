@@ -3397,51 +3397,18 @@ function enhanceSupabaseSettingsPage_() {
     supervisor.parentElement.appendChild(jumpBtn);
   }
 
-  // แท็บ "การพิมพ์และ PDF" (owner 2026-10-19): ช่อง "รหัสโลโก้ Google Drive" และ "รหัสโฟลเดอร์ PDF" (ของระบบ Apps Script เดิม)
-  // แทนด้วยแถวโลโก้ปัจจุบัน + ปุ่ม "เปลี่ยนโลโก้" ไปหน้าโลโก้และตราโรงเรียน (js/logo-manager.js เก็บรูปในฐานข้อมูลเอง)
+  // แท็บ "การพิมพ์และ PDF" (owner 2026-10-19): ซ่อนช่อง "รหัสโลโก้ Google Drive" และ "รหัสโฟลเดอร์ PDF" (ระบบ Apps Script เดิม)
+  // โลโก้จัดการที่เมนูโลโก้และตราโรงเรียนที่เดียว (js/logo-manager.js เก็บรูปในฐานข้อมูล และเตือนถ้ายังดึงจาก Google Drive)
+  // owner: แถวโลโก้ + ปุ่มเปลี่ยนโลโก้ในแท็บนี้ "ซ้ำซ้อน รก" จึงไม่แสดงอะไรแทน
   // ช่องเดิมยังอยู่แต่ซ่อน — #logoFileId ว่างเสมอ (ดู populateForm ด้านล่าง) ปุ่มบันทึกของหน้านี้จึงไม่เขียนทับโลโก้
   const mediaPanel = document.querySelector('#printingTabPane .media-panel');
-  if (mediaPanel && !document.getElementById('pp5PrintLogoRow')) {
+  if (mediaPanel && !mediaPanel.hidden) {
     mediaPanel.hidden = true;
     mediaPanel.style.display = 'none';
     const subtitle = document.querySelector('#printingTabPane .card-subtitle');
-    if (subtitle) subtitle.textContent = 'ลายน้ำและโลโก้บนเอกสารที่ระบบสร้าง · PDF ดาวน์โหลดลงเครื่องโดยตรง';
-    const row = document.createElement('div');
-    row.id = 'pp5PrintLogoRow';
-    row.style.cssText = 'display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:1px solid var(--border-color,#e2e8f0);border-radius:14px;padding:12px 14px';
-    row.innerHTML = '<div style="width:64px;height:64px;flex:none;display:grid;place-items:center;border-radius:12px;background:var(--bg-soft,#f8fafc)">'
-      + '<img id="pp5PrintLogoImg" alt="โลโก้โรงเรียน" style="max-width:56px;max-height:56px;object-fit:contain" hidden>'
-      + '<i class="bi bi-image" id="pp5PrintLogoNone" style="font-size:1.6rem;color:#94a3b8"></i></div>'
-      + '<div style="flex:1 1 220px;min-width:0"><div class="fw-semibold">โลโก้บนเอกสาร</div>'
-      + '<small id="pp5PrintLogoSource" class="d-block text-muted">กำลังตรวจ…</small></div>'
-      + '<button type="button" class="btn btn-outline-primary" id="pp5PrintLogoBtn"><i class="bi bi-image"></i> เปลี่ยนโลโก้</button>';
-    mediaPanel.insertAdjacentElement('afterend', row);
+    if (subtitle) subtitle.textContent = 'ลายน้ำบนเอกสารที่ระบบสร้าง · PDF ดาวน์โหลดลงเครื่องโดยตรง';
     const hiddenLogoInput = document.getElementById('logoFileId');
     if (hiddenLogoInput) hiddenLogoInput.value = '';
-    row.querySelector('#pp5PrintLogoBtn').addEventListener('click', () => {
-      if (typeof window.navigateTo === 'function') window.navigateTo('logo_management');
-    });
-    window.PP5Data?.settings?.get?.().then((settings) => {
-      const logo = String(settings?.logo_base64 || '').trim();
-      const img = row.querySelector('#pp5PrintLogoImg');
-      const source = row.querySelector('#pp5PrintLogoSource');
-      const drive = /googleusercontent\.com|drive\.google\.com/i.test(logo) || /^[A-Za-z0-9_-]{20,}$/.test(logo);
-      if (!logo) {
-        source.textContent = 'ยังไม่มีโลโก้ — กด "เปลี่ยนโลโก้" เพื่อเพิ่มรูปตราโรงเรียน';
-        return;
-      }
-      img.src = /^[A-Za-z0-9_-]{20,}$/.test(logo) ? `https://lh3.googleusercontent.com/d/${logo}=s360`
-        : /^https:\/\/lh3\.googleusercontent\.com\/d\/[^?=]+$/i.test(logo) ? `${logo}=s360` : logo;
-      img.hidden = false;
-      row.querySelector('#pp5PrintLogoNone').hidden = true;
-      if (drive) {
-        source.className = 'd-block';
-        source.style.color = '#b45309';
-        source.textContent = 'ยังดึงรูปจาก Google Drive — กด "เปลี่ยนโลโก้" แล้วบันทึกรูปไว้ในระบบ จะไม่หายถ้าไฟล์ใน Drive ถูกย้ายหรือลบ';
-      } else {
-        source.textContent = '✓ เก็บรูปไว้ในระบบแล้ว ใช้กับหน้าเข้าสู่ระบบและหัวเอกสารทุกฉบับ';
-      }
-    }).catch(() => { row.querySelector('#pp5PrintLogoSource').textContent = 'อ่านข้อมูลโลโก้ไม่ได้'; });
   }
 
   const folder = document.getElementById('pdfSaveFolderId');
@@ -3494,7 +3461,7 @@ function enhanceSupabaseSettingsPage_() {
       // โลโก้จัดการที่หน้าโลโก้และตราโรงเรียนเท่านั้น: ช่องที่ซ่อนว่างไว้ = บันทึกหน้านี้แล้วโลโก้เดิมไม่เปลี่ยน
       // (supabaseClient settings.save และ gas-bridge saveSettings ข้ามค่าโลโก้ที่ว่าง)
       const hiddenLogo = document.getElementById('logoFileId');
-      if (hiddenLogo && document.getElementById('pp5PrintLogoRow')) hiddenLogo.value = '';
+      if (hiddenLogo && document.querySelector('#printingTabPane .media-panel')?.hidden) hiddenLogo.value = '';
       const summary = document.getElementById('summaryPdfFolder');
       if (summary) summary.textContent = 'ดาวน์โหลดผ่านเบราว์เซอร์';
     };

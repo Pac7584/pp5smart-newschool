@@ -101,6 +101,7 @@
         <div class="pp5-logo-steptitle">ตราที่ใช้อยู่ตอนนี้</div>
         <div class="pp5-logo-current" data-current><span class="pp5-logo-empty">กำลังโหลด…</span></div>
         <div class="pp5-logo-actions"><button type="button" class="btn btn-sm" data-remove hidden><i class="bi bi-trash"></i> ลบตรา</button></div>
+        <p class="pp5-logo-hint" data-drive hidden style="color:#b45309;margin:8px 0 0"><i class="bi bi-exclamation-triangle"></i> ตรานี้ยังดึงรูปจาก Google Drive — เลือกรูปตราอีกครั้งแล้วกดบันทึก เพื่อเก็บไว้ในระบบ ตราจะไม่หายถ้าไฟล์ใน Drive ถูกย้ายหรือลบ</p>
       </div>
       <div>
         <div class="pp5-logo-steptitle"><span class="pp5-logo-step">1</span> เลือกรูปตราโรงเรียน</div>
@@ -150,6 +151,8 @@
         $('[data-name]').textContent = state.schoolName || 'โรงเรียน';
         const logo = String(settings.logo_base64 || '').trim();
         $('[data-remove]').hidden = !logo;
+        // ตราเก่าจากระบบ Apps Script = ลิงก์ / File ID ของ Google Drive (owner 2026-10-19 ย้ายคำเตือนจากแท็บการพิมพ์มาไว้ที่นี่)
+        $('[data-drive]').hidden = !(/googleusercontent\.com|drive\.google\.com/i.test(logo) || /^[-\w]{20,}$/.test(logo));
         if (!logo) { box.innerHTML = '<span class="pp5-logo-empty">ยังไม่มีตราโรงเรียน</span>'; return; }
         box.innerHTML = `<img alt="ตราโรงเรียน" src="${esc(logo)}">`;
         box.querySelector('img').onerror = () => {
