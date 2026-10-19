@@ -3299,6 +3299,8 @@ function enhanceSupabaseSettingsPage_() {
   }
   // ระดับชั้นที่เปิดสอน (js/grade-levels.js, admin เท่านั้น) ป.1–ป.6 หรือ ป.1–ม.3
   try { window.PP5Grades?.enhanceSettingsPage?.(); } catch (err) { console.warn('grade levels setting failed', err); }
+  // แบบประเมินอ่าน คิดวิเคราะห์ และเขียนของโรงเรียน (js/rtw-mode.js, admin เท่านั้น) ต่อจากกล่องระดับชั้น
+  try { window.PP5RtwMode?.enhanceSettingsPage?.(); } catch (err) { console.warn('rtw mode setting failed', err); }
 
   // สวิตช์ลายน้ำ "ผลระหว่างปี" อยู่บนสุดของแท็บ "การพิมพ์ & PDF" (เดิมอยู่ท้ายแท็บข้อมูลทั่วไป ครูหาไม่เจอ)
   // บันทึกทันทีลง settings_json.interim_watermark ไม่ต้องกดบันทึกตั้งค่า

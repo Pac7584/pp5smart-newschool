@@ -1436,6 +1436,45 @@
 
   const RTW_SUBJECT_KEYS = ['thai', 'math', 'science', 'social', 'health', 'art', 'work', 'english'];
 
+  // แบบประเมินการอ่าน คิดวิเคราะห์ และเขียนของโรงเรียน (owner 2026-10-19, settings_json.rtw_mode, เลือกในหน้าตั้งค่า js/rtw-mode.js)
+  //   'subject'  = รายวิชา 8 กลุ่มสาระ (หน้า read_think_write_form → subject_rtw) เท่านั้น
+  //   'criteria' = 5 เกณฑ์ (หน้า rtw5_assessment → rtw · ปพ.5 รายวิชาใช้ subj_rtw ของครูผู้สอนก่อน) เท่านั้น
+  //   'auto'     = ยังไม่เลือก: ทีละคน 8 กลุ่มสาระครบใช้ก่อน ไม่ครบจึงใช้ 5 เกณฑ์ — ปก ปพ.5 / รวมเล่ม / ปพ.6 / หน้าเดียว ใช้หลักเดียวกัน
+  function rtwModeOf_(settings) {
+    const mode = settings?.rtwMode ?? settings?.settings_json?.rtw_mode;
+    return mode === 'subject' || mode === 'criteria' ? mode : 'auto';
+  }
+  async function rtwMode_() {
+    try { return rtwModeOf_(await data.settings.get()); } catch (_) { return 'auto'; }
+  }
+  const rtwScoreOk_ = (v) => v !== '' && v !== null && v !== undefined && Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 3;
+  // 8 กลุ่มสาระ → ระดับ 3/2/1/0 (หลักเดิมของปก ปพ.5 และ ปพ.6) · ไม่ครบ 8 = null
+  function rtwSubjectLevel_(scores) {
+    const values = RTW_SUBJECT_KEYS.map((key) => scores?.[key]);
+    if (!values.every(rtwScoreOk_)) return null;
+    const v = values.map(Number);
+    const zeros = v.filter((x) => x === 0).length;
+    if (zeros >= 2) return 0;
+    if (v.filter((x) => x === 3).length >= 6 && v.every((x) => x >= 2)) return 3;
+    if (v.filter((x) => x >= 2).length >= 6 && !zeros) return 2;
+    return 1;
+  }
+  // 5 เกณฑ์ → ระดับจากค่าเฉลี่ย (≥2.5 = 3, ≥2 = 2, ≥1 = 1, ต่ำกว่า = 0) · ไม่ครบ 5 = null
+  function rtwCriteriaLevel_(scores) {
+    const values = Array.from({ length: 5 }, (_, i) => (Array.isArray(scores) ? scores[i] : undefined));
+    if (!values.every(rtwScoreOk_)) return null;
+    const avg = values.reduce((sum, x) => sum + Number(x), 0) / 5;
+    return avg >= 2.5 ? 3 : avg >= 2 ? 2 : avg >= 1 ? 1 : 0;
+  }
+  // ระดับของนักเรียนหนึ่งคนตามแบบที่โรงเรียนเลือก · null = ยังไม่ประเมิน
+  function rtwLevel_(subjectScores, criteriaScores, mode) {
+    if (mode !== 'criteria') {
+      const level = rtwSubjectLevel_(subjectScores);
+      if (level !== null || mode === 'subject') return level;
+    }
+    return rtwCriteriaLevel_(criteriaScores);
+  }
+
   function calculateSubjectScoreResult(scores) {
     const validScores = (scores || []).filter((s) => s !== '' && s !== null && s !== undefined && !isNaN(Number(s))).map(Number);
     if (validScores.length !== 8) return '-';
@@ -1971,20 +2010,11 @@
     // จึงเก็บไว้ในช่อง semester = 1 เสมอ  นักเรียนที่ยังประเมินไม่ครบนับเป็น "ยังไม่ประเมิน" (pending)
     const assessed = await loadPp5YearAssessments(grade, classNo, academicYear);
 
-    // 2. Reading (RTW)
+    // 2. Reading (RTW) — ตามแบบที่โรงเรียนเลือก (rtwMode_): 8 กลุ่มสาระ / 5 เกณฑ์ / อัตโนมัติทีละคน (rtw.level จาก loadPp5YearAssessments)
     const reading = { level3: 0, level2: 0, level1: 0, level0: 0, pending: 0 };
     assessed.rtw.students.forEach((s) => {
-      const sc = s.scores || {};
-      const valid = [sc.thai, sc.math, sc.science, sc.social, sc.health, sc.art, sc.work, sc.english].filter((v) => v !== '' && v !== null && !isNaN(Number(v))).map(Number);
-      if (valid.length !== 8) { reading.pending++; return; }
-      const count0 = valid.filter((v) => v === 0).length;
-      const count3 = valid.filter((v) => v === 3).length;
-      const count2up = valid.filter((v) => v >= 2).length;
-      const hasBelow2 = valid.some((v) => v < 2);
-      if (count0 >= 2) reading.level0++;
-      else if (count3 >= 6 && !hasBelow2) reading.level3++;
-      else if (count2up >= 6 && count0 === 0) reading.level2++;
-      else reading.level1++;
+      if (s.level === null || s.level === undefined) reading.pending++;
+      else reading['level' + s.level]++;
     });
 
     // 3. Characteristic
@@ -2022,14 +2052,32 @@
   }
 
   // ผลประเมินประจำปีสำหรับ ปพ.5 (ช่อง semester = 1 ซึ่งเป็นที่ที่หน้าบันทึกผลประเมินเก็บไว้เสมอ)
+  // rtw.students: ผล 8 กลุ่มสาระ (scores) + 5 เกณฑ์ของครูประจำชั้น (criteria, ประเภท rtw ภาค 1) + level ตามแบบของโรงเรียน
+  // (rtwLevel_, null = ยังไม่ประเมิน) · rtw.mode = แบบที่ใช้ — ปก ปพ.5 / รวมเล่ม / ปพ.5 รายวิชา ใช้ค่าชุดเดียวกัน
   async function loadPp5YearAssessments(grade, classNo, academicYear) {
     const safe = async (load) => { try { return { students: await load() }; } catch (e) { return { students: [] }; } };
-    const [rtw, characteristic, activity, competency] = await Promise.all([
+    // 5 เกณฑ์ของครูประจำชั้นอ่านตรงจากประเภท rtw (ไม่ผ่าน loadAssessment ซึ่งเปลี่ยนไปอ่านผลครูรายวิชาเมื่อเลือก "ประเมินในฐานะ")
+    const homeroomRtw5 = async () => {
+      const students = await data.students.list({ grade, room: classNo, academicYear });
+      const rows = students.length ? await data.assessments.list('rtw', 1, students.map((s) => s.id), academicYear) : [];
+      const grouped = {};
+      rows.forEach((row) => { (grouped[row.student_id] ||= {})[row.criteria_code] = row.score; });
+      return students.map((student) => assessmentStudent(student, grouped[student.id], 'rtw', 5));
+    };
+    const [rtw, rtw5, characteristic, activity, competency, mode] = await Promise.all([
       safe(() => loadSubjectScoreAssessment(grade, classNo, 1, academicYear)),
+      safe(homeroomRtw5),
       safe(() => loadAssessment('characteristic', 'c', 8, grade, classNo, 1, academicYear)),
       safe(() => loadActivityAssessment(grade, classNo, 1, academicYear)),
-      safe(() => loadAssessment('competency', 'cp', 25, grade, classNo, 1, academicYear))
+      safe(() => loadAssessment('competency', 'cp', 25, grade, classNo, 1, academicYear)),
+      rtwMode_()
     ]);
+    const criteriaBy = new Map(rtw5.students.map((s) => [text(s.id), s.scores]));
+    rtw.mode = mode;
+    rtw.students = rtw.students.map((s) => {
+      const criteria = criteriaBy.get(text(s.id)) || ['', '', '', '', ''];
+      return { ...s, criteria, level: rtwLevel_(s.scores, criteria, mode) };
+    });
     return { rtw, characteristic, activity, competency };
   }
 
@@ -2373,10 +2421,22 @@
       });
       return { semesters, year };
     };
-    const rtwBookFor = (group) => students.map((student, index) => {
-      const v = group ? rtwByStudent.get(text(student.id))?.scores?.[group.key] : '';
-      return { ...studentInfo(student, index), score: v === '' || v === null || v === undefined || isNaN(Number(v)) ? '' : Math.max(0, Math.min(3, Math.round(Number(v)))) };
-    });
+    // ระดับอ่านฯ ของนักเรียนในวิชานี้ ตามแบบของโรงเรียน (assessed.rtw.mode, owner 2026-10-19) ทีละคน · '' = ยังไม่ประเมิน
+    //   รายวิชา 8 กลุ่มสาระ: คะแนนกลุ่มสาระของวิชา · 5 เกณฑ์: ผลครูผู้สอนวิชานี้ (subj_rtw) → ผล 5 เกณฑ์ของครูประจำชั้น
+    //   อัตโนมัติ: ผลครูผู้สอนวิชานี้ → คะแนนกลุ่มสาระ (เดิมเลือกทั้งวิชา: ครูกรอกบางคน คนที่เหลือรอผลแม้มีคะแนนกลุ่มสาระ)
+    const rtwMode = assessed.rtw.mode || 'auto';
+    const readingLevelFor = (sid, group, ownRtw) => {
+      if (rtwMode !== 'subject' && ownRtw) {
+        const level = levelOf(completeAvg(ownRtw.get(sid), 5));
+        if (level !== '') return level;
+      }
+      if (rtwMode === 'criteria') {
+        const level = rtwCriteriaLevel_(rtwByStudent.get(sid)?.criteria);
+        return level === null ? '' : level;
+      }
+      const v = group ? rtwByStudent.get(sid)?.scores?.[group.key] : '';
+      return v === '' || v === null || v === undefined || isNaN(Number(v)) ? '' : Math.max(0, Math.min(3, Math.round(Number(v))));
+    };
     const characterBook = students.map((student, index) => {
       const scores = (characterByStudent.get(text(student.id))?.scores || []).slice(0, 8).map((v) => (v === '' || v === null || v === undefined || isNaN(Number(v)) ? '' : Number(v)));
       while (scores.length < 8) scores.push('');
@@ -2443,19 +2503,8 @@
         else grades.pending++;
       });
       const reading = { '3': 0, '2': 0, '1': 0, '0': 0, pending: 0 };
-      if (own.rtw) {
-        students.forEach((student) => {
-          const level = levelOf(completeAvg(own.rtw.get(text(student.id)), 5));
-          if (level === '') reading.pending++; else reading[String(level)]++;
-        });
-      } else if (group) {
-        assessed.rtw.students.forEach((s) => {
-          const v = s.scores?.[group.key];
-          if (v === '' || v === null || v === undefined || isNaN(Number(v))) reading.pending++;
-          else if (reading[String(Math.max(0, Math.min(3, Math.round(Number(v)))))] !== undefined) reading[String(Math.max(0, Math.min(3, Math.round(Number(v)))))]++;
-        });
-        reading.pending += Math.max(0, studentCount - assessed.rtw.students.length);
-      } else reading.pending = studentCount;
+      const readingLevels = students.map((student) => readingLevelFor(text(student.id), group, own.rtw));
+      readingLevels.forEach((level) => { if (level === '') reading.pending++; else reading[String(level)]++; });
       sheets.push({
         id: text(item.id),
         code: text(subject.code || item.code),
@@ -2467,11 +2516,11 @@
         teacher: cleanTeacherName(overrides[text(item.id)]) || cleanTeacherName(roomTeachers[roomTeacherKey(grade, classNo, item.id)])
           || text(subject.teacher_name || subject.teacherName),
         grades, reading, character: own.char ? ownCharacter(own.char) : character,
-        readingBy: own.rtw ? 'subject' : 'group', characterBy: own.char ? 'subject' : 'homeroom',
+        readingBy: rtwMode !== 'subject' && own.rtw ? 'subject' : rtwMode === 'criteria' ? 'homeroom' : 'group', characterBy: own.char ? 'subject' : 'homeroom',
         attendance: await subjectAttendance(subject),
         book: {
           scores: scoreBookFor(subject, rowMap),
-          rtw: own.rtw ? students.map((student, index) => ({ ...studentInfo(student, index), score: levelOf(completeAvg(own.rtw.get(text(student.id)), 5)) })) : rtwBookFor(group),
+          rtw: students.map((student, index) => ({ ...studentInfo(student, index), score: readingLevels[index] })),
           character: own.char ? ownCharacterBook(own.char) : characterBook
         }
       });
@@ -2732,6 +2781,7 @@
     let characteristic = [];
     let activity = [];
     let rtw = [];
+    let rtwMode = 'auto';
     let competency = [];
     if (parts.part3) {
       // Same yearly records as the cover page, so every page of the book agrees.
@@ -2739,6 +2789,7 @@
       characteristic = assessed.characteristic.students;
       activity = assessed.activity.students;
       rtw = assessed.rtw.students;
+      rtwMode = assessed.rtw.mode || 'auto';
       competency = assessed.competency.students;
     }
 
@@ -2759,6 +2810,7 @@
       characteristic,
       activity,
       rtw,
+      rtwMode,
       competency
     };
 
@@ -2777,9 +2829,11 @@
 
   // Only explicit saved criteria produce an official assessment result.
   // School policy: ยึดผลการประเมินของภาคเรียนที่ 2 เป็นผลตัดสินสิ้นปีการศึกษา (term === 'year')
-  function reportAssessmentSummary(rows, term) {
+  // rtwMode: แบบประเมินอ่านฯ ของโรงเรียน (rtwModeOf_, owner 2026-10-19) ไม่ส่ง = 'auto'
+  function reportAssessmentSummary(rows, term, rtwMode = 'auto') {
     const annual = !['1', '2'].includes(String(term));
     const pending = 'ยังไม่ประเมิน';
+    const mode = rtwModeOf_({ rtwMode });
     let selected = [];
     if (annual) {
       const term2Rows = (rows || []).filter((row) => Number(row.semester) === 2);
@@ -2807,10 +2861,10 @@
     const compValues = criteriaValues('competency', Array.from({ length: 25 }, (_, i) => ['cp' + (i + 1), String(i + 1)]));
     const rtwValues = criteriaValues('subject_rtw', RTW_SUBJECT_KEYS.map((key, i) => [key, 'srtw' + (i + 1), String(i + 1)]));
     let readingResult = pending;
-    if (assessmentCriteriaComplete(byType('subject_rtw'), 'subject_rtw')) {
+    if (mode !== 'criteria' && assessmentCriteriaComplete(byType('subject_rtw'), 'subject_rtw')) {
       const zeros = rtwValues.filter((v) => v === 0).length;
       readingResult = zeros >= 2 ? 'ปรับปรุง' : rtwValues.filter((v) => v === 3).length >= 6 && rtwValues.every((v) => v >= 2) ? 'ดีเยี่ยม' : rtwValues.filter((v) => v >= 2).length >= 6 && !zeros ? 'ดี' : 'ผ่าน';
-    } else if (assessmentCriteriaComplete(byType('rtw'), 'rtw')) {
+    } else if (mode !== 'subject' && assessmentCriteriaComplete(byType('rtw'), 'rtw')) {
       readingResult = gradeQuality(completeAverage(criteriaValues('rtw', Array.from({ length: 5 }, (_, i) => ['rtw' + (i + 1), String(i + 1)]))));
     }
     const activityRows = byType('activity');
@@ -3016,7 +3070,7 @@
       const studentComments = commentRows.filter((c) => String(c.student_id) === studentId);
 
       const studentAssessmentRows = classAssessmentRows.filter((row) => String(row.student_id) === studentId);
-      const assessments = reportAssessmentSummary(studentAssessmentRows, term);
+      const assessments = reportAssessmentSummary(studentAssessmentRows, term, rtwModeOf_(settings));
       let actCounter = 0;
       let subjCounter = 0;
       const processedSubjects = subjects.map((sub) => {
@@ -3334,7 +3388,7 @@
       };
     });
     const assessRows = await optionalTable('assessments', (query) => query.eq('student_id', student.id).eq('academic_year', academicYear));
-    const assessments = reportAssessmentSummary(assessRows, term);
+    const assessments = reportAssessmentSummary(assessRows, term, await rtwMode_());
     const options = await attendancePrintOptions(student.grade, student.classNo, 'รายงานผลการเรียนหน้าเดียว');
     options.academicYear = academicYear;
     options.meta = ['ชั้น ' + student.grade + ' ห้อง ' + student.classNo, 'ปีการศึกษา ' + academicYear, term === 'year' ? 'รายปี' : 'ภาคเรียนที่ ' + term].join('   ');
@@ -3563,6 +3617,7 @@
   async function buildClassAssessmentSummary(grade, classNo, termInput) {
     const term = await classSummaryTerm(termInput);
     const academicYear = text(await currentYear());
+    const rtwMode = await rtwMode_();
     const room = text(classNo);
     const [gradeStudents, allSubjects] = await Promise.all([
       data.students.list({ grade, academicYear }),
@@ -3629,7 +3684,7 @@
     const classRanks = rankMap(classItems);
 
     const students = classItems.map((item) => {
-      const assess = reportAssessmentSummary(assessByStudent[item.id] || [], term);
+      const assess = reportAssessmentSummary(assessByStudent[item.id] || [], term, rtwMode);
       const fullName = studentDisplayName(item.student);
       return {
         studentId: item.id,
@@ -3784,7 +3839,9 @@
         return Object.values(byTerm).every((termRows) => assessmentCriteriaComplete(termRows, type));
       }).map(([id]) => id));
     };
-    const rtwStudents = new Set([...completeStudents('rtw'), ...completeStudents('subject_rtw')]);
+    // อ่านฯ ครบตามแบบของโรงเรียน (rtwMode_): รายวิชา = subject_rtw · 5 เกณฑ์ = rtw · อัตโนมัติ = แบบใดแบบหนึ่ง
+    const rtwModeNow = await rtwMode_();
+    const rtwStudents = new Set([...(rtwModeNow === 'subject' ? [] : completeStudents('rtw')), ...(rtwModeNow === 'criteria' ? [] : completeStudents('subject_rtw'))]);
     const charStudents = completeStudents('characteristic');
     const actStudents = completeStudents('activity');
     const compStudents = completeStudents('competency');
@@ -5102,7 +5159,7 @@
     });
     // Annual SAR and PP6 use the school's confirmed rule:
     // Assessment results from Semester 2 serve as the final annual evaluation.
-    const annualAssessments = students.map((student) => reportAssessmentSummary(rowsByStudent[text(student.id)] || [], 'year'));
+    const annualAssessments = students.map((student) => reportAssessmentSummary(rowsByStudent[text(student.id)] || [], 'year', rtwModeOf_(settings)));
     const compileDimension = (type) => {
       const key = { rtw: 'reading', characteristic: 'character', competency: 'competency' }[type];
       const counts = { total: 0, excellent: 0, good: 0, pass: 0, fail: 0, pending: 0 };
@@ -5670,7 +5727,11 @@
       const assessmentTypes = new Set(assessmentRows.map((a) => a.assessment_type));
       const assessmentBreakdown = [
         { type: 'characteristic', label: 'คุณลักษณะอันพึงประสงค์ 8 ข้อ', page: 'characteristic_assessment', done: assessmentTypes.has('characteristic') || assessmentTypes.has('characteristics') },
-        { type: 'read_think_write', label: 'การอ่าน คิดวิเคราะห์ และเขียน', page: 'read_think_write_form', done: assessmentTypes.has('read_think_write') || assessmentTypes.has('rtw') },
+        // หน้าและผลที่นับตามแบบประเมินอ่านฯ ของโรงเรียน (rtwMode_, owner 2026-10-19)
+        ...(await rtwMode_().then((mode) => [{ type: 'read_think_write', label: 'การอ่าน คิดวิเคราะห์ และเขียน',
+          page: mode === 'criteria' ? 'rtw5_assessment' : 'read_think_write_form',
+          done: mode === 'criteria' ? assessmentTypes.has('rtw') : mode === 'subject' ? assessmentTypes.has('subject_rtw')
+            : assessmentTypes.has('read_think_write') || assessmentTypes.has('rtw') || assessmentTypes.has('subject_rtw') }])),
         { type: 'competency', label: 'สมรรถนะสำคัญ 5 ด้าน', page: 'competency_assessment', done: assessmentTypes.has('competency') || assessmentTypes.has('competencies') },
         { type: 'activity', label: 'กิจกรรมพัฒนาผู้เรียน (ลูกเสือ/แนะแนว/ชุมนุม)', page: 'activity_assessment', done: assessmentTypes.has('activity') || assessmentTypes.has('activities') }
       ];
@@ -7068,11 +7129,13 @@
         if (!graded.has(sid)) graded.set(sid, new Set());
         graded.get(sid).add(text(sb.name));
       });
+      const rtwModeNow = await rtwMode_();
       const TYPES = [
         { key: 'characteristic', label: 'คุณลักษณะ', page: 'characteristic_assessment', always: true },
         { key: 'competency', label: 'สมรรถนะ', page: 'competency_assessment', always: true },
-        { key: 'subject_rtw', label: 'อ่านคิดเขียน (ปพ.5)', page: 'read_think_write_form', always: false },
-        { key: 'rtw', label: 'อ่านคิดเขียน 5 เกณฑ์', page: 'rtw5_assessment', always: false },
+        // แบบประเมินอ่านฯ ที่โรงเรียนเลือก (rtwMode_) แสดงเสมอ แบบที่ไม่ใช้ไม่แสดง · อัตโนมัติ = แสดงแบบที่มีผลปีนี้
+        { key: 'subject_rtw', label: 'อ่านคิดเขียน (ปพ.5)', page: 'read_think_write_form', always: rtwModeNow === 'subject', never: rtwModeNow === 'criteria' },
+        { key: 'rtw', label: 'อ่านคิดเขียน 5 เกณฑ์', page: 'rtw5_assessment', always: rtwModeNow === 'criteria', never: rtwModeNow === 'subject' },
         { key: 'activity', label: 'กิจกรรม', page: 'activity_assessment', always: true }
       ];
       const usedThisYear = new Set();
@@ -7085,7 +7148,7 @@
         usedThisYear.add(type);
         if (number(row.semester, 1) === semester) assessed[type].add(sid);
       });
-      const types = TYPES.filter((t) => t.always || usedThisYear.has(t.key));
+      const types = TYPES.filter((t) => !t.never && (t.always || usedThisYear.has(t.key)));
 
       const rooms = new Map();
       students.forEach((s) => {

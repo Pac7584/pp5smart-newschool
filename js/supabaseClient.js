@@ -495,7 +495,9 @@
         // ลายน้ำ "ผลระหว่างปี" บนเอกสารรายภาคเรียน + แถบหน้าผู้ปกครอง (ค่าเริ่มต้นเปิด, ปิดได้ในหน้าตั้งค่า)
         interimWatermark: data.settings_json?.interim_watermark !== false,
         // ข้อความลายน้ำที่โรงเรียนพิมพ์เอง (ว่าง = ใช้ข้อความเดิมของระบบ) ไม่เกิน 60 ตัวอักษร
-        interimWatermarkText: asText(data.settings_json?.interim_watermark_text).replace(/\s+/g, ' ').trim().slice(0, 60)
+        interimWatermarkText: asText(data.settings_json?.interim_watermark_text).replace(/\s+/g, ' ').trim().slice(0, 60),
+        // แบบประเมินอ่าน คิดวิเคราะห์ และเขียน (js/rtw-mode.js): 'subject' 8 กลุ่มสาระ | 'criteria' 5 เกณฑ์ | 'auto' ยังไม่เลือก
+        rtwMode: ['subject', 'criteria'].includes(data.settings_json?.rtw_mode) ? data.settings_json.rtw_mode : 'auto'
       };
     },
 
@@ -563,6 +565,12 @@
     // สวิตช์ลายน้ำ "ผลระหว่างปี": settings_json.interim_watermark
     async setInterimWatermark(on) {
       return this.patchSettingsJson('interim_watermark', on !== false, 'บันทึกการตั้งค่าลายน้ำไม่สำเร็จ');
+    },
+
+    // แบบประเมินอ่าน คิดวิเคราะห์ และเขียนของโรงเรียน: settings_json.rtw_mode ('auto' = ใช้ทั้งสองแบบ)
+    async setRtwMode(mode) {
+      const value = ['subject', 'criteria'].includes(mode) ? mode : 'auto';
+      return this.patchSettingsJson('rtw_mode', value, 'บันทึกแบบประเมินอ่าน คิด เขียนไม่สำเร็จ');
     },
 
     // ข้อความลายน้ำที่พิมพ์เอง: ช่องว่างหลายช่องรวมเป็นช่องเดียว ไม่เกิน 60 ตัวอักษร  ว่าง = กลับไปใช้ข้อความเดิม

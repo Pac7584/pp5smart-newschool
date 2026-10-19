@@ -2413,7 +2413,9 @@
     const notes = [];
     if (Number(g.pending)) notes.push(`ยังไม่มีผลการเรียนครบ ${g.pending} คน`);
     if (Number(c.pending)) notes.push(`ยังไม่ได้ประเมินคุณลักษณะ ${c.pending} คน`);
-    if (Number(r.pending)) notes.push(sheet.group ? `ยังไม่ได้ประเมินการอ่านฯ ของกลุ่มสาระนี้ ${r.pending} คน` : 'ไม่พบกลุ่มสาระของวิชานี้ จึงไม่มีผลการอ่านฯ');
+    // readingBy (gas-bridge, แบบประเมินอ่านฯ ของโรงเรียน): 'group' = คะแนนกลุ่มสาระ · 'subject' / 'homeroom' = 5 เกณฑ์ ไม่ขึ้นกับกลุ่มสาระ
+    if (Number(r.pending)) notes.push(sheet.readingBy !== 'group' ? `ยังไม่ได้ประเมินการอ่านฯ ${r.pending} คน`
+      : sheet.group ? `ยังไม่ได้ประเมินการอ่านฯ ของกลุ่มสาระนี้ ${r.pending} คน` : 'ไม่พบกลุ่มสาระของวิชานี้ จึงไม่มีผลการอ่านฯ');
     if (notes.length) { doc.text(`* ${notes.join(' · ')}`, left, noteY); noteY += 4; }
     // SQL 034: ถ้าครูผู้สอนประเมินในวิชานี้เอง ใช้ผลของวิชา (gas-bridge subjectOwn) ไม่ใช่ผลรวมของนักเรียน
     doc.text(sheet.characterBy === 'subject' || sheet.readingBy === 'subject'
@@ -3171,7 +3173,16 @@
         doc.addPage('a4', 'portrait');
         drawHeader(doc, 'รายงานการประเมินการอ่าน คิดวิเคราะห์ และเขียน', meta, logo);
         const startYRtw = headerBottom(meta, logo, '');
+        // แบบประเมินของโรงเรียน (gas-bridge loadPp5YearAssessments: report.rtwMode, s.level 0–3 / null, s.criteria 5 ข้อ)
+        // 5 เกณฑ์ = ตาราง 5 ข้อ · อื่น ๆ = ตาราง 8 กลุ่มสาระ แต่ "สรุปผล" ใช้ s.level (อัตโนมัติ: 8 กลุ่มสาระไม่ครบใช้ 5 เกณฑ์)
+        const RTW_LEVEL_RESULT = { 3: 'ดีเยี่ยม', 2: 'ดี', 1: 'ผ่าน', 0: 'ไม่ผ่าน' };
+        const rtwCriteriaMode = report?.rtwMode === 'criteria';
+        const cell = (v) => (v !== undefined && v !== null && v !== '' ? v : '-');
         const rtwBody = rtwStudents.map((s, idx) => {
+          if (rtwCriteriaMode) {
+            const cr = Array.isArray(s.criteria) ? s.criteria : [];
+            return [idx + 1, text(s.name || s.fullName), ...[0, 1, 2, 3, 4].map((i) => cell(cr[i])), RTW_LEVEL_RESULT[s.level] || '-'];
+          }
           const sc = s.scores || {};
           const subjectScores = [sc.thai, sc.math, sc.science, sc.social, sc.health, sc.art, sc.work, sc.english];
           const valid = subjectScores.filter((v) => v !== '' && v !== null && v !== undefined && !isNaN(Number(v))).map(Number);
@@ -3186,6 +3197,7 @@
             else if (count2up >= 6 && count0 === 0) res = 'ดี';
             else res = 'ผ่าน';
           }
+          if (s.level !== undefined) res = RTW_LEVEL_RESULT[s.level] || '-';
           return [
             idx + 1,
             text(s.name || s.fullName),
@@ -3201,7 +3213,19 @@
           ];
         });
 
-        runAutoTable(doc, tableDefaults({
+        if (rtwCriteriaMode) runAutoTable(doc, tableDefaults({
+          startY: startYRtw,
+          head: [['ที่', 'ชื่อ - สกุล', 'อ่านหาข้อมูล', 'จับประเด็น', 'เชื่อมโยง', 'แสดงความคิดเห็น', 'ถ่ายทอดการเขียน', 'สรุปผล']],
+          body: rtwBody,
+          margin: { top: startYRtw, left: 14, right: 10, bottom: 8 },
+          styles: { font: 'Sarabun', fontSize: 8.5, halign: 'center' },
+          columnStyles: {
+            0: { cellWidth: 10 }, 1: { cellWidth: 56, halign: 'left' },
+            2: { cellWidth: 20 }, 3: { cellWidth: 20 }, 4: { cellWidth: 20 }, 5: { cellWidth: 22 }, 6: { cellWidth: 22 },
+            7: { cellWidth: 16 }
+          }
+        }));
+        else runAutoTable(doc, tableDefaults({
           startY: startYRtw,
           head: [['ที่', 'ชื่อ - สกุล', 'ไทย', 'คณิต', 'วิทย์', 'สังคม', 'สุขะ', 'ศิลปะ', 'การงาน', 'อังกฤษ', 'สรุปผล']],
           body: rtwBody,
@@ -3351,6 +3375,8 @@
             else rtwRes = 'ผ่าน';
           }
         }
+        // ระดับตามแบบประเมินของโรงเรียน (gas-bridge rtwLevel_) — ตรงกับหน้า 3.3 และปก ปพ.5
+        if (rtwItem && rtwItem.level !== undefined) rtwRes = ({ 3: 'ดีเยี่ยม', 2: 'ดี', 1: 'ผ่าน', 0: 'ไม่ผ่าน' })[rtwItem.level] || '-';
 
         let compRes = s.compResult || '-';
         if (compItem?.scores) {
