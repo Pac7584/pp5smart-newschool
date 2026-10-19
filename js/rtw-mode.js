@@ -53,14 +53,16 @@
     try { return String(global.localStorage?.getItem('role') || '').toLowerCase() === 'admin'; } catch (_) { return false; }
   }
 
-  // หน้าตั้งค่าระบบ (spa-main เรียกต่อจากกล่องระดับชั้นที่เปิดสอน)
+  // หน้าตั้งค่าระบบ แท็บ "รูปแบบ ปพ.5" (#pp5FormatTabPane ของ js/pp5-format.js) ต่อจากตัวเลือกรูปแบบ ปพ.5
+  // owner 2026-10-19 "ยังไม่เห็นเมนู": รอบแรกวางต่อกล่องระดับชั้นในการ์ดเดิมของแท็บข้อมูลทั่วไป ซึ่ง js/settings-layout.js
+  // ซ่อนทั้งการ์ด (#generalTabPane > .card.pp5set-old) จึงมองไม่เห็น — แท็บ ปพ.5 สร้างทีหลังจึงเรียกซ้ำจาก MutationObserver ด้านล่าง
   function enhanceSettingsPage() {
     if (!doc || !isAdmin() || doc.getElementById('pp5RtwModeBox')) return;
-    const after = doc.getElementById('pp5GradeLevelsBox') || doc.getElementById('pp5SupabaseExtraSettings');
-    if (!after) return;
+    const pane = doc.getElementById('pp5FormatTabPane');
+    if (!pane) return;
     const box = doc.createElement('fieldset');
     box.id = 'pp5RtwModeBox';
-    box.style.cssText = 'border:1px solid var(--border-color, #e2e8f0);border-radius:12px;padding:12px 14px;margin-top:12px;';
+    box.style.cssText = 'border:1px solid var(--border-color, #e2e8f0);border-radius:12px;padding:14px 16px;margin-top:16px;';
     box.innerHTML = '<legend class="form-label fw-semibold mb-1" style="float:none;width:auto;font-size:inherit">แบบประเมินการอ่าน คิดวิเคราะห์ และเขียนของโรงเรียน</legend>'
       + Object.entries(MODES).map(([key, item]) => `<div class="form-check"><input class="form-check-input" type="radio" name="pp5RtwMode" id="pp5RtwMode_${key}" value="${key}" disabled>`
         + `<label class="form-check-label" for="pp5RtwMode_${key}"><span class="fw-semibold">${item.label}</span><span class="d-block small text-muted">${item.help}</span></label></div>`).join('')
@@ -70,7 +72,7 @@
       + '<label class="form-check-label fw-semibold" for="pp5AnnualFromTerm1">ผลประเมินทั้งปี: ถ้ายังไม่มีผลภาคเรียนที่ 2 ให้ใช้ผลภาคเรียนที่ 1</label></div>'
       + '<div class="field-help">ใช้กับผลประเมิน 4 ด้าน (อ่าน คิด เขียน · คุณลักษณะ · สมรรถนะ · กิจกรรม) ใน ปพ.6 / รายงานหน้าเดียว / สรุปรายชั้นที่เลือก "ทั้งปี" · '
       + 'ปิด = ยังไม่ประเมินจนกว่าจะมีผลภาค 2 หรือผลรายปี · เปิด = ด้านที่ยังไม่มีภาค 2 ใช้ผลภาค 1 (ด้านที่มีภาค 2 แล้วใช้ภาค 2) <span id="pp5AnnualFromTerm1Status" class="small"></span></div>';
-    after.insertAdjacentElement('afterend', box);
+    pane.appendChild(box);
     const radios = [...box.querySelectorAll('input[name="pp5RtwMode"]')];
     const status = box.querySelector('#pp5RtwModeStatus');
     const show = (message, tone) => { status.textContent = message ? ' · ' + message : ''; status.className = 'small' + (tone ? ' text-' + tone : ''); };
@@ -125,6 +127,12 @@
         global.PP5Data?.client?.auth?.onAuthStateChange?.((event) => { if (event === 'SIGNED_IN') setTimeout(refresh, 0); });
       } catch (_) { /* no auth client */ }
       doc.addEventListener('pp5:settings-saved', () => { setTimeout(refresh, 0); });
+      // แท็บ ปพ.5 เกิดหลังหน้าตั้งค่าโหลด (pp5-format MutationObserver) — วางกล่องเมื่อแท็บพร้อม
+      const frame = doc.getElementById('contentFrame');
+      if (frame && typeof global.MutationObserver === 'function') {
+        new global.MutationObserver(() => { if (doc.getElementById('pp5FormatTabPane') && !doc.getElementById('pp5RtwModeBox')) enhanceSettingsPage(); })
+          .observe(frame, { childList: true, subtree: true });
+      }
     };
     if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', start, { once: true });
     else start();
