@@ -4,10 +4,11 @@
 // ไฟล์นี้: ซ่อนเมนูและการ์ดของแบบที่ไม่ใช้ (html[data-rtw-mode]) + กล่องเลือกในหน้าตั้งค่า (ผู้ดูแลระบบ, บันทึกทันที)
 (function initRtwMode(global) {
   const doc = global.document;
+  // การ์ดในหน้าตั้งค่า (owner 2026-10-19 "ง่าย กระชับ ไม่ดูเป็นเอกสาร") — ลำดับ: สองแบบหลัก แล้วอัตโนมัติ เหมือนตัวเลือกรูปแบบ ปพ.5
   const MODES = {
-    auto: { label: 'ใช้ทั้งสองแบบ (อัตโนมัติ)', help: 'รายงานใช้ผลรายวิชา 8 กลุ่มสาระถ้าประเมินครบ ถ้าไม่ครบจึงใช้ผล 5 เกณฑ์ (ดูทีละคน) · แสดงทั้งสองเมนู' },
-    subject: { label: 'รายวิชา (8 กลุ่มสาระ)', help: 'ใช้เมนู "ประเมินอ่าน คิด เขียน (รายวิชา)" · รายงานใช้เฉพาะผล 8 กลุ่มสาระ · ซ่อนเมนู 5 เกณฑ์' },
-    criteria: { label: '5 เกณฑ์', help: 'ใช้เมนู "ประเมินอ่าน คิด เขียน (5 เกณฑ์)" · ปพ.5 รายวิชาใช้ผลของครูผู้สอนวิชานั้นก่อน ไม่มีจึงใช้ผลของครูประจำชั้น · ซ่อนเมนูรายวิชา' }
+    subject: { title: 'รายวิชา', note: '8 กลุ่มสาระ', icon: 'bi-grid-3x3-gap' },
+    criteria: { title: '5 เกณฑ์', note: 'ประเมิน 5 ข้อ', icon: 'bi-list-check' },
+    auto: { title: 'อัตโนมัติ', note: 'ใช้ได้ทั้งสองแบบ', icon: 'bi-magic' }
   };
   // หน้าที่ซ่อนเมื่อเลือกแบบนั้น
   const HIDE = { subject: 'rtw5_assessment', criteria: 'read_think_write_form' };
@@ -60,39 +61,39 @@
     if (!doc || !isAdmin() || doc.getElementById('pp5RtwModeBox')) return;
     const pane = doc.getElementById('pp5FormatTabPane');
     if (!pane) return;
-    const box = doc.createElement('fieldset');
+    // ใช้หน้าตาเดียวกับการ์ด "รูปแบบ ปพ.5" ด้านบน (.pp5fmt ของ js/pp5-format.js ซึ่งอยู่ในแท็บเดียวกันเสมอ)
+    const box = doc.createElement('section');
     box.id = 'pp5RtwModeBox';
-    box.style.cssText = 'border:1px solid var(--border-color, #e2e8f0);border-radius:12px;padding:14px 16px;margin-top:16px;';
-    box.innerHTML = '<legend class="form-label fw-semibold mb-1" style="float:none;width:auto;font-size:inherit">แบบประเมินการอ่าน คิดวิเคราะห์ และเขียนของโรงเรียน</legend>'
-      + Object.entries(MODES).map(([key, item]) => `<div class="form-check"><input class="form-check-input" type="radio" name="pp5RtwMode" id="pp5RtwMode_${key}" value="${key}" disabled>`
-        + `<label class="form-check-label" for="pp5RtwMode_${key}"><span class="fw-semibold">${item.label}</span><span class="d-block small text-muted">${item.help}</span></label></div>`).join('')
-      + '<div class="field-help">เลือกแล้วบันทึกทันที · ใช้กับปก ปพ.5 รวมเล่ม ปพ.5 รายวิชา ปพ.6 และรายงานหน้าเดียว ให้ได้ผลตรงกัน · ผลที่กรอกไว้ในแบบอื่นยังเก็บอยู่ เปลี่ยนกลับได้ <span id="pp5RtwModeStatus" class="small"></span></div>'
-      // owner 2026-10-19: ผลทั้งปีเมื่อยังไม่มีภาค 2 — ปิด (ค่าเริ่มต้น) = "ยังไม่ประเมิน" · เปิด = ใช้ผลภาค 1 ของด้านนั้น
-      + '<div class="form-check form-switch mt-3"><input class="form-check-input" type="checkbox" role="switch" id="pp5AnnualFromTerm1" disabled>'
-      + '<label class="form-check-label fw-semibold" for="pp5AnnualFromTerm1">ผลประเมินทั้งปี: ถ้ายังไม่มีผลภาคเรียนที่ 2 ให้ใช้ผลภาคเรียนที่ 1</label></div>'
-      + '<div class="field-help">ใช้กับผลประเมิน 4 ด้าน (อ่าน คิด เขียน · คุณลักษณะ · สมรรถนะ · กิจกรรม) ใน ปพ.6 / รายงานหน้าเดียว / สรุปรายชั้นที่เลือก "ทั้งปี" · '
-      + 'ปิด = ยังไม่ประเมินจนกว่าจะมีผลภาค 2 หรือผลรายปี · เปิด = ด้านที่ยังไม่มีภาค 2 ใช้ผลภาค 1 (ด้านที่มีภาค 2 แล้วใช้ภาค 2) <span id="pp5AnnualFromTerm1Status" class="small"></span></div>';
+    box.className = 'pp5fmt';
+    box.innerHTML = '<h5><i class="bi bi-book-half"></i> อ่าน คิด เขียน</h5><p>ครูกรอกแบบไหน รายงานทุกฉบับใช้แบบนั้น · เมนูของอีกแบบจะซ่อนไว้</p>'
+      + '<div class="pp5fmt-grid" role="radiogroup" aria-label="แบบประเมินอ่าน คิด เขียน">'
+      + Object.entries(MODES).map(([key, m]) => `<label class="pp5fmt-opt"><input type="radio" name="pp5RtwMode" value="${key}" disabled>`
+        + `<span><b><i class="bi ${m.icon}"></i> ${m.title}</b><small>${m.note}</small></span></label>`).join('')
+      + '</div>'
+      // owner 2026-10-19: ผลทั้งปีเมื่อยังไม่มีภาค 2 — ปิด (ค่าเริ่มต้น) = "ยังไม่ประเมิน" · เปิด = ใช้ผลภาค 1 ของด้านนั้น (gas-bridge)
+      + '<div class="form-check form-switch m-0" style="margin-top:12px!important;padding-top:12px;border-top:1px dashed var(--f-line)">'
+      + '<input class="form-check-input" type="checkbox" role="switch" id="pp5AnnualFromTerm1" disabled>'
+      + '<label class="form-check-label" for="pp5AnnualFromTerm1"><b>ผลทั้งปีใช้ภาค 1 ได้</b> <small style="color:var(--f-muted)">ถ้ายังไม่มีผลภาค 2</small></label></div>'
+      + '<div class="pp5fmt-say" data-say role="status"></div>';
     pane.appendChild(box);
     const radios = [...box.querySelectorAll('input[name="pp5RtwMode"]')];
-    const status = box.querySelector('#pp5RtwModeStatus');
-    const show = (message, tone) => { status.textContent = message ? ' · ' + message : ''; status.className = 'small' + (tone ? ' text-' + tone : ''); };
+    const say = box.querySelector('[data-say]');
+    const show = (message, tone) => { say.textContent = message || ''; say.className = 'pp5fmt-say' + (tone ? ' is-' + tone : ''); };
     const check = (mode) => radios.forEach((radio) => { radio.checked = radio.value === mode; });
     refresh().then((mode) => { check(mode); radios.forEach((radio) => { radio.disabled = false; }); });
     const annual = box.querySelector('#pp5AnnualFromTerm1');
-    const annualStatus = box.querySelector('#pp5AnnualFromTerm1Status');
-    const showAnnual = (message, tone) => { annualStatus.textContent = message ? ' · ' + message : ''; annualStatus.className = 'small' + (tone ? ' text-' + tone : ''); };
     Promise.resolve(global.PP5Data?.settings?.get?.()).then((settings) => { annual.checked = settings?.annualFromTerm1 === true; annual.disabled = false; })
       .catch(() => { annual.disabled = false; });
     annual.addEventListener('change', async () => {
       const wanted = annual.checked;
       annual.disabled = true;
-      showAnnual('กำลังบันทึก...', 'muted');
+      show('กำลังบันทึก…');
       try {
         await global.PP5Data.settings.setAnnualFromTerm1(wanted);
-        showAnnual('บันทึกแล้ว', 'success');
+        show(wanted ? 'บันทึกแล้ว — ผลทั้งปีใช้ผลภาค 1 เมื่อยังไม่มีภาค 2' : 'บันทึกแล้ว — ผลทั้งปีรอผลภาค 2', 'ok');
       } catch (error) {
         annual.checked = !wanted;
-        showAnnual((error && error.message) || 'บันทึกไม่สำเร็จ', 'danger');
+        show((error && error.message) || 'บันทึกไม่สำเร็จ', 'err');
       } finally {
         annual.disabled = false;
       }
@@ -101,14 +102,14 @@
       if (!radio.checked) return;
       const before = cached();
       radios.forEach((r) => { r.disabled = true; });
-      show('กำลังบันทึก...', 'muted');
+      show('กำลังบันทึก…');
       try {
         const mode = await save(radio.value);
         check(mode);
-        show('บันทึกแล้ว', 'success');
+        show(`บันทึกแล้ว — ใช้แบบ${MODES[mode].title}`, 'ok');
       } catch (error) {
         check(before);
-        show((error && error.message) || 'บันทึกไม่สำเร็จ', 'danger');
+        show((error && error.message) || 'บันทึกไม่สำเร็จ', 'err');
       } finally {
         radios.forEach((r) => { r.disabled = false; });
       }
