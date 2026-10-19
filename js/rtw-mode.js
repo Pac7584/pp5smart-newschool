@@ -73,7 +73,11 @@
       // owner 2026-10-19: ผลทั้งปีเมื่อยังไม่มีภาค 2 — ปิด (ค่าเริ่มต้น) = "ยังไม่ประเมิน" · เปิด = ใช้ผลภาค 1 ของด้านนั้น (gas-bridge)
       + '<div class="form-check form-switch m-0" style="margin-top:12px!important;padding-top:12px;border-top:1px dashed var(--f-line)">'
       + '<input class="form-check-input" type="checkbox" role="switch" id="pp5AnnualFromTerm1" disabled>'
-      + '<label class="form-check-label" for="pp5AnnualFromTerm1"><b>ผลทั้งปีใช้ภาค 1 ได้</b> <small style="color:var(--f-muted)">ถ้ายังไม่มีผลภาค 2</small></label></div>'
+      + '<label class="form-check-label" for="pp5AnnualFromTerm1"><b>ผลทั้งปีใช้ภาค 1 ได้</b> <small style="color:var(--f-muted)">ถ้ายังไม่มีผลภาค 2</small></label>'
+      // คำอธิบายใต้สวิตช์ (owner 2026-10-19 "ตรงนี้อธิบายด้านล่างได้") — สั้น 2 บรรทัด
+      + '<small class="d-block" style="color:var(--f-muted);margin-top:4px;line-height:1.5">'
+      + '<b>เปิด</b> ด้านที่ยังไม่มีผลภาค 2 ใช้ผลภาค 1 แทน · <b>ปิด</b> ขึ้น "ยังไม่ประเมิน" จนกว่าจะมีผลภาค 2<br>'
+      + 'มีผลกับ ปพ.6 รายงานหน้าเดียว และสรุปรายชั้นที่เลือก "ทั้งปี" (อ่าน คิด เขียน · คุณลักษณะ · สมรรถนะ · กิจกรรม)</small></div>'
       + '<div class="pp5fmt-say" data-say role="status"></div>';
     pane.appendChild(box);
     const radios = [...box.querySelectorAll('input[name="pp5RtwMode"]')];
