@@ -79,6 +79,11 @@
     const v = clean(value);
     return v ? `<span class="v">${esc(thaiDigits(v))}</span>` : `<span class="blank ${width}"></span>`;
   };
+  // ต่อท้ายคำก่อนหน้าติดกัน ไม่เว้นวรรค ไม่มีเส้นจุด (owner 2026-10-19 "ผู้อำนวยการโรงเรียนบ้านโคกยางหนองถนน ให้ติดกัน") · ว่าง = เส้นจุด
+  const joined = (value, width = 'm') => {
+    const v = clean(value);
+    return v ? esc(thaiDigits(v)) : `<span class="blank ${width}"></span>`;
+  };
   function dateLine(iso) {
     const p = dateParts(iso);
     return `วันที่${fill(p?.day, 's')}เดือน${fill(p?.month)}พ.ศ.${fill(p?.year, 's')}`;
@@ -111,12 +116,11 @@
     const f = record.form || {};
     const dest = { subdistrict: f.dest_subdistrict, district: f.dest_district, province: f.dest_province };
     return `<section class="sheet bk19">
-<div class="code">แบบ พฐ.๑๙</div>
 <div class="title">คำร้องขอย้ายนักเรียน</div>
 ${writtenAt(school)}
 <div class="block">${dateLine(f.request_date)}</div>
 <p class="topic">เรื่อง&emsp;ขอย้ายนักเรียน</p>
-<p class="topic">เรียน&emsp;ผู้อำนวยการโรงเรียน${fill(schoolLabel(school.name), 'l')}</p>
+<p class="topic">เรียน&emsp;ผู้อำนวยการโรงเรียน${joined(schoolLabel(school.name), 'l')}</p>
 <p class="para">ด้วย ข้าพเจ้า${fill(f.guardian_name, 'l')}อยู่${address(f.guardian)}
 มีความประสงค์ขอย้ายนักเรียนในปกครองของข้าพเจ้าซึ่งปัจจุบันเรียนอยู่ในสถานศึกษานี้ไปเข้าเรียนที่${fill(record.destination_school, 'l')}
 แขวง/ตำบล${fill(dest.subdistrict)}เขต/อำเภอ${fill(dest.district)}จังหวัด${fill(dest.province)} ดังนี้</p>
@@ -140,7 +144,6 @@ ${list.map((r, i) => `<p class="para">${studentLine(r.student_snapshot || {}, i 
     // บรรทัดแรกอยู่ระดับช่วงล่างของครุฑ · วันที่เริ่มกึ่งกลางหน้า · ลงท้าย ชื่อในวงเล็บ + ตำแหน่ง (เว้นที่ลงนาม)
     const date = dateParts(record.doc_date);
     return `<section class="sheet bk20 letter">
-<div class="code">แบบ พฐ.๑๙/๑</div>
 <div class="letterhead">
   <img class="garuda" src="${esc(school.base)}${GARUDA}" alt="ตราครุฑ">
   <div class="docno">ที่ ${clean(record.doc_no) ? esc(thaiDigits(clean(record.doc_no))) : '<span class="blank l"></span>'}</div>
@@ -148,7 +151,7 @@ ${list.map((r, i) => `<p class="para">${studentLine(r.student_snapshot || {}, i 
 </div>
 <div class="letterdate">${date ? esc(thaiDigits(`${date.day} ${date.month} ${date.year}`)) : '<span class="blank l"></span>'}</div>
 <div class="row"><span>เรื่อง</span><span>ส่งนักเรียนขอย้ายมาเข้าเรียน</span></div>
-<div class="row"><span>เรียน</span><span>ผู้อำนวยการโรงเรียน${fill(schoolLabel(record.destination_school), 'l')}</span></div>
+<div class="row"><span>เรียน</span><span>ผู้อำนวยการโรงเรียน${joined(schoolLabel(record.destination_school), 'l')}</span></div>
 ${attachmentsOf(f).length ? `<table class="enc">${attachmentsOf(f).map((a, i) => `<tr><td>${i ? '' : 'สิ่งที่ส่งมาด้วย'}</td>`
   + `<td>${thaiDigits(i + 1)}. ${esc(thaiDigits(clean(a.label)))}</td><td class="n">จำนวน${count(a.count)}ฉบับ</td></tr>`).join('')}</table>` : ''}
 <p class="para">ด้วย ${fill(f.guardian_name, 'l')}อยู่${address(f.guardian)}
@@ -251,6 +254,8 @@ ${sheets.join('\n')}
     const run = (text, { u = false, size = 0 } = {}) => (text === '' || text == null ? '' : `<w:r>${u || size ? `<w:rPr>${u ? '<w:u w:val="dotted"/>' : ''}${size ? `<w:sz w:val="${size}"/><w:szCs w:val="${size}"/>` : ''}</w:rPr>` : ''}<w:t xml:space="preserve">${esc(text)}</w:t></w:r>`);
     const tab = '<w:r><w:tab/></w:r>';
     // ค่าที่กรอก: พิมพ์ทับเส้นจุด (dotted = แบบฟอร์ม พฐ.19) หรือข้อความเรียบ (หนังสือ พฐ.19/1) · ค่าว่าง = จุดให้เขียนด้วยมือ
+    // ต่อท้ายติดกัน ไม่เว้นวรรค ไม่ขีดเส้น (เหมือน joined ของฉบับพิมพ์)
+    const joinedRun = (value, width = 'm') => (clean(value) ? run(thaiDigits(clean(value))) : run(DOTS[width] || DOTS.m));
     const val = (value, width = 'm', dotted = true) => {
       const v = clean(value);
       return v ? run(` ${thaiDigits(v)} `, { u: dotted }) : run(DOTS[width] || DOTS.m);
@@ -290,13 +295,12 @@ ${sheets.join('\n')}
       const p = dateParts(f.request_date);
       const lines = addressLines(school);
       return [
-        para(run('แบบ พฐ.๑๙'), { jc: 'right', pageBreak }),
-        para(run('คำร้องขอย้ายนักเรียน'), { jc: 'center', after: 120 }),
+        para(run('คำร้องขอย้ายนักเรียน'), { jc: 'center', after: 120, pageBreak }),
         para(run('เขียนที่') + val(school.name, 'l'), { left: DX.block }),
         ...(lines.length ? lines.map((line) => para(run(thaiDigits(line)), { left: DX.block + 600 })) : [para(run(DOTS.xl), { left: DX.block })]),
         para(run('วันที่') + val(p?.day, 's') + run('เดือน') + val(p?.month) + run('พ.ศ.') + val(p?.year, 's'), { left: DX.block, after: 120 }),
         para(run('เรื่อง') + tab + run('ขอย้ายนักเรียน'), { tabs: [['left', DX.tabTopic]], before: 120 }),
-        para(run('เรียน') + tab + run('ผู้อำนวยการโรงเรียน') + val(schoolLabel(school.name), 'l'), { tabs: [['left', DX.tabTopic]], before: 60, after: 120 }),
+        para(run('เรียน') + tab + run('ผู้อำนวยการโรงเรียน') + joinedRun(schoolLabel(school.name), 'l'), { tabs: [['left', DX.tabTopic]], before: 60, after: 120 }),
         body(run('ด้วย ข้าพเจ้า') + val(f.guardian_name, 'l') + run('อยู่') + address(f.guardian, true)
           + run('มีความประสงค์ขอย้ายนักเรียนในปกครองของข้าพเจ้าซึ่งปัจจุบันเรียนอยู่ในสถานศึกษานี้ไปเข้าเรียนที่') + val(record.destination_school, 'l')
           + run('แขวง/ตำบล') + val(f.dest_subdistrict) + run('เขต/อำเภอ') + val(f.dest_district) + run('จังหวัด') + val(f.dest_province) + run(' ดังนี้')),
@@ -319,14 +323,15 @@ ${sheets.join('\n')}
       const position = clean(school.directorPosition) || `ผู้อำนวยการโรงเรียน${schoolLabel(school.name)}`;
       const items = attachmentsOf(f);
       return [
-        para(run('แบบ พฐ.๑๙/๑', { size: 28 }), { jc: 'right', exact: 360, pageBreak }),
+        // บรรทัดว่างแทน "แบบ พฐ.๑๙/๑" ที่เอาออก (owner 2026-10-19) ให้ครุฑและบรรทัด "ที่" อยู่ตำแหน่งเดิม
+        para('', { exact: 360, pageBreak }),
         // บรรทัด "ที่" อยู่ ๒.๐๕ ซม. จากขอบบน (ระดับช่วงล่างของครุฑ) เหมือนฉบับพิมพ์
         para(garuda(), { exact: 1162 - 360 }),
         para(run(`ที่ ${clean(record.doc_no) ? thaiDigits(clean(record.doc_no)) : DOTS.l}`) + tab + run(thaiDigits(clean(school.name))), { tabs: [['left', DX.owner]] }),
         ...addressLines(school).map((line) => para(run(thaiDigits(line)), { left: DX.owner })),
         para(run(date ? thaiDigits(`${date.day} ${date.month} ${date.year}`) : DOTS.l), { left: DX.half, before: 200, after: 160 }),
         para(run('เรื่อง') + tab + run('ส่งนักเรียนขอย้ายมาเข้าเรียน'), { tabs: [['left', DX.tabTopic]], after: 80 }),
-        para(run('เรียน') + tab + run('ผู้อำนวยการโรงเรียน') + val(schoolLabel(record.destination_school), 'l', false), { tabs: [['left', DX.tabTopic]], after: 80 }),
+        para(run('เรียน') + tab + run('ผู้อำนวยการโรงเรียน') + joinedRun(schoolLabel(record.destination_school), 'l'), { tabs: [['left', DX.tabTopic]], after: 80 }),
         ...items.map((a, i) => para((i ? '' : run('สิ่งที่ส่งมาด้วย')) + tab + run(`${thaiDigits(i + 1)}. ${thaiDigits(clean(a.label))}`) + tab
           + run('จำนวน') + val(Number(a.count) > 0 ? String(Number(a.count)) : '', 's', false) + run('ฉบับ'), { tabs: [['left', DX.tabEnc], ['right', DX.width]], after: i === items.length - 1 ? 80 : 0 })),
         body(run('ด้วย ') + val(f.guardian_name, 'l', false) + run('อยู่') + address(f.guardian, false) + run('ได้ขอย้ายนักเรียนในปกครองมาเข้าเรียนในสถานศึกษานี้ ได้แก่')),
