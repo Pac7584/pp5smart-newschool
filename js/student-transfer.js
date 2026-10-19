@@ -79,7 +79,7 @@
     const v = clean(value);
     return v ? `<span class="v">${esc(thaiDigits(v))}</span>` : `<span class="blank ${width}"></span>`;
   };
-  // ต่อท้ายคำก่อนหน้าติดกัน ไม่เว้นวรรค ไม่มีเส้นจุด (owner 2026-10-19 "ผู้อำนวยการโรงเรียนบ้านโคกยางหนองถนน ให้ติดกัน") · ว่าง = เส้นจุด
+  // ต่อท้ายคำก่อนหน้าติดกัน ไม่เว้นวรรค ไม่มีเส้นจุด (owner 2026-10-19 "ผู้อำนวยการโรงเรียน + ชื่อโรงเรียน ให้ติดกัน") · ว่าง = เส้นจุด
   const joined = (value, width = 'm') => {
     const v = clean(value);
     return v ? esc(thaiDigits(v)) : `<span class="blank ${width}"></span>`;
