@@ -1219,8 +1219,9 @@
           mid,
           final: finalScore,
           total,
-          grade: !saved ? '' : savedGrade || data.helpers.calculateGrade(total),
-          // ร / มส ที่ครูบันทึก (grade_text) — ส่งออก SchoolMIS ใช้แทนเกรดจากคะแนน (owner 2026-10-20)
+          // ร / มส ที่ครูเลือก (grade_text) แสดงแทนเกรดจากคะแนน — หน้ากรอกคะแนน (js/score-special-grade.js) และ SchoolMIS
+          // (owner 2026-10-20: เดิมหน้ากรอกคะแนนไม่มีทางใส่ ร / มส และการบันทึกเขียนเกรดจากคะแนนทับทุกครั้ง)
+          grade: storedSpecialGrade(stored) || (!saved ? '' : savedGrade || data.helpers.calculateGrade(total)),
           special: storedSpecialGrade(stored),
           makeup: number(breakdown.makeup, 0)
         };
@@ -1418,6 +1419,22 @@
     try { return normalizeScoreRoundLabels(JSON.parse(raw)); } catch (_error) { return null; }
   }
 
+  // ร / มส ที่ครูเลือกในตาราง (tr.dataset.special จาก js/score-special-grade.js) อ่านจากแถวโดยตรง
+  // ไม่อ่านจากป้ายเกรด: ตอนกดบันทึก หน้าเดิมคำนวณเกรดใหม่แล้วเก็บค่าทันที ก่อนที่ป้ายจะถูกทาสีกลับเป็น ร / มส
+  // (ทดสอบบน 8097 2026-10-20: บันทึกเป็น "0")
+  function specialLegacyScoreGrades(termId) {
+    const documentRef = global.document;
+    if (!documentRef?.querySelector) return null;
+    const container = documentRef.querySelector(termId === 'term2' || number(termId, 1) === 2 ? '#scoreEntryTerm2Container' : '#scoreEntryTerm1Container');
+    if (!container) return null;
+    const found = new Map();
+    container.querySelectorAll('tbody tr[data-student-id]').forEach((row) => {
+      const special = text(row.dataset?.special).trim();
+      if (special === 'ร' || special === 'มส') found.set(text(row.getAttribute('data-student-id')).trim(), special);
+    });
+    return found;
+  }
+
   function enteredLegacyScoreStudentIds(termId) {
     const documentRef = global.document;
     if (!documentRef?.querySelector) return null;
@@ -1431,7 +1448,9 @@
       const studentId = text(row.getAttribute('data-student-id')).trim();
       const hasInput = [...row.querySelectorAll('.score-entry-input, .score-entry-final-input')]
         .some((input) => text(input.value).trim() !== '');
-      if (studentId && hasInput) entered.add(studentId);
+      // แถวที่เลือก ร / มส (js/score-special-grade.js) นับว่ากรอกแล้วแม้ไม่มีคะแนน — ไม่งั้นการบันทึกลบแถว ร / มส ทิ้ง
+      const special = ['ร', 'มส'].includes(text(row.dataset?.special).trim());
+      if (studentId && (hasInput || special)) entered.add(studentId);
     });
     return entered;
   }
@@ -6331,9 +6350,13 @@
           id: studentId,
           name: studentDisplayName(student),
           yearAvg,
-          yearGrade: yearSaved ? data.helpers.calculateGrade(yearAvg) : ''
+          yearGrade: term1Row?.special || term2Row?.special || (yearSaved ? data.helpers.calculateGrade(yearAvg) : '')
         };
       });
+      // ร / มส ของแต่ละภาคให้ js/score-special-grade.js ตั้งค่าแถวเอง: หน้าเดิมคำนวณป้ายเกรดใหม่ทันทีหลังวาดตาราง
+      // ก่อนที่ตัวเสริมจะอ่านป้าย (ทดสอบบน 8097 2026-10-20: ฐานเป็น ร แต่หน้าแสดง 0)
+      const specialsOf = (term) => Object.fromEntries(term.rows.filter((row) => row.special).map((row) => [row.id, row.special]));
+      global.PP5ScoreSheetSpecials = { sheetName: text(sheetName), term1: specialsOf(term1), term2: specialsOf(term2) };
       return { term1, term2, yearSummary, loadedAt: scoreVersionToken(rows), context: {
         academicYear, grade: reference.grade, classNo: reference.classNo,
         subjectCode: text(reference.subject.code || reference.subject.id)
@@ -6548,6 +6571,7 @@
           .filter((row) => number(row.semester, 1) === semester && storedScoreWasEntered(row))
           .map((row) => text(row.student_id)));
         const enteredIds = enteredLegacyScoreStudentIds(termId);
+        const tableSpecials = specialLegacyScoreGrades(termId);
         const submittedIds = new Set(list.map((student) => text(student.id || student.studentId)));
         // แถวคะแนนว่าง (ศูนย์ทั้งแถว ไม่มีเครื่องหมายว่ากรอก) ของนักเรียนที่ยังไม่กรอกในตาราง: ลบทิ้งตอนบันทึกด้วย
         // ไม่งั้นหน้านี้แสดงเป็นช่องว่าง แต่แถวค้างอยู่ตลอดและการ์ด "แถวคะแนนว่าง" เตือนไม่หาย
@@ -6610,6 +6634,11 @@
           const finalScore = rawFinal;
           const total = Math.round((mid + finalScore) * 10) / 10;
           const gradeValue = data.helpers.calculateGrade(total);
+          // ครูเลือก ร / มส ที่ช่องเกรด (js/score-special-grade.js ส่งมาใน student.grade) → เก็บใน grade_text แทนเกรดจากคะแนน
+          // คะแนนที่กรอกยังบันทึกตามจริง · ค่าอื่นใน student.grade ไม่เชื่อ (คิดเกรดจากคะแนนเสมอ)
+          // มีตาราง = เชื่อเฉพาะแถวในตาราง (เลือก "ตามคะแนน" แล้วป้ายเก่าค้างก็ไม่กลับเป็น ร) · ไม่มีตาราง (ผู้เรียกอื่น) = student.grade
+          const special = tableSpecials ? (tableSpecials.get(studentId) || '')
+            : (['ร', 'มส'].includes(text(student.grade).trim()) ? text(student.grade).trim() : '');
           return {
             studentId,
             subjectId: reference.subject.id,
@@ -6619,7 +6648,7 @@
             summativeScore: finalScore,
             totalScore: total,
             gradePoint: number(gradeValue, number(data.helpers.calculateGrade(total), 0)),
-            gradeText: gradeValue,
+            gradeText: special || gradeValue,
             scoreBreakdown: {
               schemaVersion: 1,
               entered: true,
