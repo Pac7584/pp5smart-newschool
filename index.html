@@ -197,7 +197,7 @@
     </div>
 
     <!-- กลุ่มเมนู (owner 2026-10-20 ปรับเมนูรอบ 1 ตามที่ตกลงกับ Codex): งานประจำวันของครูอยู่บน งานผู้ดูแลระบบอยู่ล่าง
-         หน้าหลัก → เวลาเรียน → คะแนน → ประเมินและกิจกรรม → ข้อมูลนักเรียน → สุขภาพ → เอกสารและรายงาน
+         หน้าหลัก → เวลาเรียน → คะแนน → ประเมินและกิจกรรม → ข้อมูลนักเรียน (รวมสุขภาพ) → เอกสารและรายงาน
          → งานวิชาการ → ตั้งค่าระบบ · data-page ไม่เปลี่ยน · data-aliases = ชื่อเดิม ให้ช่องค้นหาเมนูยังหาเจอ
          (tools/sidebar-menu-contract.cjs ตรวจลำดับ และเมนูที่แต่ละบทบาทเห็นต้องเท่าเดิม) -->
     <ul class="menu-group" aria-label="หน้าหลัก">
@@ -254,15 +254,13 @@
       <li class="nav-item admin-only" data-page="student_transfer"><a href="#" class="nav-link" data-page="student_transfer"><i class="bi bi-box-arrow-right"></i> นักเรียนย้ายออก</a></li>
       <li class="nav-item teacher-only" data-page="parent_info_report"><a href="#" class="nav-link" data-page="parent_info_report"><i class="bi bi-person-lines-fill"></i> แก้ไขข้อมูลผู้ปกครอง</a></li>
       <li class="nav-item teacher-only" data-page="behavior_records"><a href="#" class="nav-link" data-page="behavior_records"><i class="bi bi-person-check"></i> บันทึกพฤติกรรม</a></li>
+      <!-- owner 2026-10-20: หมวด "สุขภาพนักเรียน" (2 เมนู) รวมเข้าข้อมูลนักเรียน — ค้นคำว่า "สุขภาพ" ยังเจอ -->
+      <li class="nav-item teacher-only" data-page="student_growth_entry" data-aliases="สุขภาพนักเรียน"><a href="#" class="nav-link" data-page="student_growth_entry"><i class="bi bi-clipboard2-pulse"></i> บันทึกน้ำหนัก-ส่วนสูง</a></li>
+      <li class="nav-item teacher-only" data-page="student_growth_report" data-aliases="สุขภาพนักเรียน"><a href="#" class="nav-link" data-page="student_growth_report"><i class="bi bi-bar-chart-line"></i> รายงานน้ำหนัก-ส่วนสูง</a></li>
       <li class="nav-item admin-only teacher-only" data-page="import"><a href="#" class="nav-link" data-page="import"><i class="bi bi-cloud-arrow-up-fill"></i> นำเข้ารายชื่อ (DMC)</a></li>
       <li class="nav-item teacher-only" data-page="export_pdf_page"><a href="#" class="nav-link" data-page="export_pdf_page"><i class="bi bi-file-earmark-pdf"></i> พิมพ์รายชื่อนักเรียน</a></li>
     </ul>
 
-    <ul class="menu-group" aria-label="สุขภาพนักเรียน">
-      <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout"><i class="bi bi-heart-pulse me-2"></i>สุขภาพนักเรียน<span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
-      <li class="nav-item teacher-only" data-page="student_growth_entry"><a href="#" class="nav-link" data-page="student_growth_entry"><i class="bi bi-clipboard2-pulse"></i> บันทึกน้ำหนัก-ส่วนสูง</a></li>
-      <li class="nav-item teacher-only" data-page="student_growth_report"><a href="#" class="nav-link" data-page="student_growth_report"><i class="bi bi-bar-chart-line"></i> รายงานน้ำหนัก-ส่วนสูง</a></li>
-    </ul>
 
     <style>
       /* เพิ่ม styles สำหรับเมนูรายงาน */
