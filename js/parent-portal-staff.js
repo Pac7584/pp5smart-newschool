@@ -16,7 +16,7 @@
 .pp5-pp-staff .hero-content{display:grid;grid-template-columns:auto 1fr;column-gap:14px;align-items:center;width:100%;max-width:688px;margin:0 auto;
   padding:14px 18px;box-shadow:none}
 .pp5-pp-staff .hero-content::before{display:none}
-.pp5-pp-staff .hero-icon{grid-row:span 2;width:52px;height:52px;margin:0}
+.pp5-pp-staff .hero-icon{grid-row:span 2;width:60px;height:60px;margin:0;background:#fff}
 .pp5-pp-staff #heroTitle{display:none}
 .pp5-pp-staff .pp5-pp-head{font-size:19px;font-weight:700;color:var(--gray-900,#111827);line-height:1.3}
 .pp5-pp-staff .hero .sub{font-size:13.5px}
