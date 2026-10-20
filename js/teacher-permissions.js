@@ -12,7 +12,7 @@
   const PUBLIC_AUTH_METHODS = new Set(['requestPasswordReset','clearLoginSession','getDeploymentUrl','getLoginPageHtml','getGlobalSettings']);
   // club_management: club advisors teach across rooms (ระบบชุมนุม 2026-10-14) — writes still go through pp5_club_set_member
   // help_page: คู่มือของทุกคน (owner 2026-10-14 ไล่แก้เมนูที่หลุดจากรายการ)
-  const COMMON = new Set(['home_hub','dashboard','change_password','academic_calendar','club_management','help_page']);
+  const COMMON = new Set(['home_hub','dashboard','change_password','my_profile','academic_calendar','club_management','help_page']);
   // subject_attendance / pp5_subject_book: เช็คชื่อรายวิชา (รายชั่วโมง) และ ปพ.5 แบบรายวิชา ของครูผู้สอน — สิทธิ์เขียนจริงตรวจที่ pp5_save_subject_attendance (SQL 031)
   const SUBJECT = new Set(['create_score_sheet','score_table_viewer','subject_score_viewer','exam_analysis','subject_attendance','pp5_subject_book',
     // subject_schedule: ตารางสอนของฉัน (SQL 032) — ต้องตั้งก่อนเช็คชื่อรายคาบ สิทธิ์จริงตรวจที่ pp5_save_subject_schedule
@@ -34,14 +34,14 @@
     'attendance_risk']);
   // เจ้าหน้าที่ธุรการ (registrar, SQL 202610180036, owner 2026-10-18): งานทะเบียนนักเรียน + ย้ายออก + ดูผลการเรียน/เวลาเรียน
   // ใช้เสมอ (ไม่ขึ้นกับสวิตช์ขอบเขตครู) — ฐานข้อมูลกันซ้ำอีกชั้น: แก้คะแนน/เช็คชื่อ/ยืนยันย้ายออกไม่ได้
-  const REGISTRAR = new Set(['home_hub','change_password','help_page','academic_calendar',
+  const REGISTRAR = new Set(['home_hub','change_password','my_profile','help_page','academic_calendar',
     'studentList','addStudent','deleteStudent','student_transfer','export_pdf_page','parent_info_report',
     'semester_attendance_summary','attendance_table','student_scores_summary','report_card_generator']);
   // หน้าประเมินเดิม 3 หน้า: ครูประจำวิชาเปิดได้ด้วย แล้วเลือก "วิชา · ห้อง" ที่แถบด้านบน (js/subject-assessment.js)
   // ผลจะลงแถว subj_* ของวิชานั้น — สิทธิ์จริงตรวจที่ SQL 202610150034
   const SHARED_ASSESSMENT = new Set(['characteristic_assessment','rtw5_assessment','competency_assessment']);
   const SUBJECT_ASSESSMENT_METHODS = /^(?:getStudentsForCharacteristic|saveCharacteristicAssessmentBatch|generateCharacteristicAssessmentPDF|getStudentsForRTW5|saveRTW5AssessmentBatch|getStudentsForCompetency|saveCompetencyAssessment|exportCompetency\w*)$/;
-  const PARENT = new Set(['parent_portal','change_password']);
+  const PARENT = new Set(['parent_portal','change_password','my_profile']);
   const ADMIN_METHODS = /^(?:getAllUsers|addUser|updateUser|deleteUser|createUser|saveTeacher|saveSingleTeacher|getTeacherListForEditor|saveSystem|setGlobal|saveGlobal|setLogo|uploadLogo|saveSchoolSignatures|markPp5Reviewed|approvePp5Class|returnPp5ForCorrection|.*Transition|.*Rollback|importStudent|.*Dmc|.*DMC|.*ProjectAsZip|.*SchoolSar|.*SarAnalytics|.*Warehouse)/;
   const HOMEROOM_METHODS = /(?:Pp6|ReportCard|OnePage|StudentReport|StudentFullData|ParentInfo|Growth|Competency|Characteristic|Assessment|ReadThink|Pp5Full|Pp5Cover|Comment|Attendance|Behavior)/i;
   // These legacy readers have a grade followed by an auth token, not a classroom.

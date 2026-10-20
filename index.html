@@ -409,9 +409,9 @@
 
     <ul class="menu-group" aria-label="บัญชีผู้ใช้">
       <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout"><i class="bi bi-person-circle me-2"></i>บัญชีผู้ใช้<span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
+      <!-- owner 2026-10-20: โปรไฟล์ของฉัน (js/my-profile.js) รวมข้อมูลของฉัน รหัสผ่าน ธีมสี และโหมดมืด — ทุกบทบาท -->
+      <li class="nav-item" data-page="my_profile" data-aliases="ธีมสีของฉัน ธีม สี โหมดมืด บัญชีของฉัน"><a href="#" class="nav-link" data-page="my_profile"><i class="bi bi-person-badge-fill"></i> โปรไฟล์ของฉัน</a></li>
       <li class="nav-item" data-page="change_password"><a href="#" class="nav-link" data-page="change_password"><i class="bi bi-key-fill"></i> เปลี่ยนรหัสผ่าน</a></li>
-      <!-- owner 2026-10-20: ธีมสีของแต่ละคนอยู่ที่บัญชีผู้ใช้ — เปิดกล่องเดียวกับปุ่มจานสีที่หัวเว็บ (js/user-theme.js) ทุกบทบาท -->
-      <li class="nav-item" data-any-role data-aliases="ธีม สี จานสี"><a href="#" class="nav-link" onclick="return window.PP5UserTheme?.open?.() ?? false;"><i class="bi bi-palette-fill"></i> ธีมสีของฉัน</a></li>
     </ul>
 
     <ul class="menu-group d-lg-none">
@@ -510,7 +510,7 @@
   <script src="js/student-list-autoload.js?v=1"></script>
   <!-- วิชารายภาค (ม.ต้น): หน้าบันทึกคะแนนเปิดเฉพาะแท็บภาคของวิชา -->
   <script src="js/semester-subjects.js?v=1"></script>
-  <script src="js/teacher-permissions.js?v=20"></script>
+  <script src="js/teacher-permissions.js?v=21"></script>
   <!-- โหมดการทำงานของครู: ครูประจำชั้น / ครูประจำวิชา ตามงานที่ผู้ดูแลมอบหมาย -->
   <script src="js/work-mode.js?v=10"></script>
   <!-- เตือนในหน้ากรอกคะแนนเมื่อวิชามีครูผู้สอนคนอื่น (SQL 033) -->
@@ -522,6 +522,7 @@
   <script src="js/self-register.js?v=1"></script>
   <script src="js/clubs.js?v=7"></script>
   <script src="js/student-transfer.js?v=17"></script>
+  <script src="js/my-profile.js?v=1"></script>
   <script src="js/pp5-subject-cover.js?v=9"></script>
   <script src="js/subject-attendance.js?v=8"></script>
   <script src="js/subject-schedule.js?v=6"></script>
@@ -533,7 +534,7 @@
   <script src="js/settings-layout.js?v=3"></script>
   <script src="js/teacher-access-ui.js?v=3"></script>
   <script src="js/admin-users-ui.js?v=2"></script>
-  <script src="js/spa-main.js?v=161"></script>
+  <script src="js/spa-main.js?v=162"></script>
   <script src="js/exam-import.js?v=3"></script>
 
 <script>
