@@ -25,10 +25,31 @@
     (doc.head || doc.documentElement).appendChild(style);
   }
 
+  // ชื่อเมนูข้าง (owner 2026-10-20 ปรับเมนูรอบ 1): เลือกแบบเดียว = "ประเมินอ่าน คิด เขียน" (อีกเมนูซ่อนอยู่แล้ว)
+  // อัตโนมัติ = เห็นทั้งสองเมนู จึงเติมวงเล็บบอกแบบ
+  const BASE_LABEL = 'ประเมินอ่าน คิด เขียน';
+  const LABELS = {
+    auto: { read_think_write_form: `${BASE_LABEL} (8 กลุ่มสาระ)`, rtw5_assessment: `${BASE_LABEL} (5 เกณฑ์)` },
+    subject: { read_think_write_form: BASE_LABEL, rtw5_assessment: `${BASE_LABEL} (5 เกณฑ์)` },
+    criteria: { read_think_write_form: `${BASE_LABEL} (8 กลุ่มสาระ)`, rtw5_assessment: BASE_LABEL }
+  };
+  function relabel(mode) {
+    Object.entries(LABELS[normal(mode)]).forEach(([page, text]) => {
+      doc?.querySelectorAll?.(`.sidebar .nav-link[data-page="${page}"]`).forEach((link) => {
+        // หลัง spa-main attachFavoriteStars ชื่ออยู่ใน .nav-label (rawLabel ใช้ค้นหาและหัวหน้า) ก่อนหน้านั้นเป็นข้อความต่อจากไอคอน
+        const label = link.querySelector('.nav-label');
+        if (label) { label.textContent = text; label.dataset.rawLabel = text; return; }
+        const node = [...link.childNodes].reverse().find((n) => n.nodeType === 3 && n.textContent.trim());
+        if (node) node.textContent = ` ${text}`;
+      });
+    });
+  }
+
   function apply(mode) {
     const value = normal(mode);
     doc?.documentElement?.setAttribute('data-rtw-mode', value);
     try { global.localStorage?.setItem(KEY, value); } catch (_) { /* storage blocked */ }
+    try { relabel(value); } catch (_) { /* menu not in this page */ }
     return value;
   }
 
@@ -120,7 +141,7 @@
     }));
   }
 
-  global.PP5RtwMode = { MODES, HIDE, normal, apply, refresh, save, enhanceSettingsPage, current: cached };
+  global.PP5RtwMode = { MODES, HIDE, LABELS, normal, apply, relabel, refresh, save, enhanceSettingsPage, current: cached };
 
   if (doc) {
     installStyle();

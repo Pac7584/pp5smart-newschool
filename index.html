@@ -52,7 +52,7 @@
   </script>
 
   <!-- Authentic Stylesheet -->
-  <link rel="stylesheet" href="css/spa-main.css?v=31">
+  <link rel="stylesheet" href="css/spa-main.css?v=32">
   <link rel="stylesheet" href="css/home-app-icons.css?v=2">
   <link rel="stylesheet" href="css/home-overview.css?v=8">
   <link rel="stylesheet" href="css/school-branding.css?v=3">
@@ -196,24 +196,54 @@
       </div>
     </div>
 
-    <!-- กลุ่มเมนู -->
+    <!-- กลุ่มเมนู (owner 2026-10-20 ปรับเมนูรอบ 1 ตามที่ตกลงกับ Codex): งานประจำวันของครูอยู่บน งานผู้ดูแลระบบอยู่ล่าง
+         หน้าหลัก → เวลาเรียน → คะแนน → ประเมินและกิจกรรม → ข้อมูลนักเรียน → สุขภาพ → เอกสารและรายงาน
+         → งานวิชาการ → ตั้งค่าระบบ · data-page ไม่เปลี่ยน · data-aliases = ชื่อเดิม ให้ช่องค้นหาเมนูยังหาเจอ
+         (tools/sidebar-menu-contract.cjs ตรวจลำดับ และเมนูที่แต่ละบทบาทเห็นต้องเท่าเดิม) -->
     <ul class="menu-group" aria-label="หน้าหลัก">
       <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout"><i class="bi bi-house-door-fill me-2"></i>หน้าหลัก <span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
       <li class="nav-item" data-page="home_hub"><a href="#" class="nav-link" data-page="home_hub"><i class="bi bi-grid-fill"></i> เมนูหลัก</a></li>
       <li class="nav-item" data-page="dashboard"><a href="#" class="nav-link" data-page="dashboard"><i class="bi bi-speedometer2"></i> ภาพรวมสถิติ</a></li>
     </ul>
 
-    <ul class="menu-group admin-only" aria-label="ตั้งค่าและดูแลระบบ">
-      <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout"><i class="bi bi-gear-wide-connected me-2"></i>ตั้งค่าและดูแลระบบ<span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
-      <li class="nav-item admin-only" data-page="new_settings_editor"><a href="#" class="nav-link" data-page="new_settings_editor"><i class="bi bi-sliders"></i> ตั้งค่าระบบกลาง</a></li>
-      <li class="nav-item admin-only" data-page="logo_management"><a href="#" class="nav-link" data-page="logo_management"><i class="bi bi-image-fill"></i> โลโก้และตราโรงเรียน</a></li>
-      <li class="nav-item admin-only" data-page="subjectManager"><a href="#" class="nav-link" data-page="subjectManager"><i class="bi bi-journal-bookmark-fill"></i> รายวิชาและหลักสูตร</a></li>
-      <li class="nav-item admin-only" data-page="curriculum_readiness"><a href="#" class="nav-link" data-page="curriculum_readiness"><i class="bi bi-clipboard-check"></i> ตรวจความพร้อมหลักสูตร</a></li>
-      <li class="nav-item admin-only" data-page="setup_wizard"><a href="#" class="nav-link" data-page="setup_wizard"><i class="bi bi-list-check"></i> เริ่มต้นใช้งานโรงเรียน</a></li>
-      <li class="nav-item admin-only" data-page="teacher_editor"><a href="#" class="nav-link" data-page="teacher_editor"><i class="bi bi-person-video3"></i> ครูประจำชั้น</a></li>
-      <li class="nav-item admin-only" data-page="admin_panel"><a href="#" class="nav-link" data-page="admin_panel"><i class="bi bi-person-gear"></i> ผู้ใช้และสิทธิ์</a></li>
-      <li class="nav-item admin-only" data-page="teacher_access"><a href="#" class="nav-link" data-page="teacher_access"><i class="bi bi-person-check"></i> มอบหมายงานครู</a></li>
-      <li class="nav-item admin-only"><a href="#" class="nav-link" onclick="AppNavigation.exportSystemZip();return false;"><i class="bi bi-box-arrow-up-right"></i> คู่มือติดตั้งโรงเรียนอื่น</a></li>
+    <ul class="menu-group" aria-label="เวลาเรียน">
+      <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout"><i class="bi bi-calendar-check me-2"></i>เวลาเรียน<span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
+      <li class="nav-item teacher-only" data-page="attendance_daily"><a href="#" class="nav-link" data-page="attendance_daily"><i class="bi bi-calendar-check"></i> เช็คชื่อรายวัน</a></li>
+      <li class="nav-item teacher-only" data-page="subject_attendance"><a href="#" class="nav-link" data-page="subject_attendance"><i class="bi bi-clock-history"></i> เช็คชื่อรายวิชา (รายคาบ)</a></li>
+      <li class="nav-item teacher-only" data-page="attendance_monthly"><a href="#" class="nav-link" data-page="attendance_monthly"><i class="bi bi-calendar3"></i> เช็คชื่อรายเดือน</a></li>
+      <li class="nav-item teacher-only" data-page="subject_schedule"><a href="#" class="nav-link" data-page="subject_schedule"><i class="bi bi-calendar-week"></i> ตารางสอนของฉัน</a></li>
+      <li class="nav-item teacher-only" data-page="attendance_table"><a href="#" class="nav-link" data-page="attendance_table"><i class="bi bi-calendar-range"></i> รายงานเวลาเรียนรายเดือน</a></li>
+      <li class="nav-item teacher-only" data-page="semester_attendance_summary"><a href="#" class="nav-link" data-page="semester_attendance_summary"><i class="bi bi-calendar2-week-fill"></i> สรุปการมาเรียน</a></li>
+      <li class="nav-item teacher-only" data-page="subject_attendance_summary"><a href="#" class="nav-link" data-page="subject_attendance_summary"><i class="bi bi-bar-chart-line"></i> สรุปเวลาเรียนรายวิชา</a></li>
+      <li class="nav-item teacher-only" data-page="attendance_risk"><a href="#" class="nav-link" data-page="attendance_risk"><i class="bi bi-exclamation-octagon-fill"></i> นักเรียนเสี่ยง มส. (ทุกวิชา)</a></li>
+      <li class="nav-item teacher-only" data-page="academic_calendar"><a href="#" class="nav-link" data-page="academic_calendar"><i class="bi bi-calendar-event"></i> ปฏิทินวิชาการ</a></li>
+    </ul>
+
+    <ul class="menu-group" aria-label="คะแนนและผลการเรียน">
+      <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout"><i class="bi bi-award-fill me-2"></i>คะแนนและผลการเรียน<span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
+      <li class="nav-item teacher-only" data-page="create_score_sheet"><a href="#" class="nav-link" data-page="create_score_sheet"><i class="bi bi-table"></i> จัดทำตารางคะแนน</a></li>
+      <li class="nav-item teacher-only" data-page="score_table_viewer"><a href="#" class="nav-link" data-page="score_table_viewer"><i class="bi bi-pencil-square"></i> กรอกคะแนนรายวิชา</a></li>
+      <li class="nav-item teacher-only" data-page="subject_score_viewer"><a href="#" class="nav-link" data-page="subject_score_viewer"><i class="bi bi-graph-up"></i> ดูคะแนนรายวิชา</a></li>
+      <li class="nav-item teacher-only" data-page="student_scores_summary"><a href="#" class="nav-link" data-page="student_scores_summary"><i class="bi bi-bar-chart-line"></i> สรุปผลการเรียนรายชั้น</a></li>
+      <li class="nav-item teacher-only" data-page="class_score_summary" data-aliases="สรุปคะแนนรายชั้น"><a href="#" class="nav-link" data-page="class_score_summary"><i class="bi bi-table"></i> ตารางสรุปคะแนนทุกวิชา</a></li>
+      <li class="nav-item teacher-only" data-page="exam_analysis"><a href="#" class="nav-link" data-page="exam_analysis"><i class="bi bi-graph-up-arrow"></i> วิเคราะห์ผลสอบ</a></li>
+      <li class="nav-item" data-page="sar_analytics">
+        <a href="#" class="nav-link" data-page="sar_analytics" onclick="if (typeof showSarAnalyticsModal_ === 'function') { showSarAnalyticsModal_(); } else if (typeof window.showSarAnalyticsModal === 'function') { window.showSarAnalyticsModal(); } return false;"><i class="bi bi-file-earmark-bar-graph-fill text-success"></i> วิเคราะห์ผลสัมฤทธิ์ SAR</a>
+      </li>
+    </ul>
+
+    <ul class="menu-group" aria-label="ประเมินและกิจกรรม">
+      <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout" data-aliases="ประเมินผล"><i class="bi bi-clipboard-check-fill me-2"></i>ประเมินและกิจกรรม<span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
+      <!-- ชื่อ 2 เมนูอ่าน คิด เขียน เปลี่ยนตามแบบที่โรงเรียนเลือก (js/rtw-mode.js): เลือกแบบเดียว = "ประเมินอ่าน คิด เขียน" -->
+      <li class="nav-item teacher-only" data-page="read_think_write_form" data-aliases="ประเมินอ่าน คิด เขียน (รายวิชา)"><a href="#" class="nav-link" data-page="read_think_write_form"><i class="bi bi-pen-fill"></i> ประเมินอ่าน คิด เขียน (8 กลุ่มสาระ)</a></li>
+      <li class="nav-item teacher-only" data-page="rtw5_assessment"><a href="#" class="nav-link" data-page="rtw5_assessment"><i class="bi bi-book-half"></i> ประเมินอ่าน คิด เขียน (5 เกณฑ์)</a></li>
+      <li class="nav-item teacher-only" data-page="characteristic_assessment"><a href="#" class="nav-link" data-page="characteristic_assessment"><i class="bi bi-patch-check-fill"></i> ประเมินคุณลักษณะอันพึงประสงค์</a></li>
+      <li class="nav-item teacher-only" data-page="competency_assessment"><a href="#" class="nav-link" data-page="competency_assessment"><i class="bi bi-star-fill"></i> ประเมินสมรรถนะสำคัญ</a></li>
+      <li class="nav-item teacher-only" data-page="activity_assessment"><a href="#" class="nav-link" data-page="activity_assessment"><i class="bi bi-ui-checks"></i> ประเมินกิจกรรมพัฒนาผู้เรียน</a></li>
+      <li class="nav-item teacher-only" data-page="club_management"><a href="#" class="nav-link" data-page="club_management"><i class="bi bi-people-fill"></i> ลงทะเบียนชุมนุม</a></li>
+      <li class="nav-item teacher-only" data-page="subject_assessment_summary"><a href="#" class="nav-link" data-page="subject_assessment_summary"><i class="bi bi-diagram-3"></i> รวมผลประเมินจากครูรายวิชา</a></li>
+      <li class="nav-item teacher-only" data-page="class_assessment_summary"><a href="#" class="nav-link" data-page="class_assessment_summary"><i class="bi bi-clipboard2-data"></i> สรุปผลประเมินรายชั้น</a></li>
+      <li class="nav-item teacher-only" data-page="teacher_comment_form"><a href="#" class="nav-link" data-page="teacher_comment_form"><i class="bi bi-chat-square-text-fill"></i> บันทึกความคิดเห็นครู</a></li>
     </ul>
 
     <ul class="menu-group" aria-label="ข้อมูลนักเรียน">
@@ -222,6 +252,7 @@
       <li class="nav-item admin-only" data-page="addStudent"><a href="#" class="nav-link" data-page="addStudent"><i class="bi bi-person-plus-fill"></i> เพิ่มนักเรียน</a></li>
       <li class="nav-item admin-only teacher-only" data-page="deleteStudent"><a href="#" class="nav-link" data-page="deleteStudent"><i class="bi bi-person-gear"></i> แก้ไข/จำหน่ายนักเรียน</a></li>
       <li class="nav-item admin-only" data-page="student_transfer"><a href="#" class="nav-link" data-page="student_transfer"><i class="bi bi-box-arrow-right"></i> นักเรียนย้ายออก</a></li>
+      <li class="nav-item teacher-only" data-page="parent_info_report"><a href="#" class="nav-link" data-page="parent_info_report"><i class="bi bi-person-lines-fill"></i> แก้ไขข้อมูลผู้ปกครอง</a></li>
       <li class="nav-item teacher-only" data-page="behavior_records"><a href="#" class="nav-link" data-page="behavior_records"><i class="bi bi-person-check"></i> บันทึกพฤติกรรม</a></li>
       <li class="nav-item admin-only teacher-only" data-page="import"><a href="#" class="nav-link" data-page="import"><i class="bi bi-cloud-arrow-up-fill"></i> นำเข้ารายชื่อ (DMC)</a></li>
       <li class="nav-item teacher-only" data-page="export_pdf_page"><a href="#" class="nav-link" data-page="export_pdf_page"><i class="bi bi-file-earmark-pdf"></i> พิมพ์รายชื่อนักเรียน</a></li>
@@ -231,43 +262,6 @@
       <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout"><i class="bi bi-heart-pulse me-2"></i>สุขภาพนักเรียน<span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
       <li class="nav-item teacher-only" data-page="student_growth_entry"><a href="#" class="nav-link" data-page="student_growth_entry"><i class="bi bi-clipboard2-pulse"></i> บันทึกน้ำหนัก-ส่วนสูง</a></li>
       <li class="nav-item teacher-only" data-page="student_growth_report"><a href="#" class="nav-link" data-page="student_growth_report"><i class="bi bi-bar-chart-line"></i> รายงานน้ำหนัก-ส่วนสูง</a></li>
-    </ul>
-
-    <ul class="menu-group" aria-label="เวลาเรียน">
-      <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout"><i class="bi bi-calendar-check me-2"></i>เวลาเรียน<span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
-      <li class="nav-item teacher-only" data-page="attendance_daily"><a href="#" class="nav-link" data-page="attendance_daily"><i class="bi bi-calendar-check"></i> เช็คชื่อรายวัน</a></li>
-      <li class="nav-item teacher-only" data-page="subject_attendance"><a href="#" class="nav-link" data-page="subject_attendance"><i class="bi bi-clock-history"></i> เช็คชื่อรายวิชา (รายคาบ)</a></li>
-      <li class="nav-item teacher-only" data-page="subject_schedule"><a href="#" class="nav-link" data-page="subject_schedule"><i class="bi bi-calendar-week"></i> ตารางสอนของฉัน</a></li>
-      <li class="nav-item teacher-only" data-page="subject_attendance_summary"><a href="#" class="nav-link" data-page="subject_attendance_summary"><i class="bi bi-bar-chart-line"></i> สรุปเวลาเรียนรายวิชา</a></li>
-      <li class="nav-item teacher-only" data-page="attendance_monthly"><a href="#" class="nav-link" data-page="attendance_monthly"><i class="bi bi-calendar3"></i> เช็คชื่อรายเดือน</a></li>
-      <li class="nav-item teacher-only" data-page="attendance_table"><a href="#" class="nav-link" data-page="attendance_table"><i class="bi bi-calendar-range"></i> รายงานเวลาเรียนรายเดือน</a></li>
-      <li class="nav-item teacher-only" data-page="semester_attendance_summary"><a href="#" class="nav-link" data-page="semester_attendance_summary"><i class="bi bi-calendar2-week-fill"></i> สรุปการมาเรียน</a></li>
-      <li class="nav-item teacher-only" data-page="attendance_risk"><a href="#" class="nav-link" data-page="attendance_risk"><i class="bi bi-exclamation-octagon-fill"></i> นักเรียนเสี่ยง มส. (ทุกวิชา)</a></li>
-      <li class="nav-item teacher-only" data-page="academic_calendar"><a href="#" class="nav-link" data-page="academic_calendar"><i class="bi bi-calendar-event"></i> ปฏิทินวิชาการ</a></li>
-      <li class="nav-item admin-only" data-page="holiday_form"><a href="#" class="nav-link" data-page="holiday_form"><i class="bi bi-calendar-x"></i> จัดการวันหยุด</a></li>
-    </ul>
-
-    <ul class="menu-group" aria-label="คะแนนและผลการเรียน">
-      <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout"><i class="bi bi-award-fill me-2"></i>คะแนนและผลการเรียน<span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
-      <li class="nav-item teacher-only" data-page="create_score_sheet"><a href="#" class="nav-link" data-page="create_score_sheet"><i class="bi bi-table"></i> จัดทำตารางคะแนน</a></li>
-      <li class="nav-item teacher-only" data-page="score_table_viewer"><a href="#" class="nav-link" data-page="score_table_viewer"><i class="bi bi-pencil-square"></i> กรอกคะแนนรายวิชา</a></li>
-      <li class="nav-item teacher-only" data-page="subject_score_viewer"><a href="#" class="nav-link" data-page="subject_score_viewer"><i class="bi bi-graph-up"></i> ดูคะแนนรายวิชา</a></li>
-      <li class="nav-item teacher-only" data-page="student_scores_summary"><a href="#" class="nav-link" data-page="student_scores_summary"><i class="bi bi-bar-chart-line"></i> สรุปผลการเรียนรายชั้น</a></li>
-      <li class="nav-item teacher-only" data-page="exam_analysis"><a href="#" class="nav-link" data-page="exam_analysis"><i class="bi bi-graph-up-arrow"></i> วิเคราะห์ผลสอบ</a></li>
-
-      <li class="nav-item teacher-only" data-page="schoolmis_sync"><a href="#" class="nav-link" data-page="schoolmis_sync"><i class="bi bi-send-check-fill"></i> ส่งออก SchoolMIS</a></li>
-    </ul>
-
-    <ul class="menu-group" aria-label="ประเมินผล">
-      <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout"><i class="bi bi-clipboard-check-fill me-2"></i>ประเมินผล<span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
-      <li class="nav-item teacher-only" data-page="read_think_write_form"><a href="#" class="nav-link" data-page="read_think_write_form"><i class="bi bi-pen-fill"></i> ประเมินอ่าน คิด เขียน (รายวิชา)</a></li>
-      <li class="nav-item teacher-only" data-page="rtw5_assessment"><a href="#" class="nav-link" data-page="rtw5_assessment"><i class="bi bi-book-half"></i> ประเมินอ่าน คิด เขียน (5 เกณฑ์)</a></li>
-      <li class="nav-item teacher-only" data-page="characteristic_assessment"><a href="#" class="nav-link" data-page="characteristic_assessment"><i class="bi bi-patch-check-fill"></i> ประเมินคุณลักษณะอันพึงประสงค์</a></li>
-      <li class="nav-item teacher-only" data-page="activity_assessment"><a href="#" class="nav-link" data-page="activity_assessment"><i class="bi bi-ui-checks"></i> ประเมินกิจกรรมพัฒนาผู้เรียน</a></li>
-      <li class="nav-item teacher-only" data-page="club_management"><a href="#" class="nav-link" data-page="club_management"><i class="bi bi-people-fill"></i> ลงทะเบียนชุมนุม</a></li>
-      <li class="nav-item teacher-only" data-page="subject_assessment_summary"><a href="#" class="nav-link" data-page="subject_assessment_summary"><i class="bi bi-diagram-3"></i> รวมผลประเมินจากครูรายวิชา</a></li>
-      <li class="nav-item teacher-only" data-page="competency_assessment"><a href="#" class="nav-link" data-page="competency_assessment"><i class="bi bi-star-fill"></i> ประเมินสมรรถนะสำคัญ</a></li>
-      <li class="nav-item teacher-only" data-page="teacher_comment_form"><a href="#" class="nav-link" data-page="teacher_comment_form"><i class="bi bi-chat-square-text-fill"></i> บันทึกความคิดเห็นครู</a></li>
     </ul>
 
     <style>
@@ -329,29 +323,12 @@
         }
       }
     </style>
-    <ul class="menu-group reports-menu" aria-label="พิมพ์เอกสารและรายงาน">
-      <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout">
-        <i class="bi bi-file-earmark-pdf me-2"></i>พิมพ์เอกสารและรายงาน
+    <ul class="menu-group reports-menu" aria-label="เอกสารและรายงาน">
+      <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout" data-aliases="พิมพ์เอกสารและรายงาน">
+        <i class="bi bi-file-earmark-pdf me-2"></i>เอกสารและรายงาน
         <span class="toggle-icon"><i class="bi bi-chevron-down"></i></span>
       </li>
-      <li class="nav-item" data-page="export_reports">
-        <a href="#" class="nav-link" data-page="export_reports">
-          <i class="bi bi-files"></i>
-          <span>ศูนย์ส่งออกรายงาน</span>
-        </a>
-      </li>
-      <li class="nav-item" data-page="pp5_full_book">
-        <a href="#" class="nav-link" data-page="pp5_full_book">
-          <i class="bi bi-journal-bookmark-fill"></i>
-          <span>ปพ.5 แบบประจำชั้น</span>
-        </a>
-      </li>
-      <li class="nav-item" data-page="pp5_subject_book">
-        <a href="#" class="nav-link" data-page="pp5_subject_book">
-          <i class="bi bi-journals"></i>
-          <span>ปพ.5 แบบรายวิชา</span>
-        </a>
-      </li>
+      <!-- ลำดับงาน ปพ.5: ตรวจข้อมูล → ส่งงาน → พิมพ์ -->
       <li class="nav-item teacher-only" data-page="pp5_readiness">
         <a href="#" class="nav-link" data-page="pp5_readiness">
           <i class="bi bi-clipboard2-check"></i>
@@ -364,10 +341,22 @@
           <span>ส่งงานและอนุมัติ ปพ.5</span>
         </a>
       </li>
-      <li class="nav-item" data-page="report_card_generator">
+      <li class="nav-item" data-page="pp5_full_book">
+        <a href="#" class="nav-link" data-page="pp5_full_book">
+          <i class="bi bi-journal-bookmark-fill"></i>
+          <span>พิมพ์ ปพ.5 แบบประจำชั้น</span>
+        </a>
+      </li>
+      <li class="nav-item" data-page="pp5_subject_book">
+        <a href="#" class="nav-link" data-page="pp5_subject_book">
+          <i class="bi bi-journals"></i>
+          <span>พิมพ์ ปพ.5 แบบรายวิชา</span>
+        </a>
+      </li>
+      <li class="nav-item" data-page="report_card_generator" data-aliases="พิมพ์รายงาน ปพ.6">
         <a href="#" class="nav-link" data-page="report_card_generator">
           <i class="bi bi-journal-medical"></i>
-          <span>พิมพ์รายงาน ปพ.6</span>
+          <span>พิมพ์ ปพ.6</span>
         </a>
       </li>
       <li class="nav-item" data-page="report_card_scores">
@@ -376,30 +365,43 @@
           <span>พิมพ์ ปพ.6 แบบมีคะแนน</span>
         </a>
       </li>
-      <li class="nav-item teacher-only" data-page="class_score_summary">
-        <a href="#" class="nav-link" data-page="class_score_summary">
-          <i class="bi bi-bar-chart-line"></i>
-          <span>สรุปคะแนนรายชั้น</span>
+      <li class="nav-item teacher-only" data-page="schoolmis_sync">
+        <a href="#" class="nav-link" data-page="schoolmis_sync">
+          <i class="bi bi-send-check-fill"></i>
+          <span>ส่งออก SchoolMIS</span>
         </a>
       </li>
-      <li class="nav-item teacher-only" data-page="class_assessment_summary">
-        <a href="#" class="nav-link" data-page="class_assessment_summary">
-          <i class="bi bi-clipboard2-data"></i>
-          <span>สรุปผลประเมินรายชั้น</span>
+      <li class="nav-item" data-page="export_reports">
+        <a href="#" class="nav-link" data-page="export_reports">
+          <i class="bi bi-files"></i>
+          <span>ศูนย์ส่งออกรายงาน</span>
         </a>
       </li>
-      <li class="nav-item" data-page="sar_analytics">
-        <a href="#" class="nav-link" data-page="sar_analytics" onclick="if (typeof showSarAnalyticsModal_ === 'function') { showSarAnalyticsModal_(); } else if (typeof window.showSarAnalyticsModal === 'function') { window.showSarAnalyticsModal(); } return false;">
-          <i class="bi bi-file-earmark-bar-graph-fill text-success"></i>
-          <span>วิเคราะห์ผลสัมฤทธิ์ SAR</span>
+      <!-- owner 2026-10-20: หมวด "ผู้ปกครอง" มีเมนูเดียว ย้ายมาไว้ที่นี่ และเปลี่ยนชื่อ (ชื่อเดิมอยู่ใน data-aliases) -->
+      <li class="nav-item" data-page="parent_portal" data-aliases="ตรวจผลการเรียนผู้ปกครอง ผู้ปกครอง">
+        <a href="#" class="nav-link" data-page="parent_portal">
+          <i class="bi bi-search-heart"></i>
+          <span>ผู้ปกครองตรวจผลการเรียน</span>
         </a>
       </li>
     </ul>
 
-    <ul class="menu-group" aria-label="ผู้ปกครอง">
-      <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout"><i class="bi bi-person-heart me-2"></i>ผู้ปกครอง<span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
-      <li class="nav-item" data-page="parent_portal"><a href="#" class="nav-link" data-page="parent_portal"><i class="bi bi-search-heart"></i> ตรวจผลการเรียนผู้ปกครอง</a></li>
-      <li class="nav-item teacher-only" data-page="parent_info_report"><a href="#" class="nav-link" data-page="parent_info_report"><i class="bi bi-pencil-square"></i> แก้ไขข้อมูลผู้ปกครอง</a></li>
+    <ul class="menu-group admin-only" aria-label="งานวิชาการ">
+      <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout"><i class="bi bi-mortarboard-fill me-2"></i>งานวิชาการ<span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
+      <li class="nav-item admin-only" data-page="subjectManager"><a href="#" class="nav-link" data-page="subjectManager"><i class="bi bi-journal-bookmark-fill"></i> รายวิชาและหลักสูตร</a></li>
+      <li class="nav-item admin-only" data-page="curriculum_readiness"><a href="#" class="nav-link" data-page="curriculum_readiness"><i class="bi bi-clipboard-check"></i> ตรวจความพร้อมหลักสูตร</a></li>
+      <li class="nav-item admin-only" data-page="teacher_editor"><a href="#" class="nav-link" data-page="teacher_editor"><i class="bi bi-person-video3"></i> ครูประจำชั้น</a></li>
+      <li class="nav-item admin-only" data-page="teacher_access"><a href="#" class="nav-link" data-page="teacher_access"><i class="bi bi-person-check"></i> มอบหมายงานครู</a></li>
+      <li class="nav-item admin-only" data-page="holiday_form"><a href="#" class="nav-link" data-page="holiday_form"><i class="bi bi-calendar-x"></i> จัดการวันหยุด</a></li>
+    </ul>
+
+    <ul class="menu-group admin-only" aria-label="ตั้งค่าระบบ">
+      <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout" data-aliases="ตั้งค่าและดูแลระบบ"><i class="bi bi-gear-wide-connected me-2"></i>ตั้งค่าระบบ<span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
+      <li class="nav-item admin-only" data-page="new_settings_editor"><a href="#" class="nav-link" data-page="new_settings_editor"><i class="bi bi-sliders"></i> ตั้งค่าระบบกลาง</a></li>
+      <li class="nav-item admin-only" data-page="logo_management"><a href="#" class="nav-link" data-page="logo_management"><i class="bi bi-image-fill"></i> โลโก้และตราโรงเรียน</a></li>
+      <li class="nav-item admin-only" data-page="admin_panel"><a href="#" class="nav-link" data-page="admin_panel"><i class="bi bi-person-gear"></i> ผู้ใช้และสิทธิ์</a></li>
+      <li class="nav-item admin-only" data-page="setup_wizard"><a href="#" class="nav-link" data-page="setup_wizard"><i class="bi bi-list-check"></i> เริ่มต้นใช้งานโรงเรียน</a></li>
+      <li class="nav-item admin-only"><a href="#" class="nav-link" onclick="AppNavigation.exportSystemZip();return false;"><i class="bi bi-box-arrow-up-right"></i> คู่มือติดตั้งโรงเรียนอื่น</a></li>
     </ul>
 
     <ul class="menu-group" aria-label="ช่วยเหลือ">
@@ -454,7 +456,7 @@
   
 
 <!-- GAS Pages Dictionary (58 authentic pages) -->
-  <script src="js/gas-pages.js?v=81"></script>
+  <script src="js/gas-pages.js?v=82"></script>
 <script src="js/academic-calendar-page.js?v=1"></script>
 
 <!-- Supabase data adapter (must load before compatibility bridge) -->
@@ -462,7 +464,7 @@
 
 <!-- ระดับชั้นที่เปิดสอน ป.1–ป.6 / ป.1–ม.3 (ต้องโหลดก่อน gas-bridge และ spa-main) -->
 <script src="js/grade-levels.js?v=2"></script>
-<script src="js/rtw-mode.js?v=5"></script>
+<script src="js/rtw-mode.js?v=6"></script>
 
 <!-- DMC parser/validator (keeps XLSX/CSV data in memory until admin confirms) -->
 <script src="js/dmc-import.js?v=1"></script>
@@ -530,7 +532,7 @@
   <script src="js/settings-layout.js?v=3"></script>
   <script src="js/teacher-access-ui.js?v=3"></script>
   <script src="js/admin-users-ui.js?v=2"></script>
-  <script src="js/spa-main.js?v=158"></script>
+  <script src="js/spa-main.js?v=159"></script>
   <script src="js/exam-import.js?v=3"></script>
 
 <script>

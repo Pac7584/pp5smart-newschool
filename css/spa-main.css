@@ -474,9 +474,13 @@ body.menu-open {
   background: color-mix(in srgb, var(--primary) 12%, transparent);
   color: var(--primary);
 }
-[aria-label="ตั้งค่าและดูแลระบบ"] .nav-link i {
+[aria-label="ตั้งค่าระบบ"] .nav-link i {
   background: rgba(124, 58, 237, 0.12);
   color: #7C3AED;
+}
+[aria-label="งานวิชาการ"] .nav-link i {
+  background: rgba(13, 148, 136, 0.12);
+  color: #0F766E;
 }
 [aria-label="ข้อมูลนักเรียน"] .nav-link i {
   background: rgba(16, 185, 129, 0.12);
@@ -490,11 +494,11 @@ body.menu-open {
   background: rgba(245, 158, 11, 0.12);
   color: #D97706;
 }
-[aria-label="ประเมินผล"] .nav-link i {
+[aria-label="ประเมินและกิจกรรม"] .nav-link i {
   background: rgba(236, 72, 153, 0.12);
   color: #DB2777;
 }
-[aria-label="พิมพ์เอกสารและรายงาน"] .nav-link i {
+[aria-label="เอกสารและรายงาน"] .nav-link i {
   background: color-mix(in srgb, var(--primary-light) 12%, transparent);
   color: var(--primary);
 }
@@ -514,8 +518,10 @@ body.menu-open {
 /* --- Menu Header Icon Colors --- */
 [aria-label="หน้าหลัก"] .menu-header i.fas,
 [aria-label="หน้าหลัก"] .menu-header i.bi { color: var(--primary); }
-[aria-label="ตั้งค่าและดูแลระบบ"] .menu-header i.fas,
-[aria-label="ตั้งค่าและดูแลระบบ"] .menu-header i.bi { color: #7C3AED; }
+[aria-label="ตั้งค่าระบบ"] .menu-header i.fas,
+[aria-label="ตั้งค่าระบบ"] .menu-header i.bi { color: #7C3AED; }
+[aria-label="งานวิชาการ"] .menu-header i.fas,
+[aria-label="งานวิชาการ"] .menu-header i.bi { color: #0F766E; }
 [aria-label="ข้อมูลนักเรียน"] .menu-header i.fas,
 [aria-label="ข้อมูลนักเรียน"] .menu-header i.bi { color: #059669; }
 [aria-label="สุขภาพนักเรียน"] .menu-header i.bi { color: #EF4444; }
@@ -523,10 +529,10 @@ body.menu-open {
 [aria-label="เวลาเรียน"] .menu-header i.bi { color: #0891B2; }
 [aria-label="คะแนนและผลการเรียน"] .menu-header i.fas,
 [aria-label="คะแนนและผลการเรียน"] .menu-header i.bi { color: #D97706; }
-[aria-label="ประเมินผล"] .menu-header i.fas,
-[aria-label="ประเมินผล"] .menu-header i.bi { color: #DB2777; }
-[aria-label="พิมพ์เอกสารและรายงาน"] .menu-header i.fas,
-[aria-label="พิมพ์เอกสารและรายงาน"] .menu-header i.bi { color: var(--primary); }
+[aria-label="ประเมินและกิจกรรม"] .menu-header i.fas,
+[aria-label="ประเมินและกิจกรรม"] .menu-header i.bi { color: #DB2777; }
+[aria-label="เอกสารและรายงาน"] .menu-header i.fas,
+[aria-label="เอกสารและรายงาน"] .menu-header i.bi { color: var(--primary); }
 [aria-label="ผู้ปกครอง"] .menu-header i.fas,
 [aria-label="ผู้ปกครอง"] .menu-header i.bi { color: #B45309; }
 [aria-label="ช่วยเหลือ"] .menu-header i.fas,
@@ -544,12 +550,13 @@ body.menu-open {
 
 /* --- Dark Mode Icon Adjustments --- */
 [data-theme="dark"] [aria-label="หน้าหลัก"] .nav-link i { background: color-mix(in srgb, var(--primary-light) 18%, transparent); color: color-mix(in srgb, var(--primary-light) 70%, #fff); }
-[data-theme="dark"] [aria-label="ตั้งค่าและดูแลระบบ"] .nav-link i { background: rgba(139, 92, 246, 0.18); color: #A78BFA; }
+[data-theme="dark"] [aria-label="ตั้งค่าระบบ"] .nav-link i { background: rgba(139, 92, 246, 0.18); color: #A78BFA; }
+[data-theme="dark"] [aria-label="งานวิชาการ"] .nav-link i { background: rgba(45, 212, 191, 0.18); color: #2DD4BF; }
 [data-theme="dark"] [aria-label="ข้อมูลนักเรียน"] .nav-link i { background: rgba(52, 211, 153, 0.18); color: #34D399; }
 [data-theme="dark"] [aria-label="เวลาเรียน"] .nav-link i { background: rgba(34, 211, 238, 0.18); color: #22D3EE; }
 [data-theme="dark"] [aria-label="คะแนนและผลการเรียน"] .nav-link i { background: rgba(251, 191, 36, 0.18); color: #FBBF24; }
-[data-theme="dark"] [aria-label="ประเมินผล"] .nav-link i { background: rgba(244, 114, 182, 0.18); color: #F472B6; }
-[data-theme="dark"] [aria-label="พิมพ์เอกสารและรายงาน"] .nav-link i { background: rgba(129, 140, 248, 0.18); color: color-mix(in srgb, var(--primary-light) 70%, #fff); }
+[data-theme="dark"] [aria-label="ประเมินและกิจกรรม"] .nav-link i { background: rgba(244, 114, 182, 0.18); color: #F472B6; }
+[data-theme="dark"] [aria-label="เอกสารและรายงาน"] .nav-link i { background: rgba(129, 140, 248, 0.18); color: color-mix(in srgb, var(--primary-light) 70%, #fff); }
 [data-theme="dark"] [aria-label="ผู้ปกครอง"] .nav-link i { background: rgba(251, 191, 36, 0.18); color: #FBBF24; }
 [data-theme="dark"] [aria-label="ช่วยเหลือ"] .nav-link i { background: rgba(56, 189, 248, 0.18); color: #38BDF8; }
 [data-theme="dark"] [aria-label="บัญชีผู้ใช้"] .nav-link i { background: rgba(148, 163, 184, 0.18); color: #94A3B8; }
@@ -660,12 +667,13 @@ body.menu-open {
 
 /* --- Flyout Icon Colors per Group --- */
 .submenu-flyout[data-group="หน้าหลัก"] .nav-link i { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
-.submenu-flyout[data-group="ตั้งค่าและดูแลระบบ"] .nav-link i { background: rgba(124, 58, 237, 0.12); color: #7C3AED; }
+.submenu-flyout[data-group="ตั้งค่าระบบ"] .nav-link i { background: rgba(124, 58, 237, 0.12); color: #7C3AED; }
+.submenu-flyout[data-group="งานวิชาการ"] .nav-link i { background: rgba(13, 148, 136, 0.12); color: #0F766E; }
 .submenu-flyout[data-group="ข้อมูลนักเรียน"] .nav-link i { background: rgba(16, 185, 129, 0.12); color: #059669; }
 .submenu-flyout[data-group="เวลาเรียน"] .nav-link i { background: rgba(6, 182, 212, 0.12); color: #0891B2; }
 .submenu-flyout[data-group="คะแนนและผลการเรียน"] .nav-link i { background: rgba(245, 158, 11, 0.12); color: #D97706; }
-.submenu-flyout[data-group="ประเมินผล"] .nav-link i { background: rgba(236, 72, 153, 0.12); color: #DB2777; }
-.submenu-flyout[data-group="พิมพ์เอกสารและรายงาน"] .nav-link i { background: color-mix(in srgb, var(--primary-light) 12%, transparent); color: var(--primary); }
+.submenu-flyout[data-group="ประเมินและกิจกรรม"] .nav-link i { background: rgba(236, 72, 153, 0.12); color: #DB2777; }
+.submenu-flyout[data-group="เอกสารและรายงาน"] .nav-link i { background: color-mix(in srgb, var(--primary-light) 12%, transparent); color: var(--primary); }
 .submenu-flyout[data-group="ผู้ปกครอง"] .nav-link i { background: rgba(217, 119, 6, 0.12); color: #B45309; }
 .submenu-flyout[data-group="ช่วยเหลือ"] .nav-link i { background: rgba(14, 165, 233, 0.12); color: #0284C7; }
 .submenu-flyout[data-group="บัญชีผู้ใช้"] .nav-link i { background: rgba(100, 116, 139, 0.12); color: #475569; }
@@ -674,12 +682,13 @@ body.menu-open {
   color: white;
 }
 .submenu-flyout[data-group="หน้าหลัก"] .nav-link:hover i { background: var(--primary); }
-.submenu-flyout[data-group="ตั้งค่าและดูแลระบบ"] .nav-link:hover i { background: #7C3AED; }
+.submenu-flyout[data-group="ตั้งค่าระบบ"] .nav-link:hover i { background: #7C3AED; }
+.submenu-flyout[data-group="งานวิชาการ"] .nav-link:hover i { background: #0F766E; }
 .submenu-flyout[data-group="ข้อมูลนักเรียน"] .nav-link:hover i { background: #059669; }
 .submenu-flyout[data-group="เวลาเรียน"] .nav-link:hover i { background: #0891B2; }
 .submenu-flyout[data-group="คะแนนและผลการเรียน"] .nav-link:hover i { background: #D97706; }
-.submenu-flyout[data-group="ประเมินผล"] .nav-link:hover i { background: #DB2777; }
-.submenu-flyout[data-group="พิมพ์เอกสารและรายงาน"] .nav-link:hover i { background: var(--primary); }
+.submenu-flyout[data-group="ประเมินและกิจกรรม"] .nav-link:hover i { background: #DB2777; }
+.submenu-flyout[data-group="เอกสารและรายงาน"] .nav-link:hover i { background: var(--primary); }
 .submenu-flyout[data-group="ผู้ปกครอง"] .nav-link:hover i { background: #B45309; }
 .submenu-flyout[data-group="ช่วยเหลือ"] .nav-link:hover i { background: #0284C7; }
 .submenu-flyout[data-group="บัญชีผู้ใช้"] .nav-link:hover i { background: #475569; }
@@ -688,12 +697,13 @@ body.menu-open {
 
 /* Dark mode flyout */
 [data-theme="dark"] .submenu-flyout[data-group="หน้าหลัก"] .nav-link i { background: color-mix(in srgb, var(--primary-light) 18%, transparent); color: color-mix(in srgb, var(--primary-light) 70%, #fff); }
-[data-theme="dark"] .submenu-flyout[data-group="ตั้งค่าและดูแลระบบ"] .nav-link i { background: rgba(139, 92, 246, 0.18); color: #A78BFA; }
+[data-theme="dark"] .submenu-flyout[data-group="ตั้งค่าระบบ"] .nav-link i { background: rgba(139, 92, 246, 0.18); color: #A78BFA; }
+[data-theme="dark"] .submenu-flyout[data-group="งานวิชาการ"] .nav-link i { background: rgba(45, 212, 191, 0.18); color: #2DD4BF; }
 [data-theme="dark"] .submenu-flyout[data-group="ข้อมูลนักเรียน"] .nav-link i { background: rgba(52, 211, 153, 0.18); color: #34D399; }
 [data-theme="dark"] .submenu-flyout[data-group="เวลาเรียน"] .nav-link i { background: rgba(34, 211, 238, 0.18); color: #22D3EE; }
 [data-theme="dark"] .submenu-flyout[data-group="คะแนนและผลการเรียน"] .nav-link i { background: rgba(251, 191, 36, 0.18); color: #FBBF24; }
-[data-theme="dark"] .submenu-flyout[data-group="ประเมินผล"] .nav-link i { background: rgba(244, 114, 182, 0.18); color: #F472B6; }
-[data-theme="dark"] .submenu-flyout[data-group="พิมพ์เอกสารและรายงาน"] .nav-link i { background: rgba(129, 140, 248, 0.18); color: color-mix(in srgb, var(--primary-light) 70%, #fff); }
+[data-theme="dark"] .submenu-flyout[data-group="ประเมินและกิจกรรม"] .nav-link i { background: rgba(244, 114, 182, 0.18); color: #F472B6; }
+[data-theme="dark"] .submenu-flyout[data-group="เอกสารและรายงาน"] .nav-link i { background: rgba(129, 140, 248, 0.18); color: color-mix(in srgb, var(--primary-light) 70%, #fff); }
 [data-theme="dark"] .submenu-flyout[data-group="ผู้ปกครอง"] .nav-link i { background: rgba(251, 191, 36, 0.18); color: #FBBF24; }
 [data-theme="dark"] .submenu-flyout[data-group="ช่วยเหลือ"] .nav-link i { background: rgba(56, 189, 248, 0.18); color: #38BDF8; }
 [data-theme="dark"] .submenu-flyout[data-group="บัญชีผู้ใช้"] .nav-link i { background: rgba(148, 163, 184, 0.18); color: #94A3B8; }
