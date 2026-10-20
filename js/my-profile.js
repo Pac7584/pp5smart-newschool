@@ -3,7 +3,7 @@
 //      ผู้ปกครอง: นักเรียนในความดูแล จาก getParentStudents · ธุรการ/ผู้ดูแล: ขอบเขตงาน)
 //   ② ความปลอดภัย: ปุ่มไปหน้าเปลี่ยนรหัสผ่านเดิม (change_password)
 //   ③ การแสดงผล: ธีมสีของฉัน (js/user-theme.js — เก็บกับบัญชี ไม่กระทบคนอื่น) + โหมดมืด (#themeToggle ที่หัวเว็บ)
-// ผู้ใช้แก้ชื่อเองไม่ได้ (RLS user_profiles: แก้ได้เฉพาะผู้ดูแล) — บอกให้ติดต่อผู้ดูแล; ขั้นที่ 2 (SQL) ทำเมื่อมีคนขอจริง
+// แก้ชื่อเอง (ขั้นที่ 2, owner 2026-10-20): ผ่าน SQL 202610200037 pp5_update_my_display_name เท่านั้น (ตาราง user_profiles ยังแก้ได้เฉพาะผู้ดูแล)
 // เปิดได้จากเมนู บัญชีผู้ใช้ → โปรไฟล์ของฉัน และกดชื่อที่มุมขวาบน · ตรวจด้วย tools/my-profile-contract.cjs
 (function initMyProfile(global) {
   'use strict';
@@ -139,6 +139,51 @@
     });
   }
 
+  const initial = (name) => name.replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|เด็กชาย|เด็กหญิง|ครู)\s*/, '').charAt(0) || '?';
+  // แก้ชื่อที่แสดงของตัวเอง (โปรไฟล์ขั้นที่ 2, SQL 202610200037 pp5_update_my_display_name: แก้ได้เฉพาะชื่อของบัญชีตัวเอง
+  // ไม่แตะบทบาท/สิทธิ์) · ยังไม่ติดตั้ง SQL = บอกให้แจ้งผู้ดูแล · ชื่อนี้ไม่ใช่ชื่อในเอกสาร ปพ. (มาจากข้อมูลครูประจำชั้นของผู้ดูแล)
+  const missingRpc = (error) => /pp5_update_my_display_name|PGRST202|schema cache|does not exist/i.test(`${error?.code || ''} ${error?.message || ''}`);
+  function renderMe(root, p, name) {
+    const me = root.querySelector('[data-me]');
+    me.innerHTML = `<div class="pp5-pf-me"><div class="pp5-pf-avatar" aria-hidden="true">${esc(initial(name))}</div>
+<div style="flex:1;min-width:0"><div class="pp5-pf-name">${esc(name)}</div>
+<div class="pp5-pf-sub"><span class="pp5-pf-badge">${esc(roleLabel(p.role))}</span><span>ชื่อผู้ใช้ ${esc(p.username || '-')}</span></div></div>
+<button type="button" class="btn btn-outline-secondary btn-sm" data-edit-name><i class="bi bi-pencil"></i> แก้ชื่อ</button></div>
+<form data-name-form hidden style="margin-top:12px"><label class="form-label mb-1" for="pp5ProfileName">ชื่อที่แสดงในระบบ</label>
+<div class="d-flex flex-wrap gap-2"><input id="pp5ProfileName" class="form-control" style="flex:1 1 240px;max-width:420px" maxlength="80" autocomplete="name" value="${esc(name)}">
+<button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> บันทึก</button><button type="button" class="btn btn-outline-secondary" data-cancel-name>ยกเลิก</button></div></form>
+<p class="pp5-pf-muted">ชื่อนี้ใช้แสดงในระบบ ไม่เปลี่ยนชื่อในเอกสาร ปพ.5 / ปพ.6${p.role === 'admin' ? ' · บทบาทและสิทธิ์แก้ได้ที่ ตั้งค่าระบบ → ผู้ใช้และสิทธิ์' : ''}</p>
+<p class="pp5-pf-say" data-name-say role="status"></p>`;
+    const form = me.querySelector('[data-name-form]');
+    const say = me.querySelector('[data-name-say]');
+    const show = (text, kind) => { say.textContent = text || ''; say.className = 'pp5-pf-say' + (kind ? ' ' + kind : ''); };
+    me.querySelector('[data-edit-name]').addEventListener('click', () => { form.hidden = false; form.querySelector('input').focus(); show(''); });
+    me.querySelector('[data-cancel-name]').addEventListener('click', () => { form.hidden = true; show(''); });
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const wanted = clean(form.querySelector('input').value).replace(/\s+/g, ' ');
+      if (wanted.length < 2 || wanted.length > 80) { show('ชื่อต้องยาว 2–80 ตัวอักษร', 'err'); return; }
+      const buttons = form.querySelectorAll('button');
+      buttons.forEach((b) => { b.disabled = true; });
+      show('กำลังบันทึก…');
+      try {
+        const { data, error } = await global.PP5Data.client.rpc('pp5_update_my_display_name', { p_name: wanted });
+        if (error) throw error;
+        const saved = clean(data?.display_name) || wanted;
+        // หัวเว็บอ่าน firstName+lastName ก่อน displayName (spa-main getUserFullName_) จึงตั้งทั้งสามค่า
+        try { global.localStorage?.setItem('displayName', saved); global.localStorage?.setItem('firstName', saved); global.localStorage?.setItem('lastName', ''); } catch (_) { /* storage blocked */ }
+        try { global.displayUserInfo?.(); } catch (_) { /* header not on this page */ }
+        renderMe(root, p, saved);
+        root.querySelector('[data-name-say]').textContent = 'บันทึกชื่อแล้ว';
+        root.querySelector('[data-name-say]').className = 'pp5-pf-say ok';
+      } catch (error) {
+        buttons.forEach((b) => { b.disabled = false; });
+        show(missingRpc(error) ? 'โรงเรียนยังไม่ได้เปิดให้แก้ชื่อเอง (ต้องติดตั้ง SQL 037) — กรุณาแจ้งผู้ดูแลระบบแก้ให้ที่ ผู้ใช้และสิทธิ์'
+          : ((error && error.message) || 'บันทึกไม่สำเร็จ'), 'err');
+      }
+    });
+  }
+
   async function mount(root) {
     root.querySelector('[data-password]').addEventListener('click', () => global.navigateTo?.('change_password'));
     themeSwatches(root);
@@ -146,11 +191,7 @@
     const state = await global.PP5Data.auth.requireUser();
     const p = state.profile || {};
     const name = clean(p.displayName) || clean(p.username) || 'ผู้ใช้';
-    const me = root.querySelector('[data-me]');
-    me.innerHTML = `<div class="pp5-pf-me"><div class="pp5-pf-avatar" aria-hidden="true">${esc(name.replace(/^(นาย|นางสาว|นาง|ด\.ช\.|ด\.ญ\.|เด็กชาย|เด็กหญิง)\s*/, '').charAt(0) || '?')}</div>
-<div><div class="pp5-pf-name">${esc(name)}</div>
-<div class="pp5-pf-sub"><span class="pp5-pf-badge">${esc(roleLabel(p.role))}</span><span>ชื่อผู้ใช้ ${esc(p.username || '-')}</span></div></div></div>
-<p class="pp5-pf-muted">${p.role === 'admin' ? 'แก้ชื่อหรือสิทธิ์ได้ที่ ตั้งค่าระบบ → ผู้ใช้และสิทธิ์' : 'ต้องการแก้ชื่อ กรุณาแจ้งผู้ดูแลระบบของโรงเรียน'}</p>`;
+    renderMe(root, p, name);
     if (p.role === 'teacher') {
       let ctx = null;
       try { ctx = await global.PP5Permissions?.context?.(); } catch (_) { ctx = null; }
