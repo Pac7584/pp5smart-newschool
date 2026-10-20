@@ -1220,6 +1220,8 @@
           final: finalScore,
           total,
           grade: !saved ? '' : savedGrade || data.helpers.calculateGrade(total),
+          // ร / มส ที่ครูบันทึก (grade_text) — ส่งออก SchoolMIS ใช้แทนเกรดจากคะแนน (owner 2026-10-20)
+          special: storedSpecialGrade(stored),
           makeup: number(breakdown.makeup, 0)
         };
       })
@@ -3002,6 +3004,8 @@
     // Calculate GPAs for all students based on the selected term/annual
     const studentGpaMap = {};
     const studentPctMap = {};
+    // วิชาที่ยังเป็น ร / มส (ไม่นำมาคิดเกรดเฉลี่ย) — ปพ.6 ใส่หมายเหตุให้เห็น (owner 2026-10-20)
+    const studentSpecialMap = {};
     allStudentsInClass.forEach((stu) => {
       let totalCredit = 0;
       let totalPoints = 0;
@@ -3020,7 +3024,7 @@
         // ร / มส in the selected term (either term for the year result) is left out of the GPA.
         const special = String(term) === '1' ? storedSpecialGrade(s1)
           : String(term) === '2' ? storedSpecialGrade(s2) : (storedSpecialGrade(s1) || storedSpecialGrade(s2));
-        if (special) return;
+        if (special) { studentSpecialMap[stu.id] = (studentSpecialMap[stu.id] || 0) + 1; return; }
 
         let targetGrade = '';
         if (String(term) === '1') {
@@ -3300,7 +3304,8 @@
           gpa: hasAnyScore && gpa !== null ? gpa.toFixed(2) : '',
           classRank: (showRank && hasAnyScore && gpa !== null) ? rank : '-',
           totalStudents: allStudentsInClass.length,
-          showRank
+          showRank,
+          specialCount: studentSpecialMap[studentId] || 0
         },
         showRank,
         assessments,
@@ -4404,7 +4409,9 @@
     const total = Math.round((mid + finalScore) * 10) / 10;
     return {
       scores, sum14, sum69, mid, finalScore, total,
-      grade: data.helpers.calculateGrade(total),
+      // ร / มส ที่ครูบันทึกไว้ส่งออกตามนั้น ไม่คิดเกรดจากคะแนน (owner 2026-10-20 — เดิมนักเรียน ร ถูกส่งเป็นเกรดตัวเลข)
+      grade: row?.special || data.helpers.calculateGrade(total),
+      special: row?.special || '',
       makeup: row?.makeup === undefined || row?.makeup === null ? '' : row.makeup,
       fullFinal
     };
@@ -4522,7 +4529,8 @@
           mid,
           finalScore,
           total,
-          grade: data.helpers.calculateGrade(total),
+          // ผลทั้งปี: ภาคใดเป็น ร / มส ทั้งปีเป็นค่านั้น (กติกาเดียวกับ pp5YearEndResult)
+          grade: first.special || second.special || data.helpers.calculateGrade(total),
           makeup: ''
         }
       };
@@ -4708,6 +4716,9 @@
       const values = [index + 1, student.id, studentDisplayName(student)];
       activeSubjects.forEach((subject) => {
         const subjectRows = grouped.get(`${text(student.id)}|${text(subject.id)}`) || [];
+        // ร / มส ในภาคใด = ผลทั้งปีของวิชานั้น (owner 2026-10-20, กติกาเดียวกับ pp5YearEndResult)
+        const special = subjectRows.slice().sort((a, b) => number(a.semester, 1) - number(b.semester, 1)).map(storedSpecialGrade).find(Boolean);
+        if (special) { values.push(special); return; }
         // a term counts only when its final exam is done (owner 2026-10-10, same rule as ปพ.5)
         const term1 = subjectRows.find((row) => number(row.semester, 1) === 1 && dashboardCompleteScore_(row));
         const term2 = subjectRows.find((row) => number(row.semester, 1) === 2 && dashboardCompleteScore_(row));

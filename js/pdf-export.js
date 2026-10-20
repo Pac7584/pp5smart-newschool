@@ -3857,6 +3857,8 @@
         ['จำนวนหน่วยกิต/น้ำหนักวิชาเพิ่มเติม', addCredTotal, addCredEarned],
         ['รวมจำนวนหน่วยกิต/น้ำหนัก', totCredTotal, totCredEarned],
         [{ content: 'ระดับผลการเรียนเฉลี่ย(GPA)', colSpan: 2 }, gpa],
+        // ยังมีวิชาที่เป็น ร / มส: เกรดเฉลี่ยยังไม่รวมวิชาเหล่านั้น — บอกไว้ในเอกสาร (owner 2026-10-20)
+        ...(Number(stu.gpaInfo?.specialCount) > 0 ? [[{ content: `หมายเหตุ: ยังมีผล ร / มส ${stu.gpaInfo.specialCount} วิชา ยังไม่นำมาคิดเกรดเฉลี่ย`, colSpan: 3, styles: { halign: 'left', fontSize: 9, textColor: [180, 83, 9] } }]] : []),
         [{ content: 'การประเมินคุณลักษณะ', colSpan: 3, styles: { fontStyle: 'bold', halign: 'left', fillColor: [248, 248, 248] } }],
         [{ content: 'ผลการประเมินคุณลักษณะอันพึงประสงค์', colSpan: 2 }, charResult],
         [{ content: 'ผลการประเมินการอ่าน คิดวิเคราะห์ และเขียน', colSpan: 2 }, rtwResult],
