@@ -288,13 +288,13 @@
       host.innerHTML = `
         <p class="pp5-sb-muted">ปรับหน้าตาให้เป็นของโรงเรียน ใช้ได้ทุกเครื่องของโรงเรียนนี้ (ไม่กระทบข้อมูลคะแนนหรือเอกสาร ปพ.)</p>
         <section class="pp5-sb-card">
-          <h6><i class="bi bi-palette2" aria-hidden="true"></i> ธีมสี</h6>
+          <h6><i class="bi bi-palette2" aria-hidden="true"></i> ธีมสีของโรงเรียน <small class="pp5-sb-muted" style="font-weight:500">สีเริ่มต้นของทุกคน</small></h6>
           <div class="pp5-sb-swatches" data-swatches>${swatchesHtml(saved.theme)}</div>
           <div class="pp5-sb-custom" data-custom${saved.theme === 'custom' ? '' : ' hidden'}>
             <label>สีหลัก <input type="color" data-custom-color value="${esc(saved.customPrimary || '#2563EB')}"></label>
             <span class="pp5-sb-note" data-contrast></span>
           </div>
-          <p class="pp5-sb-note">เลือกแล้วเห็นผลทันทีทั้งหน้า (ยังไม่บันทึก) บางหน้าเก่าอาจยังมีสีม่วงเดิมบางจุด</p>
+          <p class="pp5-sb-note">เลือกแล้วเห็นผลทันทีทั้งหน้า (ยังไม่บันทึก) บางหน้าเก่าอาจยังมีสีม่วงเดิมบางจุด · แต่ละคนเลือกสีของตัวเองได้ที่ <b>บัญชีผู้ใช้ → ธีมสีของฉัน</b> (ทับสีนี้เฉพาะบัญชีนั้น)</p>
         </section>
         <section class="pp5-sb-card">
           <h6><i class="bi bi-flag" aria-hidden="true"></i> แบนเนอร์หน้าหลัก</h6>

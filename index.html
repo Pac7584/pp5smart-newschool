@@ -410,6 +410,8 @@
     <ul class="menu-group" aria-label="บัญชีผู้ใช้">
       <li class="menu-header" aria-haspopup="true" aria-controls="submenuFlyout"><i class="bi bi-person-circle me-2"></i>บัญชีผู้ใช้<span class="toggle-icon"><i class="bi bi-chevron-down"></i></span></li>
       <li class="nav-item" data-page="change_password"><a href="#" class="nav-link" data-page="change_password"><i class="bi bi-key-fill"></i> เปลี่ยนรหัสผ่าน</a></li>
+      <!-- owner 2026-10-20: ธีมสีของแต่ละคนอยู่ที่บัญชีผู้ใช้ — เปิดกล่องเดียวกับปุ่มจานสีที่หัวเว็บ (js/user-theme.js) ทุกบทบาท -->
+      <li class="nav-item" data-any-role data-aliases="ธีม สี จานสี"><a href="#" class="nav-link" onclick="return window.PP5UserTheme?.open?.() ?? false;"><i class="bi bi-palette-fill"></i> ธีมสีของฉัน</a></li>
     </ul>
 
     <ul class="menu-group d-lg-none">
@@ -495,11 +497,11 @@
   <link rel="stylesheet" href="css/student-photos.css?v=5">
   <script src="js/student-photos.js?v=4"></script>
   <!-- หน้าตาโรงเรียน: ธีมสี + แบนเนอร์หน้าหลัก + แท็บตั้งค่า (หลัง supabaseClient, ก่อน spa-main) -->
-  <script src="js/school-branding.js?v=4"></script>
+  <script src="js/school-branding.js?v=5"></script>
   <!-- แถบหัวหน้าแบบแบนเนอร์หน้าหลัก (ใช้ PP5SchoolBranding จึงต้องโหลดหลัง school-branding) -->
   <script src="js/page-banner.js?v=10"></script>
   <!-- ธีมสีส่วนตัว: ปุ่มจานสีที่หัวเว็บ (ใช้ PP5SchoolBranding จึงโหลดหลัง school-branding) -->
-  <script src="js/user-theme.js?v=1"></script>
+  <script src="js/user-theme.js?v=2"></script>
   <!-- หน้ากรอกคะแนนบนมือถือ: กรอกทีละครั้ง -->
   <script src="js/score-focus.js?v=1"></script>
   <!-- เช็คชื่อรายวันบนมือถือ: แถบบันทึกด้านล่างขึ้นเฉพาะตอนยังไม่ได้บันทึก (ห่อ GasServer จึงโหลดหลัง gas-bridge) -->
@@ -531,7 +533,7 @@
   <script src="js/settings-layout.js?v=3"></script>
   <script src="js/teacher-access-ui.js?v=3"></script>
   <script src="js/admin-users-ui.js?v=2"></script>
-  <script src="js/spa-main.js?v=160"></script>
+  <script src="js/spa-main.js?v=161"></script>
   <script src="js/exam-import.js?v=3"></script>
 
 <script>

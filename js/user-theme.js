@@ -185,7 +185,24 @@
     } catch (_) { /* ไม่มี auth = ใช้ค่าในเครื่อง */ }
   }
 
-  global.PP5UserTheme = { current, palette, reapply, save, sync, valid };
+  // เมนู "บัญชีผู้ใช้ → ธีมสีของฉัน" (owner 2026-10-20 "เอาธีมสีของแต่ละคนไปอยู่ที่โปรไฟล์") เปิดกล่องเดียวกับปุ่มจานสีที่หัวเว็บ
+  // หน่วงหนึ่งจังหวะ: คลิกเมนูยังเดินทางต่อถึง document ซึ่งปิดกล่องเมื่อคลิกนอกปุ่ม
+  function open() {
+    global.setTimeout(() => {
+      try { global.closeFlyout?.(); } catch (_) { /* no flyout */ }
+      try { global.closeMobileSidebar?.(); } catch (_) { /* desktop */ }
+      const button = global.document.getElementById('pp5UserThemeBtn');
+      const pop = global.document.getElementById('pp5UserThemePop');
+      if (!button || !pop) return;
+      pop.hidden = false;
+      button.setAttribute('aria-expanded', 'true');
+      markSwatches();
+      (pop.querySelector('.pp5-ut-swatch.is-on') || pop.querySelector('.pp5-ut-swatch'))?.focus?.();
+    }, 0);
+    return false;
+  }
+
+  global.PP5UserTheme = { current, palette, reapply, save, sync, valid, open };
   if (global.document) {
     if (global.document.readyState === 'loading') global.document.addEventListener('DOMContentLoaded', start, { once: true });
     else start();

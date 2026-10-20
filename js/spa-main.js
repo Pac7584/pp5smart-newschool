@@ -5194,7 +5194,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       const link = item.querySelector('[data-page], [onclick]');
       const target = item.getAttribute('data-page') || link?.getAttribute('data-page')
         || ((link?.getAttribute('onclick') || '').match(/navigateTo\('([^']+)'\)/) || [])[1] || '';
-      if (item.querySelector('#logoutBtn, #logoutLink')) return;
+      if (item.querySelector('#logoutBtn, #logoutLink') || item.hasAttribute('data-any-role')) return;
       if (!allowed.includes(target)) item.remove();
     });
     document.querySelectorAll('.menu-group').forEach(function(group) {
@@ -5232,7 +5232,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       const link = item.querySelector('[data-page], [onclick]');
       const target = item.getAttribute('data-page') || link?.getAttribute('data-page')
         || ((link?.getAttribute('onclick') || '').match(/navigateTo\('([^']+)'\)/) || [])[1] || '';
-      if (item.querySelector('#logoutBtn, #logoutLink')) return;
+      if (item.querySelector('#logoutBtn, #logoutLink') || item.hasAttribute('data-any-role')) return;
       if (!PARENT_PAGES_.includes(target)) item.remove();
     });
     document.querySelectorAll('.menu-group').forEach(function(group) {
