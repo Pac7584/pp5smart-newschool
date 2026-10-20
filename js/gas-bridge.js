@@ -6322,6 +6322,26 @@
       return { success: true };
     },
 
+    // คำเตือน "ควรเป็น มส" ในหน้ากรอกคะแนน (owner 2026-10-20, js/score-special-grade.js): เวลาเรียนของวิชานี้ในห้องนี้
+    // คิดด้วยตัวเดียวกับ ปพ.5 รายวิชา (computePp5SubjectSheets → attendance: ขาดได้ไม่เกินร้อยละ 20 ของชั่วโมงทั้งปี
+    // ลาไม่นับเป็นขาด) ตัวเลขจึงตรงกับ ปพ.5 · ไม่ใส่ มส ให้เอง ครูเป็นผู้ตัดสิน
+    // ชื่อไม่มีคำว่า Attendance: teacher-permissions HOMEROOM_METHODS จะบังคับเป็นครูประจำชั้น (ครูประจำวิชาต้องใช้ได้)
+    async getScoreSheetMsWarnings(sheetName) {
+      const reference = await resolveLegacyScoreSheet(sheetName);
+      const students = await data.students.list({ grade: reference.grade, room: reference.classNo });
+      if (!students.length) return { success: true, rows: [] };
+      // อ่านเวลาเรียนไม่ได้ (สิทธิ์/ยังไม่บันทึก) = ไม่เตือน ไม่ทำให้หน้ากรอกคะแนนพัง
+      let result;
+      try { result = await computePp5SubjectSheets(reference.grade, reference.classNo, students, reference.subject.id, ''); }
+      catch (_error) { return { success: false, rows: [] }; }
+      const att = (result?.sheets || [])[0]?.attendance;
+      if (!att) return { success: true, rows: [] };
+      return {
+        success: true, sheetName: text(sheetName), mode: att.mode, fullHours: att.fullHours,
+        rows: (att.students || []).map((row) => ({ id: text(row.code), pct: row.pct, below: row.below === true, absentHours: row.absentHours }))
+      };
+    },
+
     async getScoreSheetData(sheetName) {
       const reference = await resolveLegacyScoreSheet(sheetName);
       const academicYear = await currentYear();

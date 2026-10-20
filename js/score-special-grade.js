@@ -5,6 +5,8 @@
 //   - เปลี่ยนแล้วส่ง input event ที่ช่องคะแนนแรกของแถว ให้หน้าเดิมขึ้น "มีการแก้ไขที่ยังไม่บันทึก" และคำนวณแถวใหม่
 //   - ตาราง "รวม 2 ภาค": ภาคใดเป็น ร / มส ผลรวมเป็นค่านั้น (กติกาเดียวกับ ปพ.5 / pp5YearEndResult)
 // โหลดจากระบบ: gas-bridge legacyTermScoreData ส่งเกรด ร / มส มาในป้ายเลย จึงอ่านค่าเริ่มต้นจากป้าย
+// คำเตือน "ควรเป็น มส" (owner เลือก ก. 2026-10-20): เวลาเรียนวิชานี้ต่ำกว่า 80% → ป้ายเตือนใต้เกรด ตัวเลขจาก
+//   gas-bridge getScoreSheetMsWarnings (ตัวเดียวกับ ปพ.5 รายวิชา) · ไม่ใส่ มส ให้เอง ครูกด ▾ เลือกเอง · เป็น มส แล้วป้ายหาย
 // กติกาแก้ ร / มส ภายหลัง (0 → สอบแก้ตัว ≤ 1, มส → เรียนเพิ่มแล้วสอบ ≤ 1, ร → ตามคะแนนจริง) เป็นงานระยะ 2 · tools/score-special-grade-contract.cjs
 (function initScoreSpecialGrade(global) {
   'use strict';
@@ -23,6 +25,8 @@
 #pp5SgMenu button:hover,#pp5SgMenu button:focus-visible{background:#f1f5f9;outline:none}
 #pp5SgMenu button[aria-checked="true"]{background:#eef2ff}
 #pp5SgMenu b{min-width:56px}#pp5SgMenu small{color:#64748b}
+.pp5-sg-warn{display:block;margin-top:2px;padding:0 4px;border-radius:6px;background:#fee2e2;color:#b91c1c;font-size:.62rem;font-weight:700;line-height:1.5;white-space:nowrap}
+[data-theme="dark"] .pp5-sg-warn{background:#4c1d1d;color:#fecaca}
 [data-theme="dark"] .pp5-sg-btn{background:#1b2232;border-color:#2b3446;color:#cbd5e1}
 [data-theme="dark"] #pp5SgMenu{background:#1b2232;border-color:#2b3446}
 [data-theme="dark"] #pp5SgMenu button:hover{background:#26304a}`;
@@ -40,12 +44,49 @@
     const badge = tr.querySelector('.score-entry-grade-badge');
     if (!badge) return;
     const special = tr.dataset.special || '';
+    paintWarning(tr, special);
     if (special) {
       if (badge.textContent.trim() !== special) badge.textContent = special;
       if (!badge.classList.contains('pp5-sg-special')) badge.className = 'score-entry-grade-badge pp5-sg-special';
     } else if (badge.classList.contains('pp5-sg-special')) {
       badge.classList.remove('pp5-sg-special');
     }
+  }
+
+  // เวลาเรียนต่ำกว่า 80% และยังไม่ได้เลือก มส → ป้าย "ควรเป็น มส · xx%" (เขียนเฉพาะเมื่อต่าง กัน observer วน)
+  let warnings = null;
+  function paintWarning(tr, special) {
+    const cell = tr.querySelector('.score-entry-grade');
+    if (!cell) return;
+    const row = warnings ? warnings.get(tr.dataset.studentId) : null;
+    const want = row && row.below && special !== 'มส' ? `ควรเป็น มส · ${row.pct}%` : '';
+    let chip = cell.querySelector('.pp5-sg-warn');
+    if (!want) { if (chip) chip.remove(); return; }
+    if (!chip) {
+      chip = doc.createElement('span');
+      chip.className = 'pp5-sg-warn';
+      cell.appendChild(chip);
+    }
+    if (chip.textContent !== want) {
+      chip.textContent = want;
+      chip.title = `เวลาเรียนวิชานี้ ${row.pct}% (ต่ำกว่า 80%) ตามเกณฑ์เดียวกับ ปพ.5 — ถ้าใช่ กด ▾ แล้วเลือก มส`;
+    }
+  }
+
+  let warningsFor = '';
+  function loadWarnings() {
+    const sheetName = global.PP5ScoreSheetSpecials?.sheetName || '';
+    const call = global.GasServer?.getScoreSheetMsWarnings;
+    if (!sheetName || sheetName === warningsFor || typeof call !== 'function') return;
+    warningsFor = sheetName;
+    warnings = null;
+    Promise.resolve(call.call(global.GasServer, sheetName)).then((result) => {
+      if (warningsFor !== sheetName) return;
+      warnings = new Map(((result && result.rows) || []).map((row) => [String(row.id), row]));
+      Object.keys(TERMS).forEach((id) => {
+        doc.getElementById(id)?.querySelectorAll('tbody tr[data-student-id]').forEach((tr) => paint(tr));
+      });
+    }).catch(() => {});
   }
 
   function closeMenu() { doc?.getElementById('pp5SgMenu')?.remove(); }
@@ -142,6 +183,7 @@
       doc.getElementById(id)?.querySelectorAll('table.score-entry-table tbody tr[data-student-id]').forEach((tr) => enhanceRow(tr, TERMS[id]));
     });
     syncCombined();
+    loadWarnings();
   }
 
   function watch() {
@@ -157,7 +199,7 @@
     apply();
   }
 
-  global.PP5ScoreSpecialGrade = { apply, paint, choose, isSpecial, OPTIONS };
+  global.PP5ScoreSpecialGrade = { apply, paint, choose, isSpecial, loadWarnings, OPTIONS };
   if (doc) {
     if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', watch, { once: true });
     else watch();
