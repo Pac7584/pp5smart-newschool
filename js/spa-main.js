@@ -8043,6 +8043,14 @@ function ensureDashStyles_(frame) {
       '.pp5-dw-tags{display:flex;flex-wrap:wrap;gap:4px;flex:1 1 140px;min-width:0}',
       '.pp5-dw-list .pp5-dw-tag{white-space:normal}',
       '.pp5-dw-tag{font-size:.78rem;padding:3px 9px;border-radius:999px;background:var(--dw-bg);color:var(--dw-fg);white-space:nowrap}',
+      '.pp5-dw-fix{border:1px solid color-mix(in srgb, var(--dw-fg) 35%, transparent);font-family:inherit;cursor:pointer;line-height:1.35}',
+      '.pp5-dw-fix:hover,.pp5-dw-fix:focus-visible{border-color:var(--dw-fg);outline:none;box-shadow:0 0 0 2px color-mix(in srgb, var(--dw-fg) 18%, transparent)}',
+      '.pp5-dw-fix i{font-size:.72rem;margin-left:3px}',
+      '.pp5-dw-filter{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 6px}',
+      '.pp5-dw-filter span{font-size:.8rem;color:#64748b}',
+      '.pp5-dw-filter button{border:1px solid #d9dce8;background:#fff;color:#334155;border-radius:999px;padding:3px 12px;font-size:.8rem;font-family:inherit;cursor:pointer}',
+      '.pp5-dw-filter button[aria-pressed="true"]{background:var(--primary);border-color:var(--primary);color:#fff}',
+      '.pp5-dw-class[hidden]{display:none}',
       '.pp5-dw-more{border:none;background:none;color:var(--primary);font-weight:600;font-size:.85rem;padding:8px 14px;cursor:pointer}',
       '.pp5-dw-empty{padding:18px;text-align:center;color:#15803d;background:#f0fdf4;border-radius:14px;margin-top:12px}',
       '.pp5-dw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-top:12px}',
@@ -8468,14 +8476,39 @@ function renderDashboardWatchlist_(frame, anchor) {
     const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
     return Number(m[3]) + ' ' + months[Number(m[2]) - 1] + ' ' + (Number(m[1]) + 543);
   };
-  const tagHtml = (issue) => {
+  // ป้าย 0 / ร / มส ของวิชา = ปุ่มพาไปหน้ากรอกคะแนนของชั้น/ห้อง/วิชา/ภาคนั้นและแถวของนักเรียน (js/score-jump.js)
+  const FIX_TYPES = ['grade0', 'r', 'ms'];
+  const tagHtml = (issue, student) => {
     let textLabel = issue.label;
     if (issue.subject) textLabel += ' · ' + issue.subject + (issue.semester ? ' ภาค ' + issue.semester : '');
     if (issue.type === 'attendance') textLabel += ' (' + issue.present + '/' + issue.total + ' วัน)';
+    if (student && issue.subjectId && FIX_TYPES.includes(issue.type)) {
+      return '<button type="button" class="pp5-dw-tag pp5-dw-fix" style="' + (tone[issue.type] || tone.all) + '" data-dw-fix="1"'
+        + ' data-grade="' + escapeHtml_(student.grade) + '" data-room="' + escapeHtml_(student.room) + '" data-subject="' + escapeHtml_(issue.subjectId) + '"'
+        + ' data-sem="' + escapeHtml_(issue.semester) + '" data-student="' + escapeHtml_(student.id) + '" title="เปิดหน้ากรอกคะแนนวิชานี้เพื่อแก้">'
+        + escapeHtml_(textLabel) + '<i class="bi bi-pencil-square" aria-hidden="true"></i></button>';
+    }
     return '<span class="pp5-dw-tag" style="' + (tone[issue.type] || tone.all) + '">' + escapeHtml_(textLabel) + '</span>';
+  };
+  // กรองเฉพาะ 0 / ร / มส / เวลาเรียน (ทั้งหมด = กลับเป็นแบบเดิม พร้อมปุ่ม "ดูอีก")
+  let lastRes = null;
+  const applyFilter = (type) => {
+    if (type === 'all') { render(lastRes || {}); return; }
+    body.querySelectorAll('.pp5-dw-filter [data-dw-filter]').forEach((b) => b.setAttribute('aria-pressed', b.getAttribute('data-dw-filter') === type ? 'true' : 'false'));
+    body.querySelectorAll('.pp5-dw-more').forEach((b) => b.remove());
+    body.querySelectorAll('.pp5-dw-class').forEach((group) => {
+      let shown = 0;
+      group.querySelectorAll('.pp5-dw-row').forEach((row) => {
+        const hit = String(row.getAttribute('data-dw-types') || '').split(' ').includes(type);
+        row.hidden = !hit;
+        if (hit) shown += 1;
+      });
+      group.hidden = !shown;
+    });
   };
   const ROW_LIMIT = 9;
   const render = (res) => {
+    lastRes = res;
     const counts = (res && res.counts) || {};
     meta.textContent = (res.scopeLabel || '') + ' · ปีการศึกษา ' + (res.academicYear || '') + (res.asOf ? ' · ถึงวันที่ ' + thaiDate(res.asOf) : '');
     const notes = [];
@@ -8494,6 +8527,15 @@ function renderDashboardWatchlist_(frame, anchor) {
       + stat(counts.special, 'ร / มส (รายวิชา)', 'r')
       + stat(counts.attendance, 'มาเรียนต่ำกว่า 80% (คน)', 'attendance')
       + '</div>' + noteHtml;
+    const typeCount = (type) => (res.classes || []).reduce((n, g) => n + g.students.filter((s) => s.issues.some((i) => i.type === type)).length, 0);
+    const filters = [['all', 'ทั้งหมด'], ['grade0', 'เกรด 0'], ['r', 'ร'], ['ms', 'มส'], ['attendance', 'มาเรียนต่ำกว่า 80%']]
+      .filter(([key]) => key === 'all' || typeCount(key) > 0);
+    if (filters.length > 2) {
+      html += '<div class="pp5-dw-filter" role="group" aria-label="กรองรายชื่อ"><span>แสดง:</span>'
+        + filters.map(([key, label]) => '<button type="button" data-dw-filter="' + key + '" aria-pressed="' + (key === 'all') + '">' + label + (key === 'all' ? '' : ' (' + typeCount(key) + ' คน)') + '</button>').join('')
+        + '</div>';
+    }
+    if (counts.grade0 || counts.special) html += '<div class="pp5-dw-meta" style="margin:0 0 6px"><i class="bi bi-hand-index me-1"></i>กดที่ป้ายวิชา (เกรด 0 / ร / มส) เพื่อเปิดหน้ากรอกคะแนนของวิชานั้นและแก้ได้ทันที</div>';
     (res.classes || []).forEach((group, gi) => {
       html += '<div class="pp5-dw-class"><div class="pp5-dw-class-head"><b>' + escapeHtml_(group.label) + '</b><span class="pp5-dw-meta">' + group.students.length + ' คน</span>'
         + '<span class="pp5-dw-actions"><button type="button" class="btn btn-sm btn-outline-primary" data-dw-page="score_table_viewer"><i class="bi bi-pencil-square me-1"></i>กรอกคะแนน</button>'
@@ -8501,8 +8543,9 @@ function renderDashboardWatchlist_(frame, anchor) {
       // เรียงนักเรียนเป็นหลายคอลัมน์ตามความกว้างจอ (จอแคบเหลือคอลัมน์เดียว) แทนการต่อลงด้านล่างทีละแถว
       html += '<div class="pp5-dw-list">';
       group.students.forEach((s, si) => {
-        html += '<div class="pp5-dw-row"' + (si >= ROW_LIMIT ? ' data-dw-extra="' + gi + '" hidden' : '') + '><div class="pp5-dw-name">' + escapeHtml_(s.name) + '<small>รหัส ' + escapeHtml_(s.id) + '</small></div>'
-          + '<div class="pp5-dw-tags">' + s.issues.map(tagHtml).join('') + '</div></div>';
+        const types = [...new Set(s.issues.map((i) => i.type))].join(' ');
+        html += '<div class="pp5-dw-row" data-dw-types="' + escapeHtml_(types) + '"' + (si >= ROW_LIMIT ? ' data-dw-extra="' + gi + '" hidden' : '') + '><div class="pp5-dw-name">' + escapeHtml_(s.name) + '<small>รหัส ' + escapeHtml_(s.id) + '</small></div>'
+          + '<div class="pp5-dw-tags">' + s.issues.map((issue) => tagHtml(issue, s)).join('') + '</div></div>';
       });
       html += '</div>';
       if (group.students.length > ROW_LIMIT) html += '<button type="button" class="pp5-dw-more" data-dw-more="' + gi + '">ดูอีก ' + (group.students.length - ROW_LIMIT) + ' คน</button>';
@@ -8511,6 +8554,14 @@ function renderDashboardWatchlist_(frame, anchor) {
     body.innerHTML = html;
   };
   body.addEventListener('click', (event) => {
+    const fix = event.target.closest('[data-dw-fix]');
+    if (fix) {
+      if (window.PP5ScoreJump) window.PP5ScoreJump.open({ grade: fix.dataset.grade, room: fix.dataset.room, subjectId: fix.dataset.subject, semester: fix.dataset.sem, studentId: fix.dataset.student });
+      else if (typeof window.navigateTo === 'function') window.navigateTo('score_table_viewer');
+      return;
+    }
+    const filter = event.target.closest('[data-dw-filter]');
+    if (filter) { applyFilter(filter.getAttribute('data-dw-filter')); return; }
     const nav = event.target.closest('[data-dw-page]');
     if (nav) { if (typeof window.navigateTo === 'function') window.navigateTo(nav.getAttribute('data-dw-page')); return; }
     const more = event.target.closest('[data-dw-more]');

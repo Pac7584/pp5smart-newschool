@@ -7389,7 +7389,7 @@
         const semester = number(row.semester, 1);
         const subject = subjectName.get(text(row.subject_id)) || text(row.subject_id);
         if (gradeText === 'ร' || gradeText === 'มส') {
-          entry.issues.push({ type: gradeText === 'ร' ? 'r' : 'ms', label: gradeText, subject, semester });
+          entry.issues.push({ type: gradeText === 'ร' ? 'r' : 'ms', label: gradeText, subject, subjectId: text(row.subject_id), semester });
           return;
         }
         if (!storedScoreHasFinalGrade(row)) return;
@@ -7397,7 +7397,7 @@
         const finalGrade = text(storedFinalGrade(row)).trim();
         if (finalGrade === '' || Number(finalGrade) !== 0) return;
         if (!dashboardCompleteScore_(row)) { pendingFinal += 1; return; }
-        entry.issues.push({ type: 'grade0', label: 'เกรด 0', subject, semester, score: number(row.total_score, 0) });
+        entry.issues.push({ type: 'grade0', label: 'เกรด 0', subject, subjectId: text(row.subject_id), semester, score: number(row.total_score, 0) });
       });
 
       const tally = new Map();
