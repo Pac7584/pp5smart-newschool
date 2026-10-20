@@ -6454,6 +6454,8 @@ function enhanceSupabaseParentPortalPage_() {
   // LINE notifications (js/line-notify.js): parents link/unlink, admin announces results.
   // Hidden until the line-notify Edge Function reports LINE as configured.
   window.PP5Line?.enhanceParentPortal?.(frame)?.catch?.(() => {});
+  // ครู/ผู้ดูแลเปิดหน้านี้ (owner 2026-10-20): หัวหน้าแถวเดียว + แท็บ ดูแบบผู้ปกครอง | ส่งลิงก์ให้ผู้ปกครอง (js/parent-portal-staff.js)
+  try { window.PP5ParentPortalStaff?.apply?.(frame); } catch (err) { console.warn('parent portal staff layout failed', err); }
 
   const escapeParentText_ = (value) => {
     if (typeof window.esc === 'function') return window.esc(value);
