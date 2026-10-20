@@ -2585,3 +2585,26 @@ html body #contentFrame .position-fixed.bottom-0 { bottom: var(--pp5-mobile-menu
   object-fit: contain;
   filter: drop-shadow(0 6px 12px color-mix(in srgb, var(--primary) 28%, transparent));
 }
+
+/* ===================================================
+   กรอกคะแนนรายวิชา: ให้ตารางพอดีจอ (owner 2026-10-20 "ปรับให้แสดงได้ทั้งหมด ดูเหมือนออกแบบมาห่างเกิน")
+   วัดบนจอ 1536 px + เมนูข้าง: ตารางกว้าง 1216 px แต่พื้นที่ 1067 px → คอลัมน์สอบปลายภาค/รวม/เกรด ตกขอบ
+   ต้นเหตุ: หัวคอลัมน์แถวที่ 2 padding 0.5rem + ป้าย "+ ช่องงาน" 55 px + ปุ่ม "⚡ เติม" 63 px ดันช่องคะแนนเป็น 71 px
+   (กล่องกรอกแค่ 48 px) และหัว "ครั้งที่5 สอบกลางภาค (ปี)" ไม่ตัดบรรทัด → ปรับแล้วตารางกว้างจริง ~999 px
+   เฉพาะหน้านี้ (#scoreEntryPage) · ตรวจด้วย tools/score-entry-fit-contract.cjs
+   =================================================== */
+#scoreEntryPage .score-entry-table-container { padding: 4px 0 !important; }
+#scoreEntryPage .score-entry-table thead th,
+#scoreEntryPage .score-entry-table tbody td { padding: 5px 3px !important; }
+#scoreEntryPage .score-entry-table thead tr:nth-child(2) th { padding: 4px 3px !important; }
+#scoreEntryPage .score-entry-table .score-round-label { max-width: 50px; padding: 1px 4px; font-size: .64rem; }
+#scoreEntryPage .score-entry-table .score-col-autofill-btn { padding: 0 4px; gap: 1px; }
+#scoreEntryPage .score-entry-table .score-entry-input { width: 44px; }
+#scoreEntryPage .score-entry-table td.score-entry-student-name { min-width: 140px; }
+/* หัวคอลัมน์สอบกลางภาค / รวมระหว่างภาค / สอบปลายภาค / รวมทั้งหมด ตัดบรรทัดได้ (ที่ ชื่อ และเกรด ไม่ตัด) */
+#scoreEntryPage .score-entry-table thead tr:first-child th[rowspan="2"]:not(:nth-child(-n+3)):not(:last-child) {
+  white-space: normal !important; font-size: .74rem; line-height: 1.25; min-width: 58px; max-width: 70px;
+}
+/* แถวเลือกชั้น / วิชา / ช่องเลือก ชิดกันขึ้น */
+#scoreEntryPage .score-entry-compact-header { row-gap: 8px; }
+#scoreEntryPage .score-entry-compact-header > .gc-quick-bar { margin-bottom: 0; }
