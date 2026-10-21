@@ -274,8 +274,8 @@
   //   none     → nothing entered (no row, or an all-zero placeholder row)
   function parentScoreStatus_(row) {
     if (!row) return { status: 'none', score: '', grade: '' };
-    const gradeText = text(row.grade_text).trim();
-    if (gradeText === 'ร' || gradeText === 'มส') {
+    const gradeText = storedSpecialGrade(row);
+    if (gradeText) {
       return { status: 'special', score: storedScoreWasEntered(row) ? number(row.total_score, 0) : '', grade: gradeText };
     }
     if (dashboardCompleteScore_(row)) return { status: 'complete', score: number(row.total_score, 0), grade: text(storedFinalGrade(row)) };
@@ -714,7 +714,7 @@
     const { data: rows, error } = await query;
     if (error && data.helpers.isOptionalSchemaError(error)) return [];
     if (error) throw new Error(error.message);
-    return rows || [];
+    return table === 'scores' ? withRemediations_(rows || []) : (rows || []);
   }
 
   async function optionalTableAll(table, configure) {
@@ -729,8 +729,65 @@
       if (error) throw new Error(error.message);
       const pageRows = rows || [];
       allRows.push(...pageRows);
-      if (pageRows.length < pageSize) return allRows;
+      if (pageRows.length < pageSize) return table === 'scores' ? withRemediations_(allRows) : allRows;
     }
+  }
+
+  // ผลแก้ 0 / มส (SQL 038 score_remediations, owner 2026-10-21): คะแนนในตาราง scores ไม่ถูกแก้ ผลสุดท้ายอยู่ในตารางนี้
+  // (ครั้งล่าสุดของนักเรียน/วิชา/ปี) · semester 0 = ผลทั้งปี (ป.) → row.pp5YearRemedy บนแถวทั้งสองภาค
+  // semester 1/2 = วิชารายภาค (ม.) → row.pp5TermRemedy บนแถวของภาคนั้น · ไม่มีตาราง (ยังไม่รัน SQL) = ไม่มีผลแก้ เอกสารเหมือนเดิม
+  // ทุกที่ที่อ่านคะแนนผ่าน optionalTable / optionalTableAll / scoreRowsForSubject ได้ผลแก้ไปด้วย
+  const remediationMemo_ = new Map();
+  function remediationsForYear_(year) {
+    const key = text(year).trim();
+    const hit = remediationMemo_.get(key);
+    if (hit && Date.now() - hit.at < 5000) return hit.promise;
+    const promise = (async () => {
+      // อ่านตรง (ไม่ผ่าน optionalTableAll) เพื่อรู้ว่ามีตารางหรือยัง: ยังไม่รัน SQL 038 = available false
+      // หน้ากรอกคะแนนจึงไม่แสดงป้าย "รอแก้" ที่กดแล้วบันทึกไม่ได้ · ผลแก้ต่อปีมีไม่กี่แถว (ไม่เกิน 5000)
+      let rows = [];
+      let available = false;
+      try {
+        const { data: found, error } = await client.from('score_remediations').select('*').eq('academic_year', key).range(0, 4999);
+        if (!error) { rows = found || []; available = true; }
+      } catch (_error) { rows = []; }
+      const map = new Map();
+      map.available = available;
+      rows.forEach((row) => {
+        const id = `${text(row.student_id)}|${text(row.subject_id)}`;
+        const entry = map.get(id) || { attempts: [], original: text(row.original_grade), semester: number(row.semester, 0) };
+        entry.attempts.push({ id: row.id, attempt: number(row.attempt, 1), grade: text(row.new_grade), date: text(row.decided_on), note: text(row.note) });
+        map.set(id, entry);
+      });
+      map.forEach((entry) => {
+        entry.attempts.sort((a, b) => a.attempt - b.attempt);
+        const last = entry.attempts[entry.attempts.length - 1];
+        entry.grade = last.grade;
+        entry.attempt = last.attempt;
+        entry.passed = last.grade === '1';
+      });
+      return map;
+    })();
+    remediationMemo_.set(key, { at: Date.now(), promise });
+    return promise;
+  }
+  async function withRemediations_(rows) {
+    if (!Array.isArray(rows) || !rows.length) return rows;
+    const years = [...new Set(rows.map((row) => text(row.academic_year).trim()).filter(Boolean))];
+    const maps = new Map(await Promise.all(years.map(async (year) => [year, await remediationsForYear_(year)])));
+    rows.forEach((row) => {
+      const remedy = maps.get(text(row.academic_year).trim())?.get(`${text(row.student_id)}|${text(row.subject_id)}`);
+      if (!remedy) return;
+      if (remedy.semester === 0) row.pp5YearRemedy = remedy;
+      else if (remedy.semester === number(row.semester, 0)) row.pp5TermRemedy = remedy;
+    });
+    return rows;
+  }
+  function remediationRpcMessage_(error) {
+    if (['PGRST202', '42883', '42P01'].includes(text(error?.code))) {
+      return 'ยังไม่ได้ติดตั้งระบบบันทึกผลแก้ในฐานข้อมูล (SQL 038 score_remediations) — แจ้งผู้ดูแลระบบให้รัน SQL ก่อน';
+    }
+    return text(error?.message) || 'บันทึกผลแก้ไม่สำเร็จ';
   }
 
   // Parent accounts (auth user ids) with an active LINE link. Admin may read every row (policy
@@ -996,6 +1053,7 @@
   // so a row whose final exam reads 0 is treated as still in progress, not a result.
   // (Used consistently by the dashboard watchlist, alerts and charts below.)
   function dashboardCompleteScore_(row) {
+    if (row?.pp5TermRemedy) return true; // ผลแก้ (SQL 038) เป็นผลที่ตัดสินแล้ว แม้แถว มส จะไม่มีคะแนนสอบ
     if (!storedScoreHasFinalGrade(row) || !storedScoreWasEntered(row)) return false;
     const breakdown = storedScoreBreakdown(row);
     const finalExam = number(row.summative_score ?? breakdown.final, 0);
@@ -1010,6 +1068,7 @@
   }
 
   function storedFinalGrade(row) {
+    if (row?.pp5TermRemedy) return row.pp5TermRemedy.grade;
     if (!storedScoreHasFinalGrade(row)) return '';
     const breakdown = storedScoreBreakdown(row);
     const total = [row?.total_score, row?.totalScore, breakdown.total]
@@ -1022,6 +1081,7 @@
   // ร / มส stored on a score row (grade_text). Shown as is and never counted in a GPA,
   // whatever the total score says (owner 2026-10-09).
   function storedSpecialGrade(row) {
+    if (row?.pp5TermRemedy) return ''; // มส ที่แก้แล้ว (SQL 038) ไม่ใช่ มส อีกต่อไป
     const value = text(row?.grade_text).trim();
     return value === 'ร' || value === 'มส' ? value : '';
   }
@@ -1167,7 +1227,7 @@
       .eq('academic_year', academicYear)
       .in('student_id', studentIds);
     if (error) throw new Error(`อ่านคะแนนไม่สำเร็จ: ${error.message}`);
-    return rows || [];
+    return withRemediations_(rows || []);
   }
 
   // "loadedAt" for the save-conflict check = the newest updated_at the SERVER wrote for the loaded rows.
@@ -1221,8 +1281,14 @@
           total,
           // ร / มส ที่ครูเลือก (grade_text) แสดงแทนเกรดจากคะแนน — หน้ากรอกคะแนน (js/score-special-grade.js) และ SchoolMIS
           // (owner 2026-10-20: เดิมหน้ากรอกคะแนนไม่มีทางใส่ ร / มส และการบันทึกเขียนเกรดจากคะแนนทับทุกครั้ง)
-          grade: storedSpecialGrade(stored) || (!saved ? '' : savedGrade || data.helpers.calculateGrade(total)),
+          grade: stored?.pp5TermRemedy ? stored.pp5TermRemedy.grade
+            : (storedSpecialGrade(stored) || (!saved ? '' : savedGrade || data.helpers.calculateGrade(total))),
           special: storedSpecialGrade(stored),
+          // ผลก่อนแก้ของภาคนี้ (0 / มส / ร / เกรด) และผลแก้ (SQL 038): ภาค = วิชารายภาค ม. · ปี = ป. (ผลทั้งปี)
+          rawGrade: text(stored?.grade_text).trim() === 'ร' || text(stored?.grade_text).trim() === 'มส' ? text(stored.grade_text).trim()
+            : (!saved ? '' : String(data.helpers.calculateGrade(total))),
+          remedy: stored?.pp5TermRemedy?.grade || '',
+          yearRemedy: stored?.pp5YearRemedy?.grade || '',
           makeup: number(breakdown.makeup, 0)
         };
       })
@@ -1270,12 +1336,20 @@
     const own = subjectSemester_(subject);
     if (own) {
       const row = own === 1 ? term1 : term2;
-      const ownSpecial = text(row?.grade_text).trim();
-      if (ownSpecial === 'ร' || ownSpecial === 'มส') return { status: 'special', grade: ownSpecial };
+      const ownSpecial = storedSpecialGrade(row);
+      if (ownSpecial) return { status: 'special', grade: ownSpecial };
       if (!dashboardCompleteScore_(row)) return { status: 'pending', grade: '' };
       // same value and grade as that term's own view (storedFinalGrade)
       const total = number(row.total_score, 0);
       return { status: 'complete', average: total, grade: String(storedFinalGrade(row)) };
+    }
+    // ผลแก้ทั้งปี (ป., SQL 038): ผลสุดท้ายตามครั้งล่าสุด คะแนนเฉลี่ยยังเป็นคะแนนจริง
+    const yearRemedy = term1?.pp5YearRemedy || term2?.pp5YearRemedy;
+    if (yearRemedy) {
+      const done1 = dashboardCompleteScore_(term1);
+      const done2 = dashboardCompleteScore_(term2);
+      const average = done1 || done2 ? yearlyScoreAverage(term1?.total_score, term2?.total_score, done1, done2) : '';
+      return { status: 'complete', average, grade: yearRemedy.grade, remedy: yearRemedy };
     }
     const special = [term1, term2].map((row) => text(row?.grade_text).trim()).find((value) => value === 'ร' || value === 'มส');
     if (special) return { status: 'special', grade: special };
@@ -2411,8 +2485,8 @@
     });
     const semesterGrade = (row) => {
       if (!row) return '';
-      const special = text(row.grade_text).trim();
-      if (special === 'ร' || special === 'มส') return special;
+      const special = storedSpecialGrade(row);
+      if (special) return special;
       return dashboardCompleteScore_(row) ? String(storedFinalGrade(row)) : '';
     };
     const scoreBookFor = (subject, rowMap) => {
@@ -3041,12 +3115,16 @@
         const t1 = term1Graded ? number(s1.total_score, 0) : '';
         const t2 = term2Graded ? number(s2.total_score, 0) : '';
         // ร / มส in the selected term (either term for the year result) is left out of the GPA.
+        // ผลแก้ทั้งปี (ป., SQL 038): ผลทั้งปีเป็นผลหลังแก้ ไม่ใช่ ร / มส อีกแล้ว
+        const yearRemedy = String(term) !== '1' && String(term) !== '2' && !subjectSemester_(sub) ? (s1?.pp5YearRemedy || s2?.pp5YearRemedy) : null;
         const special = String(term) === '1' ? storedSpecialGrade(s1)
-          : String(term) === '2' ? storedSpecialGrade(s2) : (storedSpecialGrade(s1) || storedSpecialGrade(s2));
+          : String(term) === '2' ? storedSpecialGrade(s2) : yearRemedy ? '' : (storedSpecialGrade(s1) || storedSpecialGrade(s2));
         if (special) { studentSpecialMap[stu.id] = (studentSpecialMap[stu.id] || 0) + 1; return; }
 
         let targetGrade = '';
-        if (String(term) === '1') {
+        if (yearRemedy) {
+          targetGrade = yearRemedy.grade;
+        } else if (String(term) === '1') {
           if (term1Graded) targetGrade = storedFinalGrade(s1);
         } else if (String(term) === '2') {
           if (term2Graded) targetGrade = storedFinalGrade(s2);
@@ -3065,7 +3143,7 @@
             totalPoints += gPoint * cr;
             // Score of this subject (term total, or the year average) for the ร้อยละ tie-break
             scoreSum += String(term) === '1' ? number(t1, 0) : String(term) === '2' ? number(t2, 0)
-              : subjectSemester_(sub) ? number(subjectSemester_(sub) === 2 ? t2 : t1, 0) : yearlyScoreAverage(t1, t2, true, true);
+              : subjectSemester_(sub) ? number(subjectSemester_(sub) === 2 ? t2 : t1, 0) : yearlyScoreAverage(t1, t2, term1Graded, term2Graded);
             scoreCount += 1;
           }
         }
@@ -3131,7 +3209,12 @@
         let avg = '';
         let fg = '';
         const ownTerm = subjectSemester_(sub);
-        if (special1 || special2) {
+        const yearRemedy = !ownTerm ? (s1?.pp5YearRemedy || s2?.pp5YearRemedy) : null;
+        if (yearRemedy) {
+          // ผลแก้ทั้งปี (ป., SQL 038): ผลสุดท้ายตามครั้งล่าสุด คะแนนยังเป็นคะแนนจริง
+          avg = term1Graded || term2Graded ? yearlyScoreAverage(t1, t2, term1Graded, term2Graded) : '';
+          fg = yearRemedy.grade;
+        } else if (special1 || special2) {
           fg = special1 || special2;
         } else if (ownTerm) {
           // วิชารายภาค: ผลปลายปี = ผลของภาคนั้น
@@ -3158,7 +3241,7 @@
         // "คะแนนที่ได้" for ปพ.6 แบบมีคะแนน: the term total, or the year average (both terms needed)
         const score = String(term) === '1' ? t1
           : String(term) === '2' ? t2
-            : ownTerm ? avg
+            : ownTerm || yearRemedy ? avg
               : (term1Graded && term2Graded ? yearlyScoreAverage(t1, t2, true, true) : '');
 
         if (isAct) {
@@ -3416,15 +3499,18 @@
       const viewTerm = term === 'year' && ownTerm ? String(ownTerm) : term;
       const selected = viewTerm === '1' ? first : second;
       // owner 2026-10-10: GPA นับเฉพาะวิชาที่สอบปลายภาคแล้ว (กติกาเดียวกับ ปพ.5)
-      const annualComplete = dashboardCompleteScore_(first) && dashboardCompleteScore_(second);
-      const hasGrade = viewTerm === 'year' ? annualComplete : dashboardCompleteScore_(selected);
-      const score = !hasGrade ? null : viewTerm === 'year' ? yearlyScoreAverage(first.total_score, second.total_score, true, true) : number(selected.total_score);
+      // ทั้งปี = pp5YearEndResult (ร / มส และผลแก้ SQL 038 เหมือน ปพ.5 / ปพ.6)
+      const yearResult = viewTerm === 'year' ? pp5YearEndResult(first, second, null) : null;
+      const special = viewTerm === 'year' ? '' : storedSpecialGrade(selected);
+      const hasGrade = viewTerm === 'year' ? yearResult.status !== 'pending' : (!!special || dashboardCompleteScore_(selected));
+      const score = !hasGrade ? null : viewTerm === 'year' ? (yearResult.average === '' || yearResult.average === undefined ? null : yearResult.average)
+        : dashboardCompleteScore_(selected) ? number(selected.total_score) : null;
       return {
         code: sub.subjectCode || sub.code,
         name: sub.subjectName || sub.name,
         hours: sub.hours_per_year ?? sub.hoursPerYear ?? '-',
         score: score ?? '-',
-        grade: !hasGrade ? '-' : viewTerm === 'year' ? data.helpers.calculateGrade(score) : storedFinalGrade(selected)
+        grade: !hasGrade ? '-' : viewTerm === 'year' ? yearResult.grade : (special || storedFinalGrade(selected))
       };
     });
     const assessRows = await optionalTable('assessments', (query) => query.eq('student_id', student.id).eq('academic_year', academicYear));
@@ -3472,14 +3558,15 @@
     const rows = await optionalTableAll('scores', (query) => query.eq('academic_year', academicYear).in('student_id', ids));
     const byKey = groupBy(rows, (row) => `${text(row.student_id)}|${text(row.subject_id)}`);
     const round1 = (value) => Math.round(number(value, 0) * 10) / 10;
-    const special = (row) => { const g = text(row?.grade_text).trim(); return g === 'ร' || g === 'มส' ? g : ''; };
+    const special = (row) => storedSpecialGrade(row);
     const termResult = (row) => {
+      if (row?.pp5TermRemedy && !storedScoreWasEntered(row)) return { mid: '-', final: '-', total: '-', grade: row.pp5TermRemedy.grade };
       if (!storedScoreWasEntered(row)) return null;
       const mid = round1(row.formative_score);
       const final = round1(row.summative_score);
       const total = row.total_score === null || row.total_score === undefined || text(row.total_score) === ''
         ? round1(mid + final) : round1(row.total_score);
-      return { mid, final, total, grade: special(row) || String(data.helpers.calculateGrade(total)) };
+      return { mid, final, total, grade: special(row) || row?.pp5TermRemedy?.grade || String(data.helpers.calculateGrade(total)) };
     };
     const subjectList = subjects.map((subject) => {
       const config = subjectScoreConfig(subject);
@@ -3694,16 +3781,21 @@
         else if (subjectSemester_(subject) === 1) total = t1Entered ? number(t1.total_score, 0) : null;
         else if (subjectSemester_(subject) === 2) total = t2Entered ? number(t2.total_score, 0) : null;
         else if (t1Entered && t2Entered) total = yearlyScoreAverage(t1.total_score, t2.total_score, true, true);
+        // ผลแก้ (SQL 038): ทั้งปีของ ป. = ผลแก้ทั้งปี · วิชารายภาค = ผลแก้ของภาคนั้น (storedFinalGrade)
+        const yearRemedy = term !== '1' && term !== '2' && !subjectSemester_(subject) ? (t1?.pp5YearRemedy || t2?.pp5YearRemedy) : null;
+        const termRow = term === '1' ? t1 : term === '2' ? t2 : subjectSemester_(subject) === 1 ? t1 : subjectSemester_(subject) === 2 ? t2 : null;
+        const remedyGrade = yearRemedy ? yearRemedy.grade : (termRow?.pp5TermRemedy?.grade || '');
+        if (yearRemedy) total = t1Entered || t2Entered ? yearlyScoreAverage(t1?.total_score, t2?.total_score, t1Entered, t2Entered) : 0;
         if (total === null) return;
         // ร / มส is left out of the GPA and of รวมคะแนน/ร้อยละ (the rank tie-break), the same rule as ปพ.6.
         const special = term === '1' ? storedSpecialGrade(t1)
-          : term === '2' ? storedSpecialGrade(t2) : (storedSpecialGrade(t1) || storedSpecialGrade(t2));
+          : term === '2' ? storedSpecialGrade(t2) : yearRemedy ? '' : (storedSpecialGrade(t1) || storedSpecialGrade(t2));
         if (special) return;
         sumTotal += total;
         count += 1;
         // GPA weighted by credit, the same rule as the ปพ.6 report.
         const credit = parentSubjectCredit_(subject);
-        gradeSum += number(data.helpers.calculateGrade(total), 0) * credit;
+        gradeSum += number(remedyGrade || data.helpers.calculateGrade(total), 0) * credit;
         creditSum += credit;
       });
       const fullScore = count * 100;
@@ -4429,7 +4521,7 @@
     return {
       scores, sum14, sum69, mid, finalScore, total,
       // ร / มส ที่ครูบันทึกไว้ส่งออกตามนั้น ไม่คิดเกรดจากคะแนน (owner 2026-10-20 — เดิมนักเรียน ร ถูกส่งเป็นเกรดตัวเลข)
-      grade: row?.special || data.helpers.calculateGrade(total),
+      grade: row?.special || row?.remedy || data.helpers.calculateGrade(total),
       special: row?.special || '',
       makeup: row?.makeup === undefined || row?.makeup === null ? '' : row.makeup,
       fullFinal
@@ -4549,7 +4641,8 @@
           finalScore,
           total,
           // ผลทั้งปี: ภาคใดเป็น ร / มส ทั้งปีเป็นค่านั้น (กติกาเดียวกับ pp5YearEndResult)
-          grade: first.special || second.special || data.helpers.calculateGrade(total),
+          // ผลแก้ (SQL 038) ชนะ ร / มส และเกรดจากคะแนน
+          grade: row1.yearRemedy || row2.yearRemedy || row1.remedy || row2.remedy || first.special || second.special || data.helpers.calculateGrade(total),
           makeup: ''
         }
       };
@@ -4711,6 +4804,7 @@
       .eq('academic_year', academicYear)
       .in('student_id', studentIds);
     if (error) throw new Error(`อ่านคะแนนสำหรับ CSV ไม่สำเร็จ: ${error.message}`);
+    await withRemediations_(rows || []);
     const grouped = new Map();
     (rows || []).forEach((row) => {
       const key = `${text(row.student_id)}|${text(row.subject_id)}`;
@@ -4735,6 +4829,9 @@
       const values = [index + 1, student.id, studentDisplayName(student)];
       activeSubjects.forEach((subject) => {
         const subjectRows = grouped.get(`${text(student.id)}|${text(subject.id)}`) || [];
+        // ผลแก้ (SQL 038): ทั้งปี (ป.) หรือภาคของวิชารายภาค (ม.) = ผลสุดท้าย
+        const remedy = subjectRows.map((row) => row.pp5YearRemedy || row.pp5TermRemedy).find(Boolean);
+        if (remedy) { values.push(remedy.grade); return; }
         // ร / มส ในภาคใด = ผลทั้งปีของวิชานั้น (owner 2026-10-20, กติกาเดียวกับ pp5YearEndResult)
         const special = subjectRows.slice().sort((a, b) => number(a.semester, 1) - number(b.semester, 1)).map(storedSpecialGrade).find(Boolean);
         if (special) { values.push(special); return; }
@@ -6322,6 +6419,28 @@
       return { success: true };
     },
 
+    // บันทึกผลแก้ 0 / มส จากหน้ากรอกคะแนน (SQL 038, js/score-remediation.js) · กติกา (ไม่เกิน 2 ครั้ง ผลไม่เกิน 1, ป. = ผลทั้งปี,
+    // สิทธิ์ครู) ตรวจในฐานข้อมูล (pp5_save_score_remediation) ที่นี่แค่หารหัสวิชาจากชื่อชีต
+    async saveScoreRemediation(sheetName, studentId, original, newGrade, decidedOn, note) {
+      const reference = await resolveLegacyScoreSheet(sheetName);
+      const { data: result, error } = await client.rpc('pp5_save_score_remediation', {
+        p_student: text(studentId), p_subject: text(reference.subject.id), p_original: text(original),
+        p_new_grade: text(newGrade), p_decided_on: text(decidedOn), p_note: text(note).trim() || null
+      });
+      remediationMemo_.clear();
+      if (error) throw new Error(remediationRpcMessage_(error));
+      return { success: true, ...(result || {}) };
+    },
+    async undoScoreRemediation(sheetName, studentId) {
+      const reference = await resolveLegacyScoreSheet(sheetName);
+      const { data: result, error } = await client.rpc('pp5_undo_score_remediation', {
+        p_student: text(studentId), p_subject: text(reference.subject.id)
+      });
+      remediationMemo_.clear();
+      if (error) throw new Error(remediationRpcMessage_(error));
+      return { success: true, ...(result || {}) };
+    },
+
     // คำเตือน "ควรเป็น มส" ในหน้ากรอกคะแนน (owner 2026-10-20, js/score-special-grade.js): เวลาเรียนของวิชานี้ในห้องนี้
     // คิดด้วยตัวเดียวกับ ปพ.5 รายวิชา (computePp5SubjectSheets → attendance: ขาดได้ไม่เกินร้อยละ 20 ของชั่วโมงทั้งปี
     // ลาไม่นับเป็นขาด) ตัวเลขจึงตรงกับ ปพ.5 · ไม่ใส่ มส ให้เอง ครูเป็นผู้ตัดสิน
@@ -6370,9 +6489,37 @@
           id: studentId,
           name: studentDisplayName(student),
           yearAvg,
-          yearGrade: term1Row?.special || term2Row?.special || (yearSaved ? data.helpers.calculateGrade(yearAvg) : '')
+          yearGrade: term1Row?.yearRemedy || term2Row?.yearRemedy || term1Row?.special || term2Row?.special
+            || (yearSaved ? data.helpers.calculateGrade(yearAvg) : ''),
+          // ผลทั้งปีก่อนแก้ (ใช้ตัดสินว่ามีอะไรให้แก้: 0 / มส)
+          rawYearGrade: term1Row?.special || term2Row?.special || (yearSaved ? data.helpers.calculateGrade(yearAvg) : '')
         };
       });
+      // บันทึกผลแก้ 0 / มส (SQL 038, js/score-remediation.js): ป. แก้ที่ผลทั้งปี · ม. วิชารายภาคแก้ที่ภาคของวิชา
+      // (กติกาเดียวกับ pp5_score_remediation_target) · original = ผลก่อนแก้ · history = ครั้งที่บันทึกแล้ว
+      const remedyLevel = text(reference.grade).startsWith('ม.') && subjectSemester_(reference.subject) ? subjectSemester_(reference.subject) : 0;
+      const remedyOf = new Map();
+      (rows || []).forEach((row) => {
+        const remedy = remedyLevel === 0 ? row.pp5YearRemedy : (number(row.semester, 0) === remedyLevel ? row.pp5TermRemedy : null);
+        if (remedy) remedyOf.set(text(row.student_id), remedy);
+      });
+      const levelRows = remedyLevel === 1 ? term1Map : remedyLevel === 2 ? term2Map : null;
+      const remedyStudents = {};
+      const remedyReady = (await remediationsForYear_(academicYear)).available;
+      if (remedyReady) yearSummary.forEach((summary) => {
+        const original = remedyLevel === 0 ? summary.rawYearGrade : text(levelRows.get(summary.id)?.rawGrade);
+        const remedy = remedyOf.get(summary.id);
+        if (!remedy && original !== '0' && original !== 'มส') return;
+        remedyStudents[summary.id] = {
+          original: remedy ? remedy.original : original,
+          grade: remedy ? remedy.grade : '',
+          passed: !!remedy?.passed,
+          attempts: remedy ? remedy.attempts.map((a) => ({ attempt: a.attempt, grade: a.grade, date: a.date, note: a.note })) : []
+        };
+      });
+      global.PP5ScoreSheetRemedies = {
+        sheetName: text(sheetName), subjectId: text(reference.subject.id), level: remedyLevel, students: remedyStudents
+      };
       // ร / มส ของแต่ละภาคให้ js/score-special-grade.js ตั้งค่าแถวเอง: หน้าเดิมคำนวณป้ายเกรดใหม่ทันทีหลังวาดตาราง
       // ก่อนที่ตัวเสริมจะอ่านป้าย (ทดสอบบน 8097 2026-10-20: ฐานเป็น ร แต่หน้าแสดง 0)
       const specialsOf = (term) => Object.fromEntries(term.rows.filter((row) => row.special).map((row) => [row.id, row.special]));
@@ -6401,7 +6548,7 @@
         .eq('academic_year', academicYear)
         .in('student_id', studentIds);
       if (error) throw new Error(`อ่านสรุปคะแนนไม่สำเร็จ: ${error.message}`);
-      const rows = scoreRows || [];
+      const rows = await withRemediations_(scoreRows || []);
       const usedSubjects = parentSortSubjects_(academicScoreSubjects(subjects)).filter((subject) => subjectInTerm_(subject, semesterOnly));
       const grouped = new Map();
       rows.forEach((row) => {
@@ -6418,6 +6565,15 @@
           const subjectRows = grouped.get(`${text(student.id)}|${text(subject.id)}`) || [];
           const t1 = subjectRows.find((row) => number(row.semester, 1) === 1);
           const t2 = subjectRows.find((row) => number(row.semester, 1) === 2);
+          // ผลแก้ทั้งปี (ป., SQL 038) = ผลสุดท้ายของวิชา คะแนนยังเป็นคะแนนจริง
+          const yearRemedy = !semesterOnly && !subjectSemester_(subject) ? (t1?.pp5YearRemedy || t2?.pp5YearRemedy) : null;
+          if (yearRemedy) {
+            const done1 = dashboardCompleteScore_(t1);
+            const done2 = dashboardCompleteScore_(t2);
+            grades[subject.name] = number(yearRemedy.grade, 0);
+            rawGrades[subject.name] = done1 || done2 ? yearlyScoreAverage(t1?.total_score, t2?.total_score, done1, done2) : '';
+            return;
+          }
           const special = semesterOnly ? storedSpecialGrade(semesterOnly === 2 ? t2 : t1)
             : (storedSpecialGrade(t1) || storedSpecialGrade(t2));
           if (special) {
@@ -6428,7 +6584,7 @@
             const termRow = semesterOnly === 2 ? t2 : t1;
             if (!dashboardCompleteScore_(termRow)) return; // owner 2026-10-10: GPA นับเฉพาะวิชาที่สอบปลายภาคแล้ว (กติกาเดียวกับ ปพ.5)
             const termTotal = number(termRow?.total_score, 0);
-            grades[subject.name] = number(data.helpers.calculateGrade(termTotal), 0);
+            grades[subject.name] = number(storedFinalGrade(termRow), 0); // = เกรดจากคะแนน หรือผลแก้ของภาค (SQL 038)
             rawGrades[subject.name] = termTotal;
             return;
           }
@@ -6445,7 +6601,7 @@
             const ownRow = ownTerm === 2 ? t2 : t1;
             if (!dashboardCompleteScore_(ownRow)) return;
             const ownTotal = number(ownRow?.total_score, 0);
-            grades[subject.name] = number(data.helpers.calculateGrade(ownTotal), 0);
+            grades[subject.name] = number(storedFinalGrade(ownRow), 0); // = เกรดจากคะแนน หรือผลแก้ของภาค (SQL 038)
             rawGrades[subject.name] = ownTotal;
             return;
           }
@@ -7382,12 +7538,23 @@
 
       let pendingFinal = 0;
       let notEntered = 0;
+      const remediedSeen = new Set();
       scoreRows.forEach((row) => {
         const entry = byStudent.get(text(row.student_id));
         if (!entry) return;
         const gradeText = text(row.grade_text).trim();
         const semester = number(row.semester, 1);
         const subject = subjectName.get(text(row.subject_id)) || text(row.subject_id);
+        // ผลแก้ (SQL 038): แก้ผ่านแล้ว (1) = ไม่ต้องติดตาม · ยังไม่ผ่าน = เกรด 0 พร้อมจำนวนครั้งที่แก้
+        // ผลแก้ทั้งปี (ป.) ติดอยู่ทั้งสองภาค จึงนับครั้งเดียวต่อวิชา
+        const remedy = row.pp5TermRemedy || row.pp5YearRemedy;
+        if (remedy) {
+          const once = `${text(row.student_id)}|${text(row.subject_id)}`;
+          if (remedy.passed || remediedSeen.has(once)) return;
+          remediedSeen.add(once);
+          entry.issues.push({ type: 'grade0', label: `เกรด 0 (แก้แล้ว ${remedy.attempt} ครั้ง)`, subject, subjectId: text(row.subject_id), semester: remedy.semester || '' });
+          return;
+        }
         if (gradeText === 'ร' || gradeText === 'มส') {
           entry.issues.push({ type: gradeText === 'ร' ? 'r' : 'ms', label: gradeText, subject, subjectId: text(row.subject_id), semester });
           return;

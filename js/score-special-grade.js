@@ -106,13 +106,18 @@
     menu.id = 'pp5SgMenu';
     menu.setAttribute('role', 'menu');
     const current = tr.dataset.special || '';
-    menu.innerHTML = OPTIONS.map(([value, label, hint]) => `<button type="button" role="menuitemradio" data-sg="${value}" aria-checked="${value === current}"><b>${label}</b><small>${hint}</small></button>`).join('');
+    // เมนูเสริม (js/score-remediation.js: "บันทึกผลแก้" ของนักเรียนที่มีผล 0 / มส)
+    const extra = typeof global.PP5ScoreMenuExtra === 'function' ? (global.PP5ScoreMenuExtra(tr) || []) : [];
+    menu.innerHTML = OPTIONS.map(([value, label, hint]) => `<button type="button" role="menuitemradio" data-sg="${value}" aria-checked="${value === current}"><b>${label}</b><small>${hint}</small></button>`).join('')
+      + extra.map((item, index) => `<button type="button" role="menuitem" data-sg-extra="${index}" style="border-top:1px solid #e2e8f0;border-radius:0 0 8px 8px"><b>${item.label}</b><small>${item.hint}</small></button>`).join('');
     doc.body.appendChild(menu);
     const rect = button.getBoundingClientRect();
     const width = menu.offsetWidth || 240;
     menu.style.left = `${Math.max(8, Math.min(rect.right - width, (global.innerWidth || 1200) - width - 8))}px`;
     menu.style.top = `${Math.min(rect.bottom + 4, (global.innerHeight || 800) - (menu.offsetHeight || 140) - 8)}px`;
     menu.addEventListener('click', (event) => {
+      const more = event.target.closest('[data-sg-extra]');
+      if (more) { closeMenu(); extra[Number(more.getAttribute('data-sg-extra'))]?.run(); return; }
       const item = event.target.closest('[data-sg]');
       if (!item) return;
       choose(tr, item.getAttribute('data-sg'));
