@@ -1,6 +1,6 @@
 // ปุ่มบันทึกหน้าเช็คชื่อรายเดือน (owner 2026-10-21: "ปรับปุ่มบันทึก ... ให้มันดูดีมีสกุล และเพิ่มปุ่มบันทึกไว้ข้างเดือน")
 // เดิม: ปุ่มบันทึกบนหัวหน้าถูกแถบชื่อหน้าซ่อน เหลือแต่ไอคอนลอยเล็ก ๆ ไม่มีข้อความ และไม่บอกว่ามีอะไรค้างบันทึก
-//   - ปุ่ม "บันทึก" เหนือแถว "เช็คชื่อทั้งเดือน" ชิดขวา บอกสถานะ: บันทึกแล้ว / ยังไม่บันทึก n ช่อง / กำลังบันทึก
+//   - ปุ่ม "บันทึก" ปลายขวาของแถวเลือกสัปดาห์เหนือตาราง (เหนือช่อง มา ลา ขาด — owner 2026-10-21) บอกสถานะ: บันทึกแล้ว / ยังไม่บันทึก n ช่อง / กำลังบันทึก
 //   - ปุ่มลอยมุมขวาล่างมีข้อความและจำนวนช่อง โผล่เฉพาะตอนมีของค้าง (ตารางยาว เลื่อนลงไปแล้วยังกดได้)
 //   - Ctrl+S บันทึก · ทุกปุ่มเรียก AttendanceMonthly.saveMonthlyAttendanceClient ตัวเดิม (ไม่เปลี่ยนวิธีบันทึก)
 // สถานะอ่านจาก AttendanceMonthly.changedRecords (หน้าเดิมเก็บช่องที่แก้ไว้ที่นี่ และล้างเมื่อบันทึกสำเร็จ)
@@ -9,8 +9,7 @@
   'use strict';
   const doc = global.document;
   const STYLE = `
-.pp5-att-save-row{display:flex;justify-content:flex-end;padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid #eef0f5}
-[data-theme="dark"] .pp5-att-save-row{border-bottom-color:#2b3446}
+#currentMonthDisplay > #pp5AttSaveTop{margin-left:auto}
 .pp5-att-save{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:12px;border:1px solid transparent;font:inherit;font-weight:700;font-size:.92rem;white-space:nowrap;cursor:pointer;transition:background .15s ease,box-shadow .15s ease,transform .1s ease}
 .pp5-att-save i{font-size:1rem}
 .pp5-att-save[data-state="clean"]{background:#ecfdf5;border-color:#a7f3d0;color:#047857;cursor:default}
@@ -96,16 +95,11 @@
     let top = doc.getElementById('pp5AttSaveTop');
     if (!top) {
       top = makeButton('pp5AttSaveTop');
-      // เหนือแถว "เช็คชื่อทั้งเดือน: มา ลา ขาด" ชิดขวา (owner 2026-10-21: ข้างตัวเลือกเดือนไปทับช่องเลือกชั้น)
-      const hub = doc.querySelector?.('.pro-action-hub');
-      if (hub) {
-        const row = doc.createElement('div');
-        row.className = 'pp5-att-save-row';
-        row.appendChild(top);
-        hub.insertAdjacentElement('afterbegin', row);
-      } else {
-        (picker.closest('.btn-group') || picker).insertAdjacentElement('afterend', top);
-      }
+      // ปลายขวาของแถว "ตุลาคม 2569 | 1-7 | 8-14 ..." เหนือตาราง ตรงกับช่อง มา ลา ขาด (owner 2026-10-21 เลือกเอง:
+      // ข้างตัวเลือกเดือนไปทับช่องเลือกชั้น) · แถวนี้ซ่อนจนกว่าจะเลือกห้อง ปุ่มจึงโผล่พร้อมตาราง
+      const bar = doc.getElementById('currentMonthDisplay');
+      if (bar) bar.appendChild(top);
+      else (picker.closest('.btn-group') || picker).insertAdjacentElement('afterend', top);
     }
     let floating = doc.getElementById('pp5AttSaveFab');
     if (!floating) {
