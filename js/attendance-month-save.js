@@ -9,7 +9,7 @@
   'use strict';
   const doc = global.document;
   const STYLE = `
-#currentMonthDisplay > #pp5AttSaveTop{margin-left:auto}
+#currentMonthDisplay #pp5AttSaveTop{margin-left:auto}
 .pp5-att-save{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:12px;border:1px solid transparent;font:inherit;font-weight:700;font-size:.92rem;white-space:nowrap;cursor:pointer;transition:background .15s ease,box-shadow .15s ease,transform .1s ease}
 .pp5-att-save i{font-size:1rem}
 .pp5-att-save[data-state="clean"]{background:#ecfdf5;border-color:#a7f3d0;color:#047857;cursor:default}
@@ -97,8 +97,9 @@
       top = makeButton('pp5AttSaveTop');
       // ปลายขวาของแถว "ตุลาคม 2569 | 1-7 | 8-14 ..." เหนือตาราง ตรงกับช่อง มา ลา ขาด (owner 2026-10-21 เลือกเอง:
       // ข้างตัวเลือกเดือนไปทับช่องเลือกชั้น) · แถวนี้ซ่อนจนกว่าจะเลือกห้อง ปุ่มจึงโผล่พร้อมตาราง
+      // แถวนี้เป็นกล่อง display:block (หน้าเดิมตั้งเมื่อเลือกเดือน) — ใส่ในแถวแนวนอนด้านใน (เดือน + ปุ่มสัปดาห์) แล้วดันชิดขวา
       const bar = doc.getElementById('currentMonthDisplay');
-      if (bar) bar.appendChild(top);
+      if (bar) (bar.querySelector('.d-flex') || bar).appendChild(top);
       else (picker.closest('.btn-group') || picker).insertAdjacentElement('afterend', top);
     }
     let floating = doc.getElementById('pp5AttSaveFab');
@@ -125,7 +126,10 @@
     if (!parts) return false;
     paint(parts.top);
     paint(parts.floating);
-    const show = stateOf() === 'dirty' || stateOf() === 'saving';
+    // ซ้ำกันไม่ต้อง: ปุ่มลอยโผล่เมื่อปุ่มบนแถวสัปดาห์ไม่อยู่ในจอ (เลื่อนตารางลงไป หรือแถวถูกซ่อนบนมือถือ)
+    const r = typeof parts.top.getBoundingClientRect === 'function' ? parts.top.getBoundingClientRect() : null;
+    const topOnScreen = !!r && r.width > 0 && r.bottom > 0 && r.top < (global.innerHeight || 0);
+    const show = (stateOf() === 'dirty' || stateOf() === 'saving') && !topOnScreen;
     const want = show ? 'block' : 'none';
     if (parts.fab.style.display !== want) {
       parts.fab.style.display = want;
