@@ -250,7 +250,9 @@
       const lastHead = cols.map((c) => (c.kind === 'period'
         ? `<th class="sam-p${c.first ? ' sam-first' : ''}${c.makeup ? ' is-makeup' : ''}">ค${c.period}${ctx.canWrite
           ? `<br><button type="button" data-pp5-btn-skip data-cycle="${esc(c.date)}#${c.period}" title="กดวนทั้งห้อง: มาทุกคน → ลาทุกคน → ขาดทุกคน → ว่าง" aria-label="วนสถานะทั้งห้อง คาบ ${c.period} วันที่ ${esc(c.date)}"><i class="bi bi-arrow-repeat"></i></button>` : ''}</th>`
-        : c.kind === 'holiday' ? `<th class="sam-first is-holiday"><span class="sam-hol" title="${esc(c.title)}">หยุด</span></th>`
+        // วันหยุดไม่ล็อก (owner 2026-10-22 "บางโรงเรียนเขานัดเด็กมาสอน"): กด +สอน เพิ่มคาบของวิชานี้ในวันหยุดได้
+        : c.kind === 'holiday' ? `<th class="sam-first is-holiday"><span class="sam-hol" title="${esc(c.title)}">หยุด</span>${ctx.canWrite
+          ? `<br><button type="button" class="sam-add" data-pp5-btn-skip data-add-day="${esc(c.date)}" title="นัดนักเรียนมาเรียนวันนี้"><i class="bi bi-plus"></i>สอน</button>` : ''}</th>`
         : `<th class="sam-first is-makeup">${ctx.canWrite
           ? `<button type="button" class="sam-add" data-pp5-btn-skip data-add-day="${esc(c.date)}"><i class="bi bi-plus"></i>สอน</button>` : '<span class="sam-hol">ชดเชย</span>'}</th>`)).join('');
       const body = state.students.map((s, i) => {
@@ -272,6 +274,7 @@
   <div class="sam-nav"><button type="button" data-pp5-btn-skip data-shift-month="-1"${prevOk ? '' : ' disabled'} aria-label="เดือนก่อน"><i class="bi bi-chevron-left"></i></button>
     <b>${MONTHS[m - 1]} ${y + 543}</b>
     <button type="button" data-pp5-btn-skip data-shift-month="1"${nextOk ? '' : ' disabled'} aria-label="เดือนถัดไป"><i class="bi bi-chevron-right"></i></button></div>
+  ${ctx.canWrite ? '<button type="button" class="sam-tool" data-pp5-btn-skip data-add-day=""><i class="bi bi-calendar-plus"></i> เพิ่มวันสอน (วันหยุด/นัดพิเศษ)</button>' : ''}
   ${ctx.canWrite && periods.length ? '<button type="button" class="sam-tool" data-pp5-btn-skip data-fill-all><i class="bi bi-check2-all"></i> ยืนยันทุกคาบที่ยังไม่บันทึก (ถึงวันนี้)</button>' : ''}
 </div>
 <div class="sam-sum-line">เดือนนี้ ${periods.length} คาบ · บันทึกแล้ว ${savedN} · ใช้เช็คชื่อรายวัน ${dailyN}${emptyN ? ` · <b style="color:var(--sa-bad)">ยังไม่มีข้อมูล ${emptyN}</b>` : ''}</div>
@@ -315,14 +318,20 @@ ${cols.length ? `<div class="sam-wrap"><table class="sam-table"><thead>
       if (next === CLEAR && !state.saved.get(key)?.size) { state.edits.delete(key); return; }
       ids.forEach((id) => setCell(key, id, next));
     }
+    // เมนูเพิ่มคาบ: date = วันที่กดจากหัวตาราง · ว่าง = ปุ่ม "เพิ่มวันสอน" ให้เลือกวันใดก็ได้ของเดือนที่ยังไม่มีคาบ (เสาร์-อาทิตย์/วันหยุด/นัดพิเศษ)
     function openMenu(anchor, date) {
       closeMenu();
-      const weekday = weekdayOf(date);
-      const week = state.weeks.get(semesterOf(date)) || new Map();
+      const taken = new Set(state.columns.filter((c) => c.kind === 'period').map((c) => c.date));
+      const choices = date ? [] : daysOfMonth(state.month).filter((d) => d >= range.min && d <= range.max && !taken.has(d));
+      if (!date && !choices.length) { ctx.setSay('ทุกวันของเดือนนี้มีคาบอยู่แล้ว — กดที่วันที่บนหัวตารางเพื่อเพิ่มคาบในแบบรายคาบ', ''); return; }
+      const pick = date || choices[0];
+      const week = state.weeks.get(semesterOf(pick)) || new Map();
       const like = [1, 2, 3, 4, 5].filter((d) => week.get(d)).map((d) => ({ d, n: week.get(d) }));
+      const label = (d) => `วัน${DAY_NAME[weekdayOf(d)]} ${Number(d.slice(8))} ${MONTHS[Number(d.slice(5, 7)) - 1]}${state.holidays.get(d) ? ` (${state.holidays.get(d).title || 'วันหยุด'})` : ''}`;
       menu = doc.createElement('div');
       menu.className = 'sam-menu';
-      menu.innerHTML = `<b>วัน${DAY_NAME[weekday]} ${Number(date.slice(8))} ${MONTHS[Number(date.slice(5, 7)) - 1]} — สอนวิชานี้กี่คาบ</b>
+      menu.innerHTML = `${date ? `<b>${esc(label(date))} — สอนวิชานี้กี่คาบ</b>`
+        : `<b>เลือกวันที่นัดนักเรียนมาเรียน</b><select class="form-select form-select-sm" data-pick-date>${choices.map((d) => `<option value="${d}">${esc(label(d))}</option>`).join('')}</select><b>สอนวิชานี้กี่คาบ</b>`}
 ${like.map((x) => `<button type="button" data-pp5-btn-skip data-add-n="${x.n}">ใช้ตารางวัน${DAY_NAME[x.d]} (${x.n} คาบ)</button>`).join('')}
 ${[1, 2, 3, 4].map((n) => `<button type="button" data-pp5-btn-skip data-add-n="${n}">${n} คาบ</button>`).join('')}`;
       const rect = anchor.getBoundingClientRect();
@@ -331,9 +340,10 @@ ${[1, 2, 3, 4].map((n) => `<button type="button" data-pp5-btn-skip data-add-n="$
       menu.addEventListener('click', (event) => {
         const btn = event.target.closest('[data-add-n]');
         if (!btn) return;
-        state.extra.set(date, Number(btn.dataset.addN));
-        // คาบที่เพิ่ม: ยืนยันตามรายวันให้เลย (เพิ่มแล้วกดบันทึกได้ทันที)
-        for (let p = 1; p <= Number(btn.dataset.addN); p += 1) fillColumn(`${date}#${p}`);
+        const day = date || menu.querySelector('[data-pick-date]')?.value || pick;
+        state.extra.set(day, Number(btn.dataset.addN));
+        // คาบที่เพิ่ม: ยืนยันตามรายวันให้เลย (ไม่มีรายวัน = มาทุกคน) — เพิ่มแล้วกดบันทึกได้ทันที
+        for (let p = 1; p <= Number(btn.dataset.addN); p += 1) fillColumn(`${day}#${p}`);
         render();
       });
       // ภายในหน้า (.sa) เพื่อใช้สีของหน้า — position:fixed จึงไม่ถูกตารางที่เลื่อนได้ตัด
