@@ -16,9 +16,9 @@
   const DAY_NAME = ['', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
   const MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
   const MARK = { present: '/', leave: 'ล', absent: 'ข' };
-  // กดช่อง: มา → ลา → ขาด → มา (owner 2026-10-22 ลำดับเดียวกับปุ่มวนของหน้ารายเดือน)
-  const NEXT = { '': 'present', present: 'leave', leave: 'absent', absent: 'present' };
+  // กดช่อง: มา → ลา → ขาด → ว่าง → มา (owner 2026-10-22 "ในช่องรายคนยังคลิกให้ว่างไม่ได้" — เหมือนปุ่มวนของหน้ารายเดือน)
   const CLEAR = 'clear';
+  const NEXT = { '': 'present', present: 'leave', leave: 'absent', absent: CLEAR };
   const MAX_PERIODS = 8;
 
   function weekdayOf(iso) {
@@ -76,7 +76,8 @@
     if (edited === CLEAR) return { status: '', kind: 'cleared' };
     if (edited) return { status: edited, kind: 'edit' };
     const column = saved.get(key);
-    if (column && column.size) return { status: column.get(id) || 'present', kind: 'saved' };
+    // คนที่ไม่มีแถวในคาบที่บันทึกแล้ว = ว่าง (ปพ.5 ไม่นับคาบนั้นให้คนนั้น และไม่เติมจากรายวัน)
+    if (column && column.size) return column.has(id) ? { status: column.get(id), kind: 'saved' } : { status: '', kind: 'empty' };
     const day = daily.get(col.date);
     if (day && day.size) return { status: day.get(id) || '', kind: day.get(id) ? 'daily' : 'empty' };
     return { status: '', kind: 'empty' };
@@ -345,9 +346,9 @@ ${[1, 2, 3, 4].map((n) => `<button type="button" data-pp5-btn-skip data-add-n="$
         const key = cell.dataset.cell;
         const next = NEXT[cell.dataset.s] || 'present';
         setCell(key, cell.dataset.id, next);
-        cell.dataset.s = next;
-        cell.dataset.k = 'edit';
-        cell.textContent = MARK[next];
+        cell.dataset.s = next === CLEAR ? '' : next;
+        cell.dataset.k = next === CLEAR ? 'cleared' : 'edit';
+        cell.textContent = MARK[next] || '·';
         syncBar();
         return;
       }
@@ -393,7 +394,9 @@ ${[1, 2, 3, 4].map((n) => `<button type="button" data-pp5-btn-skip data-add-n="$
         const rows = state.students.map((s) => {
           const id = text(s.id);
           const v = cellValue(col, id, state.saved, state.edits, state.daily);
-          return { student_id: id, status: v.kind === 'cleared' ? null : v.status || 'present' };
+          // ว่าง: กดให้ว่าง หรือไม่มีแถวในคาบที่บันทึกแล้ว = ไม่บันทึกคนนั้น (null) · คาบใหม่ที่ยังว่าง = มา (เหมือนแบบรายคาบ)
+          const keepEmpty = v.kind === 'cleared' || (!v.status && state.saved.get(key)?.size);
+          return { student_id: id, status: keepEmpty ? null : v.status || 'present' };
         });
         const { error } = await client().rpc('pp5_save_subject_period', { p_subject_id: ctx.subjectId, p_date: date, p_period: Number(p), p_rows: rows });
         if (error) { failed.push(`${date} คาบ ${p}: ${error.message}`); continue; }
