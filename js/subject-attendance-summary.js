@@ -268,6 +268,32 @@
           rows.push(...(data || []));
           if ((data || []).length < 1000) break;
         }
+        // owner 2026-10-22 "ใช้รายวันแทน": วันสอนที่ยังไม่มีรายคาบ แต่มีเช็คชื่อรายวัน นับตามรายวันทุกคาบในตารางสอน
+        // (กติกาเดียวกับ ปพ.5 รายวิชา และ "ค้างเช็ค") — วิชาที่ยังไม่มีรายคาบเลย แสดงข้อความเดิม (ปพ.5 ใช้วิธีรายวัน)
+        state.filledDays = 0;
+        if (rows.length && global.PP5SubjectSchedule?.fillFromDaily) {
+          const pages = async (build) => {
+            const out = [];
+            for (let start = 0; ; start += 1000) {
+              const { data, error: readError } = await build().range(start, start + 999);
+              if (readError) throw readError;
+              out.push(...(data || []));
+              if ((data || []).length < 1000) return out;
+            }
+          };
+          const yearCE = Number(state.year) - 543;
+          const [schedules, daily] = await Promise.all([
+            pages(() => client().from('subject_schedules').select('semester,weekday,periods').eq('subject_id', job.subject.id)
+              .eq('academic_year', state.year).eq('grade', job.grade).eq('room', job.room).order('semester').order('weekday')).catch(() => []),
+            pages(() => client().from('attendance_daily').select('student_id,attendance_date,status').in('student_id', ids)
+              .gte('attendance_date', `${yearCE}-05-01`).lte('attendance_date', `${yearCE + 1}-03-31`).order('attendance_date').order('student_id')).catch(() => [])
+          ]);
+          const weeks = new Map();
+          schedules.forEach((r) => { const s = Number(r.semester) || 0; if (!weeks.has(s)) weeks.set(s, new Map()); weeks.get(s).set(Number(r.weekday), Number(r.periods) || 0); });
+          const filled = global.PP5SubjectSchedule.fillFromDaily(rows, daily, weeks, ids);
+          state.filledDays = new Set(filled.map((r) => r.attendance_date)).size;
+          rows.push(...filled);
+        }
         if (token !== state.token) return;
         state.rows = rows;
         state.students = students;
@@ -318,7 +344,7 @@ ${state.students.map((s, i) => {
       const title = state.view === 'sem1' ? 'ภาคเรียนที่ 1' : state.view === 'sem2' ? 'ภาคเรียนที่ 2' : `ทั้งปีการศึกษา ${state.year}`;
       // owner 2026-10-15: "แยกเป็นเดือนสิครับ เช่น พ.ค. เท่าไหร่ มิ.ย. เท่าไหร่" — คอลัมน์ต่อเดือน = ชั่วโมงที่มา
       body.innerHTML = `<div class="sas-chips"><span class="sas-chip"><i class="bi bi-calendar-range"></i> ${title}</span>
-  <span class="sas-chip">สอน ${sum.taught} คาบ · ${sum.days} วัน</span>
+  <span class="sas-chip">สอน ${sum.taught} คาบ · ${sum.days} วัน</span>${state.filledDays ? `<span class="sas-chip" title="วันที่ยังไม่ได้เช็ครายคาบ ใช้เช็คชื่อรายวันของห้องแทนทุกคาบตามตารางสอน">ใช้เช็คชื่อรายวันแทน ${state.filledDays} วัน</span>` : ''}
   <span class="sas-chip ${fail ? 'is-bad' : 'is-ok'}">มส. ${fail} คน</span>${near ? `<span class="sas-chip is-warn">ใกล้ มส. ${near} คน</span>` : ''}</div>
 <div class="sas-wrap"><table class="sas-table"><thead><tr><th>เลขที่</th><th class="sas-name">ชื่อ–สกุล</th>
 ${split.months.map((m) => `<th class="sas-month">${esc(m.label)}<span class="sas-dow">${esc(m.yy)}</span></th>`).join('')}<th>มา</th><th>ลา</th><th>ขาด</th><th>รวม (ชม.)</th><th>ร้อยละ</th><th>สถานะ</th></tr></thead><tbody>

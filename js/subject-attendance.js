@@ -72,6 +72,16 @@
     if (error) throw error;
     return data || [];
   }
+  // อ่านครบทุกหน้า (Supabase ส่งได้ครั้งละ 1000 แถว: ห้อง 15 คน × ทั้งปี เกิน 1000 แน่) — build ต้อง order ให้คงที่
+  async function queryAll(build) {
+    const rows = [];
+    for (let start = 0; ; start += 1000) {
+      const { data, error } = await build(client()).range(start, start + 999);
+      if (error) throw error;
+      rows.push(...(data || []));
+      if ((data || []).length < 1000) return rows;
+    }
+  }
 
   // ---- ค่าตั้งต้นของคาบ: บันทึกแล้ว = ตามที่บันทึก · คาบ 2 ขึ้นไป = เหมือนคาบก่อนหน้า (ครูแก้คนที่หายไป) · คาบแรก = จากเช็คชื่อรายวัน
   function startMarks(ids, period, byPeriod, fromDaily) {
@@ -358,12 +368,19 @@ ${total ? `<div class="sa-days${weekend ? ' has-weekend' : ''}" aria-label="ว�
         const students = await global.PP5Data.students.list({ grade, room });
         const ids = students.map((s) => text(s.id));
         if (!ids.length) { message('ไม่พบนักเรียนในห้องนี้', 'warn'); return; }
-        const [existing, daily, history] = await Promise.all([
+        const yearCE = Number(state.year) - 543;
+        const [existing, daily, history, dailyDays] = await Promise.all([
           query((c) => c.from('subject_attendance').select('student_id,period,hours,status').eq('subject_id', subjectId).eq('attendance_date', date).in('student_id', ids)),
           query((c) => c.from('attendance_daily').select('student_id,status').eq('attendance_date', date).in('student_id', ids)).catch(() => []),
-          query((c) => c.from('subject_attendance').select('attendance_date,period,hours,status,student_id').eq('subject_id', subjectId).eq('academic_year', state.year).in('student_id', ids)),
+          queryAll((c) => c.from('subject_attendance').select('attendance_date,period,hours,status,student_id').eq('subject_id', subjectId).eq('academic_year', state.year).in('student_id', ids)
+            .order('attendance_date').order('student_id').order('period')),
+          // วันที่ห้องนี้มีเช็คชื่อรายวันแล้ว (ไม่ค้างเช็ค ถ้าครูวิชายังไม่ได้เช็ครายคาบ — owner 2026-10-22 "ใช้รายวันแทน")
+          yearCE > 1900 ? queryAll((c) => c.from('attendance_daily').select('attendance_date,student_id').in('student_id', ids)
+            .gte('attendance_date', `${yearCE}-05-01`).lte('attendance_date', [`${yearCE + 1}-03-31`, today()].sort()[0])
+            .order('attendance_date').order('student_id')).catch(() => []) : [],
           loadWeek()
         ]);
+        state.dailyDates = new Set(dailyDays.map((row) => text(row.attendance_date).slice(0, 10)));
         if (token !== state.token) return;
         if (!state.weekOk) { need032(); return; }
         state.students = students;
@@ -487,13 +504,13 @@ ${state.canWrite ? '' : '<div class="sa-note is-warn mb-2">ดูได้อย
     }
     // owner 2026-10-15 "ย่อ แสดง 5 วันล่าสุด + กดดูทั้งหมด": ปุ่ม 5 วันล่าสุด ที่เหลือพับไว้ แบ่งตามเดือน
     const gotoBtn = (m) => `<button type="button" class="sa-goto" data-pp5-btn-skip data-goto-date="${esc(m.date)}"><i class="bi bi-calendar-event"></i> ${esc(DAYS.find((x) => x.n === weekdayOf(m.date))?.short || '')} ${esc(thaiDate(m.date))} · คาบ ${m.periods.join(', ')}</button>`;
-    function lateBox(late, range) {
+    function lateBox(late, range, dailyNote = '') {
       const recent = late.missed.slice(-5).reverse();
       const older = late.missed.slice(0, -5).reverse();
       const months = new Map();
       older.forEach((m) => { const k = m.date.slice(0, 7); if (!months.has(k)) months.set(k, []); months.get(k).push(m); });
       return `<div class="sa-late mb-2"><b><i class="bi bi-exclamation-triangle-fill"></i> ค้างเช็ค ${late.owed} คาบ</b>
-  <span>ควรสอน ${late.planned} คาบ นับตั้งแต่ ${esc(thaiDate(range.start))}${range.countFrom && range.countFrom > range.termStart ? ' (วันที่เริ่มใช้ระบบ)' : ''} · ยังไม่ได้เช็ค ${late.missedCount} คาบ${late.makeup ? ` · สอนชดเชยแล้ว ${late.makeup} คาบ` : ''}</span>
+  <span>ควรสอน ${late.planned} คาบ นับตั้งแต่ ${esc(thaiDate(range.start))}${range.countFrom && range.countFrom > range.termStart ? ' (วันที่เริ่มใช้ระบบ)' : ''} · ยังไม่ได้เช็ค ${late.missedCount} คาบ${late.makeup ? ` · สอนชดเชยแล้ว ${late.makeup} คาบ` : ''}${esc(dailyNote)}</span>
   <div class="sa-off-actions">${recent.map(gotoBtn).join('')}</div>
   ${older.length ? `<details class="sa-late-all"><summary>ดูวันที่ค้างทั้งหมด (อีก ${older.length} วัน)</summary>${[...months.entries()].map(([k, list]) =>
     `<div class="sa-late-month"><small>${esc(THAI_MONTHS[Number(k.slice(5, 7)) - 1])} ${Number(k.slice(0, 4)) + 543} · ${list.length} วัน</small><div class="sa-off-actions">${list.map(gotoBtn).join('')}</div></div>`).join('')}</details>` : ''}
@@ -524,13 +541,14 @@ ${state.canWrite ? '' : '<div class="sa-note is-warn mb-2">ดูได้อย
       });
       const S = global.PP5SubjectSchedule;
       const range = S?.termRange?.(settings.settings_json, state.year, state.semester) || null;
-      const late = range ? S.missedPeriods(state.week, recorded, range, holidays, today()) : null;
+      const late = range ? S.missedPeriods(state.week, recorded, range, holidays, today(), state.dailyDates) : null;
+      const dailyNote = late?.byDaily ? ` · ใช้เช็คชื่อรายวันแทน ${late.byDaily} คาบ (วันที่ยังไม่ได้เช็ครายคาบ)` : '';
       const lateHtml = !state.week.size ? ''
         : !range ? `<div class="sa-note mb-2"><i class="bi bi-info-circle"></i> ผู้ดูแลยังไม่ได้ตั้งวันเปิด–ปิดภาคเรียน (หน้าตั้งค่าระบบกลาง แท็บรูปแบบ ปพ.5) ระบบจึงยังนับคาบที่ค้างเช็คไม่ได้</div>`
           : late.notYet === 'ended' ? `<div class="sa-note mb-2"><i class="bi bi-calendar-check"></i> ภาคเรียนที่ ${state.semester} ไม่มีคาบต้องนับ — ภาคนี้ปิดวันที่ ${esc(thaiDate(range.end))} ก่อนวันเริ่มนับ ${esc(thaiDate(range.countFrom))} (ระบบเริ่มนับคาบค้างเช็คในภาคถัดไป)</div>`
           : late.notYet === 'future' ? `<div class="sa-note mb-2"><i class="bi bi-calendar-event"></i> เริ่มนับคาบค้างเช็คตั้งแต่ ${esc(thaiDate(range.start))}</div>`
-          : !late.missed.length ? `<div class="sa-note mb-2" style="color:var(--sa-ok);background:var(--sa-ok-bg)"><i class="bi bi-check-circle-fill"></i> เช็คครบทุกคาบตามตารางสอนแล้ว (${late.planned} คาบ ตั้งแต่ ${esc(thaiDate(range.start))})</div>`
-            : lateBox(late, range);
+          : !late.missed.length ? `<div class="sa-note mb-2" style="color:var(--sa-ok);background:var(--sa-ok-bg)"><i class="bi bi-check-circle-fill"></i> เช็คครบทุกคาบตามตารางสอนแล้ว (${late.planned} คาบ ตั้งแต่ ${esc(thaiDate(range.start))}${esc(dailyNote)})</div>`
+            : lateBox(late, range, dailyNote);
       historyBox.hidden = false;
       historyBox.innerHTML = lateHtml + `<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
   <b><i class="bi bi-clock-history"></i> บันทึกของวิชานี้ในห้องนี้</b>

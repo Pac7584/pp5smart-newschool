@@ -227,6 +227,28 @@ ${option('subject', 'bi-journal-bookmark-fill', 'ครูประจำวิ�
     ]).then(([a, b, c, h]) => { holidays = new Set((h || []).map((r) => text(r.holiday_date).slice(0, 10))); return [a, b, c]; });
     // ขั้นที่ 3: คาบที่ค้างเช็ค = ตารางสอน × วันเรียนในช่วงภาค (settings_json.term_dates) หักวันหยุด เทียบกับคาบที่เช็คแล้ว
     const range = global.PP5SubjectSchedule?.termRange?.(settings?.settings_json, year, semester) || null;
+    // วันที่ห้องมีเช็คชื่อรายวันแล้วไม่นับว่าค้าง (owner 2026-10-22 "ใช้รายวันแทน") — รายวันบันทึกทั้งห้องพร้อมกัน
+    // จึงอ่านวันที่จากนักเรียนตัวแทน 2 คนต่อห้อง (ไม่ต้องอ่านทุกคนทุกวัน)
+    const dailyByRoom = new Map();
+    if (range && !range.empty) {
+      const reps = new Map();
+      roster.filter((s) => !s.status || s.status === 'active').forEach((s) => {
+        const room = s.grade + '/' + text(s.room);
+        if (!jobs.some((j) => j.grade + '/' + text(j.room) === room)) return;
+        const list = reps.get(room) || [];
+        if (list.length < 2) { list.push(text(s.id)); reps.set(room, list); }
+      });
+      const repIds = [...reps.values()].flat();
+      const roomOf = new Map([...reps.entries()].flatMap(([room, list]) => list.map((id) => [id, room])));
+      const dailyRows = repIds.length ? await allPages(() => client.from('attendance_daily').select('student_id,attendance_date')
+        .in('student_id', repIds).gte('attendance_date', range.start).lte('attendance_date', range.end).order('attendance_date').order('student_id')).catch(() => []) : [];
+      dailyRows.forEach((r) => {
+        const room = roomOf.get(text(r.student_id));
+        if (!room) return;
+        if (!dailyByRoom.has(room)) dailyByRoom.set(room, new Set());
+        dailyByRoom.get(room).add(text(r.attendance_date).slice(0, 10));
+      });
+    }
     const todayDay = weekdayOf(todayIso);
     const byId = new Map(subjects.map((s) => [s.id, s]));
     const seen = new Set();
@@ -254,7 +276,7 @@ ${option('subject', 'bi-journal-bookmark-fill', 'ครูประจำวิ�
         recorded.get(d).add(Number(r.period) || 1);
       });
       const weekMap = new Map((week || []).map((r) => [Number(r.weekday), Number(r.periods) || 0]));
-      const late = attendance && week?.length && range ? global.PP5SubjectSchedule?.missedPeriods?.(weekMap, recorded, range, holidays, todayIso) : null;
+      const late = attendance && week?.length && range ? global.PP5SubjectSchedule?.missedPeriods?.(weekMap, recorded, range, holidays, todayIso, dailyByRoom.get(job.grade + '/' + text(job.room))) : null;
       rows.push({ subject, grade: job.grade, room: text(job.room), term, total: students.size, owed: late ? late.owed : null,
         scored: scored ? scored.size : null, days: dates ? dates.length : null, last: dates?.length ? dates[dates.length - 1] : '',
         hasWeek: week ? week.length > 0 : null, weekTotal: week ? week.reduce((sum, r) => sum + (Number(r.periods) || 0), 0) : 0,

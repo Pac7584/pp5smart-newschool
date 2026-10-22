@@ -72,19 +72,24 @@
   }
   // week: Map(วัน 1-7 -> คาบ) · recorded: Map('YYYY-MM-DD' -> Set(คาบที่เช็คแล้ว)) · holidays: Set('YYYY-MM-DD')
   // นับเฉพาะวันก่อนวันนี้ (วันนี้ยังเช็คได้ ไม่ถือว่าค้าง) · คาบที่สอนชดเชย (วันนอกตาราง หรือคาบเกินตาราง) หักออกจากที่ค้าง
-  function missedPeriods(week, recorded, range, holidays, todayIso) {
+  // dailyDates (owner 2026-10-22 "มันไม่ควรค้าง เพราะเราเช็คชื่อรายวันไปแล้ว มันต้องสัมพันธ์กัน" -> เลือก "ใช้รายวันแทน"):
+  // Set('YYYY-MM-DD') วันที่ห้องนี้มีเช็คชื่อรายวันแล้ว — วันสอนที่ยังไม่มีรายคาบเลยแต่มีรายวัน ไม่นับว่าค้าง (byDaily)
+  // กติกาเดียวกับ ปพ.5 รายวิชาใน gas-bridge (hourlyAttendance เติมรายวันเป็นรายคาบตามตารางสอน)
+  function missedPeriods(week, recorded, range, holidays, todayIso, dailyDates) {
     if (!range || !week || !week.size) return null;
-    if (range.empty) return { planned: 0, missed: [], missedCount: 0, makeup: 0, owed: 0, notYet: 'ended' };
-    if (todayIso <= range.start) return { planned: 0, missed: [], missedCount: 0, makeup: 0, owed: 0, notYet: 'future' };
+    if (range.empty) return { planned: 0, missed: [], missedCount: 0, makeup: 0, owed: 0, byDaily: 0, notYet: 'ended' };
+    if (todayIso <= range.start) return { planned: 0, missed: [], missedCount: 0, makeup: 0, owed: 0, byDaily: 0, notYet: 'future' };
     const last = [range.end, isoAdd(todayIso, -1)].sort()[0];
     const missed = [];
     let planned = 0;
     let missedCount = 0;
+    let byDaily = 0;
     for (let d = range.start; d <= last; d = isoAdd(d, 1)) {
       const n = Number(week.get(weekdayOf(d))) || 0;
       if (!n || holidays?.has(d)) continue;
       planned += n;
       const got = recorded.get(d) || new Set();
+      if (!got.size && dailyDates?.has(d)) { byDaily += n; continue; }
       const lack = [];
       for (let p = 1; p <= n; p += 1) if (!got.has(p)) lack.push(p);
       if (lack.length) { missed.push({ date: d, periods: lack }); missedCount += lack.length; }
@@ -95,7 +100,27 @@
       const n = holidays?.has(d) ? 0 : Number(week.get(weekdayOf(d))) || 0;
       periods.forEach((p) => { if (p > n) makeup += 1; });
     });
-    return { planned, missed, missedCount, makeup, owed: Math.max(0, missedCount - makeup) };
+    return { planned, missed, missedCount, makeup, owed: Math.max(0, missedCount - makeup), byDaily };
+  }
+
+  // แถวรายคาบที่ได้จากเช็คชื่อรายวัน (owner 2026-10-22 "ใช้รายวันแทน") — กติกาเดียวกับ gas-bridge dailyFillRows:
+  // วันสอนตามตารางสอนที่วิชานี้ยังไม่มีรายคาบเลย แต่นักเรียนมีเช็คชื่อรายวัน -> สถานะรายวันกับทุกคาบของวันนั้น
+  // weeks: Map(ภาค 1|2 -> Map(วัน 1-7 -> คาบ)) · ภาคของวันที่ = พ.ค.–ต.ค. 1 / อื่น ๆ 2 (pp5_semester_of)
+  const DAILY_STATUS = { present: 'present', 'มา': 'present', leave: 'leave', 'ลา': 'leave', absent: 'absent', 'ขาด': 'absent' };
+  function fillFromDaily(hourlyRows, dailyRows, weeks, studentIds, holidays) {
+    if (!weeks || !weeks.size) return [];
+    const taught = new Set((hourlyRows || []).map((r) => text(r.attendance_date).slice(0, 10)));
+    const inRoom = studentIds ? new Set([...studentIds].map(text)) : null;
+    const out = [];
+    (dailyRows || []).forEach((row) => {
+      const date = text(row.attendance_date).slice(0, 10);
+      const status = DAILY_STATUS[text(row.status).toLowerCase()];
+      if (!status || taught.has(date) || holidays?.has(date) || (inRoom && !inRoom.has(text(row.student_id)))) return;
+      const m = Number(date.slice(5, 7));
+      const n = Number(weeks.get(m >= 5 && m <= 10 ? 1 : 2)?.get(weekdayOf(date))) || 0;
+      for (let p = 1; p <= n; p += 1) out.push({ student_id: text(row.student_id), attendance_date: date, period: p, hours: 1, status, fromDaily: true });
+    });
+    return out;
   }
 
   const nextCount = (n) => ((Number(n) || 0) + 1) % 5;
@@ -386,5 +411,5 @@ ${jobs.map((j) => {
   global.GAS_PAGES.subject_schedule = shell();
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', watch, { once: true });
   else watch();
-  global.PP5SubjectSchedule = { shell, jobsFor, nextCount, total, keyOf, termRange, missedPeriods, isoAdd, weekdayOf };
+  global.PP5SubjectSchedule = { shell, jobsFor, nextCount, total, keyOf, termRange, missedPeriods, fillFromDaily, isoAdd, weekdayOf };
 })(window);

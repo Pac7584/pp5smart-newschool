@@ -2336,6 +2336,44 @@
       });
     };
     const studentIdsForHours = students.map((student) => text(student.id)).filter(Boolean);
+    // ตารางสอนของวิชานี้ในห้องนี้: Map(ภาค -> Map(วัน 1-7 -> จำนวนคาบ)) — อ่านไม่ได้ = Map ว่าง (ไม่เติมรายวัน)
+    const weekCache = new Map();
+    const weeksOf = (subject) => {
+      const id = text(subject.id);
+      if (!weekCache.has(id)) {
+        weekCache.set(id, optionalTableAll('subject_schedules', (query) => query
+          .eq('subject_id', id).eq('academic_year', academicYear).eq('grade', grade).eq('room', text(classNo)))
+          .then((list) => {
+            const out = new Map();
+            (list || []).forEach((row) => {
+              const sem = number(row.semester, 0);
+              if (!out.has(sem)) out.set(sem, new Map());
+              out.get(sem).set(number(row.weekday, 0), number(row.periods, 0));
+            });
+            return out;
+          }).catch(() => new Map()));
+      }
+      return weekCache.get(id);
+    };
+    const isoWeekday = (iso) => { const [y, m, d] = text(iso).split('-').map(Number); const js = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); return js === 0 ? 7 : js; };
+    // ภาคของวันที่ = pp5_semester_of ในฐานข้อมูล (พ.ค.–ต.ค. = 1, อื่น ๆ = 2)
+    const semesterOfDate = (iso) => { const m = Number(text(iso).slice(5, 7)); return m >= 5 && m <= 10 ? 1 : 2; };
+    const dailyFillRows = async (subject, hourlyRows, att) => {
+      const weeks = await weeksOf(subject);
+      if (!weeks.size) return [];
+      const taught = new Set(hourlyRows.map((row) => normalizeDate(row.attendance_date)));
+      const inRoom = new Set(studentIdsForHours);
+      const out = [];
+      (att.rows || []).forEach((row) => {
+        const date = row.attendance_date;
+        if (taught.has(date) || !inRoom.has(text(row.student_id))) return;
+        const n = weeks.get(semesterOfDate(date))?.get(isoWeekday(date)) || 0;
+        for (let p = 1; p <= n; p += 1) {
+          out.push({ student_id: text(row.student_id), subject_id: text(subject.id), attendance_date: date, period: p, hours: 1, status: row.status, fromDaily: true });
+        }
+      });
+      return out;
+    };
     const hourlyAttendance = async (subject, semester = subjectSemester_(subject)) => {
       if (!studentIdsForHours.length) return null;
       const att = await attendanceFor(semester);
@@ -2350,6 +2388,13 @@
           .order('attendance_date', { ascending: true }));
       } catch (_) { rows = []; }
       if (!rows.length) return null;
+      // owner 2026-10-22 ("มันไม่ควรค้าง เพราะเราเช็คชื่อรายวันไปแล้ว มันต้องสัมพันธ์กัน" -> เลือก "ใช้รายวันแทน"):
+      // วันสอนตามตารางสอนที่ยังไม่มีรายคาบของวิชานี้ แต่ห้องมีเช็คชื่อรายวันแล้ว -> ใช้สถานะรายวันกับทุกคาบของวันนั้น
+      // (เดิมวันเหล่านั้นหายจากการคำนวณ: ขาดรายวันไม่ถูกนับ ปพ.5 รายวิชาไม่ตรงกับ ปพ.6)  กติกาเดียวกับ "ค้างเช็ค"
+      // (subject-schedule.js missedPeriods dailyDates)  ไม่มีตารางสอน (ยังไม่ตั้ง / ไม่ได้รัน SQL 032) = นับรายคาบอย่างเดียวเหมือนเดิม
+      const filled = await dailyFillRows(subject, rows, att);
+      if (filled.length) rows = rows.concat(filled);
+      const filledDays = new Set(filled.map((row) => row.attendance_date)).size;
       // ชั่วโมงที่สอน = ผลรวมของทุกคาบ (SQL 032: 1 แถวต่อคาบ hours = 1) · schoolDays = จำนวนวันที่สอน
       const taughtByDate = new Map();
       const taughtDays = new Set();
@@ -2383,7 +2428,8 @@
       });
       return {
         months: attendanceMonths(rows.map((row) => ({ date: normalizeDate(row.attendance_date), sid: text(row.student_id), status: text(row.status), hours: row.hours, period: row.period })), true),
-        mode: 'hourly', first: att.first, last: att.last, schoolDays: taughtDays.size,
+        mode: 'hourly', first: att.first, last: att.last, schoolDays: taughtDays.size, filledDays,
+        note: filledDays ? `คิดจากการเช็คชื่อรายคาบของวิชานี้ วันที่ยังไม่ได้เช็ครายคาบ ${filledDays} วัน ใช้เช็คชื่อรายวันของห้องแทนทุกคาบตามตารางสอน` : '',
         taughtHours: [...taughtByDate.values()].reduce((a, b) => a + b, 0), hours, fullHours, students: list,
         over: list.filter((row) => row.pct !== null && !row.below).length,
         under: list.filter((row) => row.below).length,
