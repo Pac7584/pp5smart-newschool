@@ -16,7 +16,9 @@
   const DAY_NAME = ['', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
   const MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
   const MARK = { present: '/', leave: 'ล', absent: 'ข' };
-  const NEXT = { '': 'present', present: 'absent', absent: 'leave', leave: 'present' };
+  // กดช่อง: มา → ลา → ขาด → มา (owner 2026-10-22 ลำดับเดียวกับปุ่มวนของหน้ารายเดือน)
+  const NEXT = { '': 'present', present: 'leave', leave: 'absent', absent: 'present' };
+  const CLEAR = 'clear';
   const MAX_PERIODS = 8;
 
   function weekdayOf(iso) {
@@ -71,12 +73,20 @@
   function cellValue(col, id, saved, edits, daily) {
     const key = `${col.date}#${col.period}`;
     const edited = edits.get(key)?.get(id);
+    if (edited === CLEAR) return { status: '', kind: 'cleared' };
     if (edited) return { status: edited, kind: 'edit' };
     const column = saved.get(key);
     if (column && column.size) return { status: column.get(id) || 'present', kind: 'saved' };
     const day = daily.get(col.date);
     if (day && day.size) return { status: day.get(id) || '', kind: day.get(id) ? 'daily' : 'empty' };
     return { status: '', kind: 'empty' };
+  }
+
+  // ปุ่มวนใต้คาบ (owner 2026-10-22 "ทำเป็นปุ่มรี คลิกแล้วมาทั้งหมด คลิกอีกทีลา คลิกอีกทีขาด คลิกอีกทีว่าง" แบบหน้าบันทึกเวลาเรียนรายเดือน)
+  //   statuses = ค่าที่เห็นของทุกคนในคาบนั้น · ทุกคนมา -> ลา · ทุกคนลา -> ขาด · ทุกคนขาด -> ว่าง (clear) · อื่น ๆ -> มา
+  function nextColumn(statuses) {
+    const all = (st) => statuses.length > 0 && statuses.every((x) => x === st);
+    return all('present') ? 'leave' : all('leave') ? 'absent' : all('absent') ? CLEAR : 'present';
   }
 
   const STYLE = `
@@ -113,7 +123,7 @@
 .sam-cell[data-k="saved"][data-s="present"],.sam-legend .is-saved{background:var(--sa-ok-bg)}
 .sam-cell[data-k="saved"][data-s="leave"]{background:var(--sa-warn-bg)}.sam-cell[data-k="saved"][data-s="absent"]{background:var(--sa-bad-bg)}
 .sam-cell[data-k="daily"]{opacity:.45}
-.sam-cell[data-k="edit"]{outline:2px solid color-mix(in srgb,var(--sa-accent) 60%,transparent);outline-offset:-3px}
+.sam-cell[data-k="edit"],.sam-cell[data-k="cleared"]{outline:2px solid color-mix(in srgb,var(--sa-accent) 60%,transparent);outline-offset:-3px}
 .sam-cell:disabled{cursor:default}
 .sam-table td.sam-sum{font-weight:700;min-width:38px;padding:0 4px}
 .sam-table th.sam-sum{position:sticky;top:0;min-width:38px}
@@ -238,7 +248,7 @@
       // แถวที่ 2 ตามลำดับคอลัมน์: คาบ (ปุ่มยืนยันทั้งคาบ) · วันหยุด (ว่าง) · วันสอนชดเชย (ปุ่ม +สอน)
       const lastHead = cols.map((c) => (c.kind === 'period'
         ? `<th class="sam-p${c.first ? ' sam-first' : ''}${c.makeup ? ' is-makeup' : ''}">ค${c.period}${ctx.canWrite
-          ? `<br><button type="button" data-pp5-btn-skip data-fill="${esc(c.date)}#${c.period}" title="ยืนยันคาบนี้ทั้งห้อง (ตามรายวัน / มาทุกคน)"><i class="bi bi-check2-all"></i></button>` : ''}</th>`
+          ? `<br><button type="button" data-pp5-btn-skip data-cycle="${esc(c.date)}#${c.period}" title="กดวนทั้งห้อง: มาทุกคน → ลาทุกคน → ขาดทุกคน → ว่าง" aria-label="วนสถานะทั้งห้อง คาบ ${c.period} วันที่ ${esc(c.date)}"><i class="bi bi-arrow-repeat"></i></button>` : ''}</th>`
         : c.kind === 'holiday' ? `<th class="sam-first is-holiday"><span class="sam-hol" title="${esc(c.title)}">หยุด</span></th>`
         : `<th class="sam-first is-makeup">${ctx.canWrite
           ? `<button type="button" class="sam-add" data-pp5-btn-skip data-add-day="${esc(c.date)}"><i class="bi bi-plus"></i>สอน</button>` : '<span class="sam-hol">ชดเชย</span>'}</th>`)).join('');
@@ -265,7 +275,7 @@
 </div>
 <div class="sam-sum-line">เดือนนี้ ${periods.length} คาบ · บันทึกแล้ว ${savedN} · ใช้เช็คชื่อรายวัน ${dailyN}${emptyN ? ` · <b style="color:var(--sa-bad)">ยังไม่มีข้อมูล ${emptyN}</b>` : ''}</div>
 <div class="sam-legend"><span><i class="is-saved" style="color:var(--sa-ok)">/</i>บันทึกแล้ว</span><span><i style="color:var(--sa-ok);opacity:.45">/</i>ตามเช็คชื่อรายวัน (นับแล้ว ยังไม่ได้ยืนยัน)</span>
-  <span><i style="outline:2px solid var(--sa-accent);outline-offset:-3px">/</i>แก้แล้ว ยังไม่บันทึก</span><span>/ มา · ล ลา · ข ขาด · กดช่องเพื่อเปลี่ยน</span>
+  <span><i style="outline:2px solid var(--sa-accent);outline-offset:-3px">/</i>แก้แล้ว ยังไม่บันทึก</span><span>/ มา · ล ลา · ข ขาด · กดช่องเพื่อเปลี่ยน · <i class="bi bi-arrow-repeat" style="color:var(--sa-accent);width:auto"></i>ใต้คาบ = วนทั้งห้อง มา → ลา → ขาด → ว่าง</span>
   <span><i style="background:color-mix(in srgb,#f5c542 30%,transparent)"></i>วันหยุด</span><span><i style="background:var(--sa-warn-bg)"></i>สอนชดเชย</span></div>
 ${noWeek ? '<div class="sa-note is-warn">วิชานี้ยังไม่ได้ตั้งตารางสอน — ตารางรายเดือนจะแสดงเฉพาะวันที่บันทึกแล้วและวันสอนชดเชย</div>' : ''}
 ${cols.length ? `<div class="sam-wrap"><table class="sam-table"><thead>
@@ -294,6 +304,15 @@ ${cols.length ? `<div class="sam-wrap"><table class="sam-table"><thead>
         const v = cellValue(col, id, state.saved, state.edits, state.daily);
         setCell(key, id, v.status || 'present');
       });
+    }
+    // ปุ่มวนทั้งคาบ: ว่าง = คาบที่บันทึกแล้วถูกลบเมื่อกดบันทึก · คาบที่ยังไม่บันทึกกลับเป็นค่าตั้งต้น (ตามรายวันแบบจาง)
+    function cycleColumn(key) {
+      const [date, p] = key.split('#');
+      const col = { date, period: Number(p) };
+      const ids = state.students.map((s) => text(s.id));
+      const next = nextColumn(ids.map((id) => cellValue(col, id, state.saved, state.edits, state.daily).status));
+      if (next === CLEAR && !state.saved.get(key)?.size) { state.edits.delete(key); return; }
+      ids.forEach((id) => setCell(key, id, next));
     }
     function openMenu(anchor, date) {
       closeMenu();
@@ -332,8 +351,8 @@ ${[1, 2, 3, 4].map((n) => `<button type="button" data-pp5-btn-skip data-add-n="$
         syncBar();
         return;
       }
-      const fill = event.target.closest('[data-fill]');
-      if (fill) { fillColumn(fill.dataset.fill); render(); return; }
+      const cycle = event.target.closest('[data-cycle]');
+      if (cycle) { cycleColumn(cycle.dataset.cycle); render(); return; }
       if (event.target.closest('[data-fill-all]')) {
         state.columns.filter((c) => c.kind === 'period' && c.date <= ctx.todayIso && !state.saved.get(`${c.date}#${c.period}`)?.size)
           .forEach((c) => fillColumn(`${c.date}#${c.period}`));
@@ -373,7 +392,8 @@ ${[1, 2, 3, 4].map((n) => `<button type="button" data-pp5-btn-skip data-add-n="$
         ctx.setSay(`<span class="spinner-border spinner-border-sm"></span> กำลังบันทึก ${done + 1}/${keys.length}…`, '');
         const rows = state.students.map((s) => {
           const id = text(s.id);
-          return { student_id: id, status: cellValue(col, id, state.saved, state.edits, state.daily).status || 'present' };
+          const v = cellValue(col, id, state.saved, state.edits, state.daily);
+          return { student_id: id, status: v.kind === 'cleared' ? null : v.status || 'present' };
         });
         const { error } = await client().rpc('pp5_save_subject_period', { p_subject_id: ctx.subjectId, p_date: date, p_period: Number(p), p_rows: rows });
         if (error) { failed.push(`${date} คาบ ${p}: ${error.message}`); continue; }
@@ -392,5 +412,5 @@ ${[1, 2, 3, 4].map((n) => `<button type="button" data-pp5-btn-skip data-add-n="$
     };
   }
 
-  global.PP5SubjectAttendanceMonth = { mount, buildColumns, cellValue, daysOfMonth, shiftMonth, semesterOf };
+  global.PP5SubjectAttendanceMonth = { mount, buildColumns, cellValue, nextColumn, daysOfMonth, shiftMonth, semesterOf };
 })(window);
