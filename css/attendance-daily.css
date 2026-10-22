@@ -32,6 +32,14 @@ html body #mobileStickySaveBar.pp5-att-idle { display: none !important; }
 
   /* ปุ่ม 2 แถว (ตาราง 6 ช่อง)  order:0 = ลำดับตามที่ออกแบบไว้ (css/button-system.css ย้ายปุ่มหลักไปท้ายแถวในหน้าอื่น) */
   #contentFrame .attendance-controls-card .button-container > .btn { order: 0; }
+  /* owner 2026-10-22: บนมือถือบันทึกที่แถบล่างที่เดียว (แถบขึ้นเมื่อมีสิ่งต้องบันทึก, js/attendance-daily-bar.js)
+     ปุ่มบันทึกด้านบนซ่อน  ปุ่มที่เหลือ: มี LINE [มาทุกคน][แจ้งขาด] / [ชาย→หญิง][🔄][🗑️]  ไม่มี LINE แถวเดียว */
+  #contentFrame .attendance-controls-card .button-container > #btnSaveAttendanceTop { display: none !important; }
+  #contentFrame .attendance-controls-card .button-container > .btn-warning { order: 1; }
+  #contentFrame .attendance-controls-card .button-container > #pp5LineAbsence { order: 2; }
+  #contentFrame .attendance-controls-card .button-container > #btnAttSortToggle { order: 3; }
+  #contentFrame .attendance-controls-card .button-container > .btn-primary { order: 4; }
+  #contentFrame .attendance-controls-card .button-container > .btn-danger { order: 5; }
   #contentFrame .attendance-controls-card .button-container {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -52,23 +60,25 @@ html body #mobileStickySaveBar.pp5-att-idle { display: none !important; }
   }
   #contentFrame .attendance-controls-card .button-container .btn-main-save { grid-column: span 3; height: 40px; font-size: 0.88rem; }
   #contentFrame .attendance-controls-card .button-container .btn-warning { grid-column: span 3; }
-  #contentFrame .attendance-controls-card #btnAttSortToggle { grid-column: span 2; }
+  #contentFrame .attendance-controls-card #btnAttSortToggle { grid-column: span 4; }
   #contentFrame .attendance-controls-card .button-container .btn-primary,
   #contentFrame .attendance-controls-card .button-container .btn-danger { grid-column: span 1; }
   /* รีเฟรช / ลบ เหลือไอคอน (ปุ่มลบยังเป็นสีแดง) */
   #contentFrame .attendance-controls-card .button-container .btn-primary .btn-label,
   #contentFrame .attendance-controls-card .button-container .btn-danger .btn-label { display: none; }
 
-  /* ปุ่ม LINE (ใส่โดย js/line-notify.js หลังปุ่มบันทึก) เป็นช่องหนึ่งของแถว 2 ด้วยข้อความสั้น */
+  /* ปุ่ม LINE (ใส่โดย js/line-notify.js หลังปุ่มบันทึก) อยู่ขวาของ "มาทุกคน" ด้วยข้อความสั้น */
   #contentFrame .attendance-controls-card #pp5LineAbsence:not([hidden]) {
-    grid-column: span 2;
-    grid-row: 2;
+    grid-column: span 3;
     margin: 0 !important;
     display: block !important;
     min-width: 0;
   }
+  /* font-size:0 ซ่อนข้อความยาวเดิม ต้อง !important: css/button-system.css ตั้ง font-size ของ .pp5-btn แบบ !important
+     (เดิมไม่มี -> iPhone เห็น "แจ้งผู้ปกครองนักเรียนที่ขาดวันนี้ทาง LINE" ล้นปุ่ม, owner 2026-10-22) */
   #contentFrame .attendance-controls-card #pp5LineAbsence > .btn {
-    font-size: 0;
+    font-size: 0 !important;
+    padding: 4px 6px !important;
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -81,8 +91,45 @@ html body #mobileStickySaveBar.pp5-att-idle { display: none !important; }
   #contentFrame .attendance-controls-card #pp5LineAbsence > .btn::after { content: "แจ้งขาด"; font-size: 0.82rem; }
   /* ข้อความผลการส่ง LINE ขึ้นใต้ปุ่มทั้งแถว */
   #contentFrame .attendance-controls-card #pp5LineAbsence [data-msg]:not(:empty) { display: block; margin-top: 4px; white-space: normal; }
-  /* ไม่มี LINE: ชาย→หญิง กว้างขึ้นแทน */
-  #contentFrame .attendance-controls-card .button-container:not(:has(#pp5LineAbsence:not([hidden]))) #btnAttSortToggle { grid-column: span 4; }
+  /* ไม่มี LINE: ปุ่มทั้งหมดแถวเดียว [มาทุกคน 2][ชาย→หญิง 2][🔄][🗑️] */
+  #contentFrame .attendance-controls-card .button-container:not(:has(#pp5LineAbsence:not([hidden]))) .btn-warning,
+  #contentFrame .attendance-controls-card .button-container:not(:has(#pp5LineAbsence:not([hidden]))) #btnAttSortToggle { grid-column: span 2; }
+
+  /* การ์ดนักเรียนแถวเดียว (owner 2026-10-22): ชื่อซ้าย ปุ่ม มาเรียน/ลา/ขาด ขวา  สูงราว 56px จากเดิม ~110px
+     ป้ายสถานะซ้ำกับปุ่มที่ไฮไลต์อยู่แล้วจึงซ่อน  ปุ่มยังสูง 40px ให้นิ้วกดง่าย */
+  #contentFrame #attendanceCards .student-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px 7px 12px;
+    margin-bottom: 6px;
+    border-radius: 12px;
+  }
+  #contentFrame #attendanceCards .student-card-header { min-width: 0; }
+  #contentFrame #attendanceCards .student-card-header > [id^="badge-mob-"] { display: none; }
+  #contentFrame #attendanceCards .student-name-text { font-size: 0.9rem; line-height: 1.25; overflow-wrap: anywhere; }
+  #contentFrame #attendanceCards .student-id-text { font-size: 0.72rem; margin-top: 0; }
+  #contentFrame #attendanceCards .status-segment { grid-template-columns: repeat(3, auto); gap: 2px; padding: 3px; border-radius: 10px; }
+  /* ป้ายสั้น มา / ลา / ขาด (เหมือนยอดสรุป) ให้ชื่อนักเรียนมีที่: ซ่อนข้อความเดิม ("✅ มาเรียน") แล้วเขียนใหม่ด้วย ::after
+     เลือกปุ่มจาก onclick="setStatus('…', 'present')" ของหน้าเดิม */
+  #contentFrame #attendanceCards .status-segment .status-btn {
+    min-height: 40px;
+    min-width: 44px;
+    padding: 0 6px;
+    gap: 0;
+    font-size: 0;
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+  #contentFrame #attendanceCards .status-segment .status-btn > span { display: none; }
+  #contentFrame #attendanceCards .status-segment .status-btn::after { font-size: 0.86rem; }
+  #contentFrame #attendanceCards .status-segment .status-btn[onclick$="'present')"]::after { content: "มา"; }
+  #contentFrame #attendanceCards .status-segment .status-btn[onclick$="'leave')"]::after { content: "ลา"; }
+  #contentFrame #attendanceCards .status-segment .status-btn[onclick$="'absent')"]::after { content: "ขาด"; }
+  /* กรอบซ้อน 4 ชั้นกินขอบข้างละ ~40px: ลดเฉพาะกล่องรายชื่อ */
+  #contentFrame .attendance-page .main-container:has(#attendanceCards) { padding-left: 2px; padding-right: 2px; }
+  #contentFrame .student-list-card:has(#attendanceCards) { padding-left: 8px; padding-right: 8px; }
 }
 
 /* ===== กระชับหน้าเช็คชื่อ (owner 2026-10-14: "กินพื้นที่ที่จะใช้งานจริง") — หัวหน้า (รูปครู) คงเดิม =====

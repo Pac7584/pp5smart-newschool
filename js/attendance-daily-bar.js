@@ -2,6 +2,8 @@
 // เมื่อมีรายชื่อ กินพื้นที่จนการ์ดนักเรียนคนแรกโดนบัง ตอนนี้ขึ้นเฉพาะตอนที่ยังมีสิ่งต้องบันทึก:
 //   - วันนั้นยังไม่เคยบันทึก (ค่าเริ่มต้น "มา" ทุกคนยังไม่อยู่ในฐานข้อมูล) หรือ
 //   - ครูเปลี่ยนสถานะนักเรียนหลังโหลด/หลังบันทึกล่าสุด
+// owner 2026-10-22: มือถือบันทึกที่แถบนี้ที่เดียว (ปุ่มบนซ่อน) จึงขึ้นวันเสาร์-อาทิตย์ที่ยังไม่บันทึกด้วย
+// แถบนี้ขึ้นแทนที่เมนูล่าง (js/mobile-work-chrome.js)
 // บันทึกสำเร็จแล้วแถบหายเอง  ไม่แตะหน้าเดิมใน gas-pages.js: ห่อ GasServer.getSavedAttendance / saveAttendance
 // แบบส่งผลลัพธ์เดิมกลับทุกครั้ง แล้วดูสถานะจาก window.dailyStudents ของหน้า  จอคอม (>= 992px) หน้าเดิมซ่อนแถบอยู่แล้ว
 // หน้าตา (ซ่อน .pp5-att-idle, แถบบางลง, แถวปุ่ม) อยู่ใน css/attendance-daily.css
@@ -57,8 +59,9 @@
     const base = state.baseline || {};
     const changed = list.some((student) => (base[String(student.id)] || 'present') !== statusOf(student));
     if (changed) return true;
-    // Not saved yet: worth a reminder on a school day, not on Saturday / Sunday.
-    return !state.daySaved && !isWeekend(pageValue('attendanceDate'));
+    // Not saved yet. owner 2026-10-22: on phones this bar is the ONLY save button (the top one is hidden in
+    // css/attendance-daily.css), so Saturday / Sunday also show it (make-up days), with a weekend label.
+    return !state.daySaved;
   }
 
   // ยอด มา/ลา/ขาด ไปอยู่ขวาของหัว "รายชื่อนักเรียน" แถวเดียวกัน (owner 2026-10-14: "จะได้เนื้อที่เยอะขึ้น")
@@ -93,7 +96,8 @@
     const show = list.length > 0 && !loading && !button?.disabled && state.seenSeq === state.loadSeq && needsSave(list);
     if (bar.classList.contains('pp5-att-idle') === show) bar.classList.toggle('pp5-att-idle', !show);
     const label = bar.querySelector('.mobile-save-info > div:first-child');
-    const text = state.daySaved ? 'แก้ไขแล้ว ยังไม่บันทึก' : 'วันนี้ยังไม่ได้บันทึก';
+    const text = state.daySaved ? 'แก้ไขแล้ว ยังไม่บันทึก'
+      : isWeekend(pageValue('attendanceDate')) ? 'วันเสาร์-อาทิตย์ ยังไม่ได้บันทึก' : 'วันนี้ยังไม่ได้บันทึก';
     if (label && label.textContent !== text) label.textContent = text;
   }
 

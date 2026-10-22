@@ -1,0 +1,25 @@
+/* ===== หน้าทำงานบนมือถือ: ของลอยไม่บังพื้นที่ทำงาน (owner 2026-10-22) =====
+   js/mobile-work-chrome.js ใส่ class ที่ <html>:
+     .pp5-work-page     หน้านี้มีแถบบันทึกลอย (ตอนนี้: เช็คชื่อรายวัน)
+     .pp5-savebar-on    แถบบันทึกกำลังแสดง -> เมนูล่างหลบ แถบบันทึกลงไปอยู่ที่ของเมนู (ล่างจอมีแถบเดียว)
+     .pp5-chrome-hidden เลื่อนลงอยู่ -> เมนูล่างและแถบบอกตำแหน่งหลบ  เลื่อนขึ้นแล้วกลับมา
+   จอคอม (>= 992px) ไม่มี class เหล่านี้ */
+@media (max-width: 991.98px) {
+  html.pp5-work-page .mobile-quick-menu { transition: transform .22s ease, opacity .22s ease; }
+  html.pp5-work-page .app-header { transition: height .2s ease; }
+
+  /* แถบบันทึกอยู่แทนที่เมนูล่าง (display:none -> spa-main.js ตั้ง --pp5-mobile-menu-h เป็น 0) */
+  html.pp5-work-page.pp5-savebar-on .mobile-quick-menu { display: none !important; }
+  html.pp5-work-page.pp5-savebar-on #mobileStickySaveBar { bottom: calc(10px + env(safe-area-inset-bottom)) !important; }
+
+  /* เลื่อนลง: เมนูล่างหลบลงใต้จอ */
+  html.pp5-work-page.pp5-chrome-hidden .mobile-quick-menu {
+    transform: translateY(calc(100% + 24px));
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* เลื่อนลง: แถบบอกตำแหน่ง "เวลาเรียน > ..." หลบ หัวแอปเหลือแถวเดียว (ป้ายหัวหน้ายังบอกชื่อหน้าอยู่) */
+  html.pp5-work-page.pp5-chrome-hidden .app-header { height: 64px; grid-template-rows: 50px; }
+  html.pp5-work-page.pp5-chrome-hidden .app-header .page-indicator { display: none; }
+}
