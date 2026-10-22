@@ -2361,14 +2361,22 @@
     const dailyFillRows = async (subject, hourlyRows, att) => {
       const weeks = await weeksOf(subject);
       if (!weeks.size) return [];
-      const taught = new Set(hourlyRows.map((row) => normalizeDate(row.attendance_date)));
+      // คาบที่เช็ครายคาบแล้วของแต่ละวัน — วันที่เช็คไม่ครบ คาบที่เหลือก็ใช้รายวันแทน (owner 2026-10-22)
+      const taught = new Map();
+      hourlyRows.forEach((row) => {
+        const d = normalizeDate(row.attendance_date);
+        if (!taught.has(d)) taught.set(d, new Set());
+        taught.get(d).add(number(row.period, 1) || 1);
+      });
       const inRoom = new Set(studentIdsForHours);
       const out = [];
       (att.rows || []).forEach((row) => {
         const date = row.attendance_date;
-        if (taught.has(date) || !inRoom.has(text(row.student_id))) return;
+        if (!inRoom.has(text(row.student_id))) return;
         const n = weeks.get(semesterOfDate(date))?.get(isoWeekday(date)) || 0;
+        const done = taught.get(date) || new Set();
         for (let p = 1; p <= n; p += 1) {
+          if (done.has(p)) continue;
           out.push({ student_id: text(row.student_id), subject_id: text(subject.id), attendance_date: date, period: p, hours: 1, status: row.status, fromDaily: true });
         }
       });
@@ -2395,6 +2403,7 @@
       const filled = await dailyFillRows(subject, rows, att);
       if (filled.length) rows = rows.concat(filled);
       const filledDays = new Set(filled.map((row) => row.attendance_date)).size;
+      const filledSlots = new Set(filled.map((row) => `${row.attendance_date}#${row.period}`)).size;
       // ชั่วโมงที่สอน = ผลรวมของทุกคาบ (SQL 032: 1 แถวต่อคาบ hours = 1) · schoolDays = จำนวนวันที่สอน
       const taughtByDate = new Map();
       const taughtDays = new Set();
@@ -2429,7 +2438,7 @@
       return {
         months: attendanceMonths(rows.map((row) => ({ date: normalizeDate(row.attendance_date), sid: text(row.student_id), status: text(row.status), hours: row.hours, period: row.period })), true),
         mode: 'hourly', first: att.first, last: att.last, schoolDays: taughtDays.size, filledDays,
-        note: filledDays ? `คิดจากการเช็คชื่อรายคาบของวิชานี้ วันที่ยังไม่ได้เช็ครายคาบ ${filledDays} วัน ใช้เช็คชื่อรายวันของห้องแทนทุกคาบตามตารางสอน` : '',
+        note: filledDays ? `คิดจากการเช็คชื่อรายคาบของวิชานี้ คาบตามตารางสอนที่ยังไม่ได้เช็ครายคาบ (${filledSlots} คาบ ใน ${filledDays} วัน) ใช้เช็คชื่อรายวันของห้องแทน` : '',
         taughtHours: [...taughtByDate.values()].reduce((a, b) => a + b, 0), hours, fullHours, students: list,
         over: list.filter((row) => row.pct !== null && !row.below).length,
         under: list.filter((row) => row.below).length,

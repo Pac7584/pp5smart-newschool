@@ -542,7 +542,7 @@ ${state.canWrite ? '' : '<div class="sa-note is-warn mb-2">ดูได้อย
       const S = global.PP5SubjectSchedule;
       const range = S?.termRange?.(settings.settings_json, state.year, state.semester) || null;
       const late = range ? S.missedPeriods(state.week, recorded, range, holidays, today(), state.dailyDates) : null;
-      const dailyNote = late?.byDaily ? ` · ใช้เช็คชื่อรายวันแทน ${late.byDaily} คาบ (วันที่ยังไม่ได้เช็ครายคาบ)` : '';
+      const dailyNote = late?.byDaily ? ` · ใช้เช็คชื่อรายวันแทน ${late.byDaily} คาบ (คาบที่ยังไม่ได้เช็ครายคาบ)` : '';
       const lateHtml = !state.week.size ? ''
         : !range ? `<div class="sa-note mb-2"><i class="bi bi-info-circle"></i> ผู้ดูแลยังไม่ได้ตั้งวันเปิด–ปิดภาคเรียน (หน้าตั้งค่าระบบกลาง แท็บรูปแบบ ปพ.5) ระบบจึงยังนับคาบที่ค้างเช็คไม่ได้</div>`
           : late.notYet === 'ended' ? `<div class="sa-note mb-2"><i class="bi bi-calendar-check"></i> ภาคเรียนที่ ${state.semester} ไม่มีคาบต้องนับ — ภาคนี้ปิดวันที่ ${esc(thaiDate(range.end))} ก่อนวันเริ่มนับ ${esc(thaiDate(range.countFrom))} (ระบบเริ่มนับคาบค้างเช็คในภาคถัดไป)</div>`

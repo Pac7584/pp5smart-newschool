@@ -89,9 +89,10 @@
       if (!n || holidays?.has(d)) continue;
       planned += n;
       const got = recorded.get(d) || new Set();
-      if (!got.size && dailyDates?.has(d)) { byDaily += n; continue; }
       const lack = [];
       for (let p = 1; p <= n; p += 1) if (!got.has(p)) lack.push(p);
+      // owner 2026-10-22: คาบที่ยังไม่ได้เช็ค (ทั้งวัน หรือเฉพาะคาบที่เหลือของวันที่เช็คไม่ครบ) ใช้รายวันแทนถ้าห้องมีเช็คชื่อรายวัน
+      if (lack.length && dailyDates?.has(d)) { byDaily += lack.length; continue; }
       if (lack.length) { missed.push({ date: d, periods: lack }); missedCount += lack.length; }
     }
     let makeup = 0;
@@ -109,16 +110,23 @@
   const DAILY_STATUS = { present: 'present', 'มา': 'present', leave: 'leave', 'ลา': 'leave', absent: 'absent', 'ขาด': 'absent' };
   function fillFromDaily(hourlyRows, dailyRows, weeks, studentIds, holidays) {
     if (!weeks || !weeks.size) return [];
-    const taught = new Set((hourlyRows || []).map((r) => text(r.attendance_date).slice(0, 10)));
+    // คาบที่เช็คแล้วของแต่ละวัน — owner 2026-10-22: วันที่เช็คไม่ครบ คาบที่เหลือก็ใช้รายวันแทน
+    const taught = new Map();
+    (hourlyRows || []).forEach((r) => {
+      const d = text(r.attendance_date).slice(0, 10);
+      if (!taught.has(d)) taught.set(d, new Set());
+      taught.get(d).add(Number(r.period) || 1);
+    });
     const inRoom = studentIds ? new Set([...studentIds].map(text)) : null;
     const out = [];
     (dailyRows || []).forEach((row) => {
       const date = text(row.attendance_date).slice(0, 10);
       const status = DAILY_STATUS[text(row.status).toLowerCase()];
-      if (!status || taught.has(date) || holidays?.has(date) || (inRoom && !inRoom.has(text(row.student_id)))) return;
+      if (!status || holidays?.has(date) || (inRoom && !inRoom.has(text(row.student_id)))) return;
       const m = Number(date.slice(5, 7));
       const n = Number(weeks.get(m >= 5 && m <= 10 ? 1 : 2)?.get(weekdayOf(date))) || 0;
-      for (let p = 1; p <= n; p += 1) out.push({ student_id: text(row.student_id), attendance_date: date, period: p, hours: 1, status, fromDaily: true });
+      const done = taught.get(date) || new Set();
+      for (let p = 1; p <= n; p += 1) if (!done.has(p)) out.push({ student_id: text(row.student_id), attendance_date: date, period: p, hours: 1, status, fromDaily: true });
     });
     return out;
   }
