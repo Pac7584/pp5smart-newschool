@@ -90,23 +90,24 @@
 .sam-wrap{overflow:auto;max-height:70vh;border:1px solid var(--sa-line);border-radius:12px}
 .sam-table{border-collapse:separate;border-spacing:0;font-size:.82rem;min-width:100%}
 .sam-table th,.sam-table td{border-right:1px solid var(--sa-line);border-bottom:1px solid var(--sa-line);text-align:center;padding:0;background:var(--sa-card)}
-.sam-table thead th{position:sticky;top:0;z-index:2;background:var(--sa-soft);font-weight:700;padding:4px 2px}
-.sam-table thead tr:nth-child(2) th{top:44px}
-.sam-table thead tr:nth-child(3) th{top:68px}
+.sam-table thead th{position:sticky;top:0;z-index:2;background:var(--sa-soft);font-weight:700;padding:4px 2px;vertical-align:middle}
+.sam-table thead tr:nth-child(2) th{top:34px}
 .sam-table .sam-name{position:sticky;left:0;z-index:1;text-align:left;padding:4px 8px;white-space:nowrap;min-width:180px;max-width:220px;overflow:hidden;text-overflow:ellipsis}
-.sam-table thead .sam-name{z-index:3}
 .sam-table .sam-no{position:sticky;left:0;z-index:1;width:34px;min-width:34px;color:var(--sa-muted)}
 .sam-table .sam-no+.sam-name{left:34px}
-.sam-table th.sam-day{min-width:30px;cursor:pointer}
-.sam-table th.sam-day small{display:block;font-weight:600;color:var(--sa-muted)}
-.sam-table th.is-sat{color:#1d6fb8}.sam-table th.is-sun{color:#c2362b}
+.sam-table thead .sam-no,.sam-table thead .sam-name{z-index:4}
+.sam-table tbody .sam-no{text-align:center}
+.sam-table th.sam-day{min-width:30px;height:34px;cursor:pointer;white-space:nowrap}
+.sam-table th.sam-day b{font-size:.95rem}
+.sam-table th.sam-day small{font-weight:600;color:var(--sa-muted);margin-left:3px}
+.sam-table th.is-sat small{color:#1d6fb8}.sam-table th.is-sun small{color:#c2362b}
 .sam-table th.is-makeup,.sam-table td.is-makeup{background:color-mix(in srgb,var(--sa-warn) 10%,var(--sa-card))}
 .sam-table th.is-holiday,.sam-table td.is-holiday{background:color-mix(in srgb,#f5c542 22%,var(--sa-card));min-width:26px}
-.sam-table th.is-holiday span{writing-mode:vertical-rl;font-size:.72rem;font-weight:600;color:#8a6d00;max-height:90px;overflow:hidden}
-.sam-table th.is-future small{color:var(--sa-accent)}
+.sam-table th.is-holiday,.sam-table td.is-holiday{min-width:40px}
+.sam-hol{font-size:.7rem;font-weight:700;color:#8a6d00;cursor:help}
 .sam-table td.sam-first,.sam-table th.sam-first{border-left:2px solid color-mix(in srgb,var(--sa-text) 25%,transparent)}
-.sam-table th.sam-p{font-size:.72rem;color:var(--sa-muted);min-width:30px}
-.sam-table th.sam-p button{border:0;background:transparent;color:var(--sa-accent);font-size:.8rem;padding:0 2px}
+.sam-table th.sam-p{font-size:.72rem;color:var(--sa-muted);min-width:32px;line-height:1.1;padding:3px 1px}
+.sam-table th.sam-p button{display:block;margin:1px auto 0;border:0;background:transparent;color:var(--sa-accent);font-size:.85rem;padding:0 2px;line-height:1}
 .sam-cell{width:30px;height:30px;border:0;background:transparent;font-weight:700;font-size:.9rem;color:var(--sa-muted)}
 .sam-cell[data-s="present"]{color:var(--sa-ok)}.sam-cell[data-s="leave"]{color:var(--sa-warn)}.sam-cell[data-s="absent"]{color:var(--sa-bad)}
 .sam-cell[data-k="saved"][data-s="present"],.sam-legend .is-saved{background:var(--sa-ok-bg)}
@@ -115,7 +116,7 @@
 .sam-cell[data-k="edit"]{outline:2px solid color-mix(in srgb,var(--sa-accent) 60%,transparent);outline-offset:-3px}
 .sam-cell:disabled{cursor:default}
 .sam-table td.sam-sum{font-weight:700;min-width:38px;padding:0 4px}
-.sam-table th.sam-sum{position:sticky;top:0}
+.sam-table th.sam-sum{position:sticky;top:0;min-width:38px}
 .sam-add{border:1.5px dashed var(--sa-warn);background:var(--sa-warn-bg);color:var(--sa-warn);border-radius:8px;font-size:.72rem;font-weight:700;padding:2px 4px;white-space:nowrap}
 .sam-menu{position:fixed;z-index:1060;background:var(--sa-card);border:1px solid var(--sa-line);border-radius:12px;box-shadow:0 10px 30px rgba(15,23,42,.18);padding:6px;display:grid;gap:2px;min-width:200px}
 .sam-menu b{font-size:.82rem;padding:4px 8px;color:var(--sa-muted)}
@@ -224,22 +225,23 @@
         else if (c.date <= ctx.todayIso) emptyN += 1;
       });
       const noWeek = !state.weeks.size;
-      // หัวตาราง 3 แถว: วันที่ / วัน / คาบ — วันละหลายคาบรวมหัววันเดียว
+      // หัวตาราง 2 แถว: วันที่+วัน (รวมทุกคาบของวัน) / คาบ — owner 2026-10-22 "ปรับรูปแบบตารางให้เข้าที่เข้าทาง"
       const groups = [];
       cols.forEach((c) => { const g = groups[groups.length - 1]; if (g && g.date === c.date) g.cols.push(c); else groups.push({ date: c.date, cols: [c] }); });
       const dayHead = groups.map((g) => {
         const c = g.cols[0];
-        const cls = ['sam-day', 'sam-first', c.weekday === 6 ? 'is-sat' : '', c.weekday === 7 ? 'is-sun' : '', g.date > ctx.todayIso ? 'is-future' : '',
+        const cls = ['sam-day', 'sam-first', c.weekday === 6 ? 'is-sat' : '', c.weekday === 7 ? 'is-sun' : '',
           c.kind === 'holiday' ? 'is-holiday' : '', c.kind === 'makeup' || c.makeup ? 'is-makeup' : ''].filter(Boolean).join(' ');
-        const label = c.kind === 'holiday' ? `${Number(g.date.slice(8))}<br><span title="${esc(c.title)}">${esc(c.title)}</span>` : `${Number(g.date.slice(8))}<small>${DAY_SHORT[c.weekday]}</small>`;
-        return `<th class="${cls}" colspan="${g.cols.length}" rowspan="${c.kind === 'period' ? 1 : 2}" data-day-head="${esc(g.date)}" title="${esc(c.holiday?.title || (c.kind === 'period' ? 'กดเพื่อเปิดแบบรายคาบของวันนี้' : ''))}">${label}</th>`;
+        const label = `<b>${Number(g.date.slice(8))}</b><small>${DAY_SHORT[c.weekday]}</small>`;
+        return `<th class="${cls}" colspan="${g.cols.length}" data-day-head="${esc(g.date)}" title="${esc(c.holiday?.title || (c.kind === 'period' ? 'กดเพื่อเปิดแบบรายคาบของวันนี้' : ''))}">${label}</th>`;
       }).join('');
-      // แถวที่ 3 ตามลำดับคอลัมน์: คาบ (ปุ่มยืนยันทั้งคาบ) · วันหยุด (ว่าง) · วันสอนชดเชย (ปุ่ม +สอน)
+      // แถวที่ 2 ตามลำดับคอลัมน์: คาบ (ปุ่มยืนยันทั้งคาบ) · วันหยุด (ว่าง) · วันสอนชดเชย (ปุ่ม +สอน)
       const lastHead = cols.map((c) => (c.kind === 'period'
         ? `<th class="sam-p${c.first ? ' sam-first' : ''}${c.makeup ? ' is-makeup' : ''}">ค${c.period}${ctx.canWrite
           ? `<br><button type="button" data-pp5-btn-skip data-fill="${esc(c.date)}#${c.period}" title="ยืนยันคาบนี้ทั้งห้อง (ตามรายวัน / มาทุกคน)"><i class="bi bi-check2-all"></i></button>` : ''}</th>`
-        : `<th class="sam-first ${c.kind === 'holiday' ? 'is-holiday' : 'is-makeup'}">${c.kind === 'makeup' && ctx.canWrite
-          ? `<button type="button" class="sam-add" data-pp5-btn-skip data-add-day="${esc(c.date)}"><i class="bi bi-plus"></i>สอน</button>` : ''}</th>`)).join('');
+        : c.kind === 'holiday' ? `<th class="sam-first is-holiday"><span class="sam-hol" title="${esc(c.title)}">หยุด</span></th>`
+        : `<th class="sam-first is-makeup">${ctx.canWrite
+          ? `<button type="button" class="sam-add" data-pp5-btn-skip data-add-day="${esc(c.date)}"><i class="bi bi-plus"></i>สอน</button>` : '<span class="sam-hol">ชดเชย</span>'}</th>`)).join('');
       const body = state.students.map((s, i) => {
         const id = text(s.id);
         const sum = { present: 0, leave: 0, absent: 0 };
@@ -267,20 +269,15 @@
   <span><i style="background:color-mix(in srgb,#f5c542 30%,transparent)"></i>วันหยุด</span><span><i style="background:var(--sa-warn-bg)"></i>สอนชดเชย</span></div>
 ${noWeek ? '<div class="sa-note is-warn">วิชานี้ยังไม่ได้ตั้งตารางสอน — ตารางรายเดือนจะแสดงเฉพาะวันที่บันทึกแล้วและวันสอนชดเชย</div>' : ''}
 ${cols.length ? `<div class="sam-wrap"><table class="sam-table"><thead>
-<tr><th class="sam-no" rowspan="3">ที่</th><th class="sam-name" rowspan="3">ชื่อ-นามสกุล</th>${dayHead}<th class="sam-sum" rowspan="3">มา</th><th class="sam-sum" rowspan="3">ลา</th><th class="sam-sum" rowspan="3">ขาด</th></tr>
-<tr>${groups.filter((g) => g.cols[0].kind === 'period').map((g) => `<th class="sam-first${g.cols.some((c) => c.makeup) ? ' is-makeup' : ''}" colspan="${g.cols.length}" style="font-size:.7rem;font-weight:600;color:var(--sa-muted)">${g.cols.some((c) => c.makeup) ? 'ชดเชย' : `${g.cols.length} คาบ`}</th>`).join('')}</tr>
+<tr><th class="sam-no" rowspan="2">ที่</th><th class="sam-name" rowspan="2">ชื่อ-นามสกุล</th>${dayHead}<th class="sam-sum" rowspan="2" style="color:var(--sa-ok)">มา</th><th class="sam-sum" rowspan="2" style="color:var(--sa-warn)">ลา</th><th class="sam-sum" rowspan="2" style="color:var(--sa-bad)">ขาด</th></tr>
 <tr>${lastHead}</tr>
 </thead><tbody>${body}</tbody></table></div>` : '<div class="sa-note">เดือนนี้ไม่มีวันสอนวิชานี้ตามตารางสอน</div>'}
 <div class="small" style="color:var(--sa-muted)">กดที่วันที่บนหัวตารางเพื่อเปิดแบบรายคาบของวันนั้น (เพิ่มคาบ / ลบการเช็คชื่อ) · วันเสาร์ที่ตั้งเป็น "สอนชดเชย" ในปฏิทินวันหยุด กด <b>+สอน</b> เพื่อเลือกจำนวนคาบของวิชานี้</div>
 </div>`;
-      // หัวตารางแถวที่ 2/3 ติดด้านบนตามความสูงจริงของแถวแรก
+      // หัวตารางแถวที่ 2 ติดด้านบนตามความสูงจริงของแถวแรก
       const head = box.querySelector('.sam-table thead');
-      if (head) {
-        const r1 = head.rows[0]?.getBoundingClientRect?.().height || 44;
-        const r2 = head.rows[1]?.getBoundingClientRect?.().height || 24;
-        head.rows[1] && [...head.rows[1].cells].forEach((cell) => { cell.style.top = `${r1}px`; });
-        head.rows[2] && [...head.rows[2].cells].forEach((cell) => { cell.style.top = `${r1 + r2}px`; });
-      }
+      const r1 = head?.rows[0]?.cells[2]?.getBoundingClientRect?.().height;
+      if (r1 && head.rows[1]) [...head.rows[1].cells].forEach((cell) => { cell.style.top = `${r1}px`; });
       syncBar();
     }
 
