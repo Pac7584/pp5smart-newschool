@@ -1771,6 +1771,15 @@ body.menu-open {
   box-shadow: 0 6px 14px rgba(59, 130, 246, 0.3);
 }
 
+/* นอกช่วง min/max ของช่องวันที่ (เช่น วันในอนาคตของเช็คชื่อรายวิชา) เลือกไม่ได้ */
+.thai-date-popover-day.is-disabled,
+.thai-date-popover-day.is-disabled:hover {
+  opacity: .32;
+  background: transparent;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
 .thai-date-popover-foot {
   display: flex;
   justify-content: flex-end;

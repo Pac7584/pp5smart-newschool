@@ -629,8 +629,16 @@ window.ThaiDatePicker = (function() {
     positionPopover();
   }
 
+  // วันนอกช่วง min/max ของช่องวันที่ (เช่น เช็คชื่อรายวิชา: ห้ามวันในอนาคต) เลือกไม่ได้
+  // owner 2026-10-22: เดิมปฏิทินไม่สนใจ min/max ครูเลือกวันข้างหน้าได้ แล้วบันทึกไม่สำเร็จ
+  function outOfRange(input, value) {
+    if (!input || !value) return false;
+    return (!!input.min && value < input.min) || (!!input.max && value > input.max);
+  }
+
   function selectDate(value) {
     if (!activeInput) return;
+    if (outOfRange(activeInput, value)) return;
     const d = parseDate(value);
     if (!d) return;
     activeInput.value = toLocalDateString(d);
@@ -658,8 +666,10 @@ window.ThaiDatePicker = (function() {
       if (d.getMonth() !== viewMonth) classes.push('is-muted');
       if (value === todayValue) classes.push('is-today');
       if (value === selectedValue) classes.push('is-selected');
-      html += '<button type="button" class="' + classes.join(' ') + '" data-date-value="' + value + '" aria-label="' +
-        d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + (d.getFullYear() + 543) + '">' + d.getDate() + '</button>';
+      const blocked = outOfRange(activeInput, value);
+      if (blocked) classes.push('is-disabled');
+      html += '<button type="button" class="' + classes.join(' ') + '" data-date-value="' + value + '"' + (blocked ? ' disabled aria-disabled="true"' : '') + ' aria-label="' +
+        d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + (d.getFullYear() + 543) + (blocked ? ' (เลือกไม่ได้)' : '') + '">' + d.getDate() + '</button>';
     }
     grid.innerHTML = html;
   }

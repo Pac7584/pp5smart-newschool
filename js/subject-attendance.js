@@ -579,6 +579,12 @@ ${list.map(([d, day]) => `<tr data-date="${esc(d)}"${d === current ? ' class="is
 
     async function save(clear) {
       const period = state.period;
+      // วันในอนาคตเช็คชื่อไม่ได้ (ฐานข้อมูลก็ปฏิเสธ) — บอกเป็นภาษาไทยชัด ๆ ก่อนส่ง (owner 2026-10-22: เลือก 3 พ.ย.
+      // แล้วได้ข้อความผิดพลาดที่อ่านไม่ออก)
+      if (!clear && dateInput.value > today()) {
+        setSay(`<i class="bi bi-exclamation-triangle-fill"></i> วันที่ ${esc(thaiDate(dateInput.value))} ยังมาไม่ถึง เช็คชื่อล่วงหน้าไม่ได้ — เลือกวันนี้หรือวันที่ผ่านมาแล้ว`, 'err');
+        return;
+      }
       const rows = state.students.map((s) => ({ student_id: text(s.id), status: clear ? null : state.marks.get(text(s.id)) || 'present' }));
       saveBtn.disabled = true;
       clearBtn.disabled = true;
