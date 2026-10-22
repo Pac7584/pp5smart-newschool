@@ -124,5 +124,6 @@
   if (global.document.readyState === 'loading') global.document.addEventListener('DOMContentLoaded', watch, { once: true });
   else watch();
 
-  global.PP5PageBanner = { PAGES, apply, build };
+  // paint: หน้าที่วางแถบเอง (js/growth-entry.js) ใช้ build + paint ให้รูปพื้นหลัง/สีเหมือนหน้าอื่น
+  global.PP5PageBanner = { PAGES, apply, build, paint };
 })(window);

@@ -6991,6 +6991,31 @@
         else savedRows = rows || [];
       }
       const savedByStudent = new Map(savedRows.map((row) => [text(row.student_id), row]));
+      // ค่ารอบก่อน (owner 2026-10-22: หน้ากรอกแสดง "ครั้งก่อน" และเตือนเมื่อต่างมาก กันพิมพ์ผิด) อ่านอย่างเดียว
+      // = แถวล่าสุดที่ไม่ใช่รอบนี้ และวัดก่อนวันของรอบนี้ (ถ้ารอบนี้บันทึกแล้ว)  อ่านไม่ได้ก็แค่ไม่มีค่ารอบก่อน
+      const previousByStudent = new Map();
+      if (studentIds.length && roundStorageReady) {
+        try {
+          const { data: history, error: historyError } = await client.from('student_growth')
+            .select('student_id, academic_year, month, round_no, measured_on, weight_kg, height_cm')
+            .in('student_id', studentIds)
+            .order('measured_on', { ascending: false })
+            .limit(Math.min(5000, studentIds.length * 40));
+          if (!historyError) {
+            [...(history || [])]
+              .filter((row) => row.weight_kg !== null && row.weight_kg !== undefined && row.height_cm !== null && row.height_cm !== undefined)
+              .sort((a, b) => text(b.measured_on).localeCompare(text(a.measured_on)))
+              .forEach((row) => {
+                const id = text(row.student_id);
+                if (previousByStudent.has(id)) return;
+                if (text(row.academic_year) === year && number(row.month) === monthNumber && number(row.round_no) === roundNumber) return;
+                const current = savedByStudent.get(id);
+                if (current?.measured_on && text(row.measured_on) >= text(current.measured_on)) return;
+                previousByStudent.set(id, row);
+              });
+          }
+        } catch (_) { /* ไม่มีค่ารอบก่อน หน้ายังใช้ได้ */ }
+      }
       return {
         success: true,
         academicYear: year,
@@ -7033,7 +7058,18 @@
             nutrition_status: text(saved?.nutrition_status),
             note: text(saved?.note),
             has_saved_record: !!saved,
-            hasSavedRecord: !!saved
+            hasSavedRecord: !!saved,
+            // หน้ากรอกรุ่นใหม่ (js/growth-entry.js): ภาวะโภชนาการ WHO ต้องใช้วันเกิด, รูปหน้าชื่อ, ค่ารอบก่อน
+            birthdate: text(student.birthdate || student.birth_date),
+            photoUrl: text(student.photoUrl || student.photo_url),
+            previous: previousByStudent.has(studentId) ? {
+              weight_kg: number(previousByStudent.get(studentId).weight_kg),
+              height_cm: number(previousByStudent.get(studentId).height_cm),
+              measured_on: text(previousByStudent.get(studentId).measured_on),
+              month: number(previousByStudent.get(studentId).month),
+              round_no: number(previousByStudent.get(studentId).round_no),
+              academic_year: text(previousByStudent.get(studentId).academic_year)
+            } : null
           };
         })
       };
