@@ -139,73 +139,6 @@
     });
   }
 
-  // ---- วันสอนชดเชย (owner 2026-10-22: "ในระบบเช็คชื่อรายเดือนมีระบบวันหยุด ระบบรายวิชาไม่ได้นำมาใช้ร่วมด้วยเหรอ"
-  //      -> เลือก "ใช้ตารางของวันที่ถูกชดเชย"): settings_json.makeup_timetable = { "2569": { "2026-09-05": 4 } }
-  //      วันประเภท "สอนชดเชย (มาเรียน)" ในปฏิทินวันหยุด เลือกได้ว่าเรียนตามตารางสอนวันไหน — ระบบรายวิชานับคาบตามวันนั้น
-  //      (ค้างเช็ค, เติมจากเช็คชื่อรายวัน, ปพ.5 รายวิชา) · ไม่เลือก = ไม่นับเวลาเรียนรายวิชาวันนั้น (เหมือนเดิม)
-  const WEEKDAYS = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
-  const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-  const isoWeekday = (iso) => { const [y, m, d] = iso.split('-').map(Number); const js = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); return js === 0 ? 7 : js; };
-  const thaiShort = (iso) => { const [y, m, d] = iso.split('-').map(Number); return `${WEEKDAYS[isoWeekday(iso) - 1]} ${d} ${THAI_MONTHS[m - 1]} ${y + 543}`; };
-  function makeupSection(box) {
-    const wrap = doc.createElement('div');
-    wrap.className = 'pp5fmt-terms';
-    wrap.innerHTML = `<h5><i class="bi bi-arrow-repeat"></i> วันสอนชดเชย <span data-mk-year></span></h5>
-<p>วันที่ตั้งเป็น "สอนชดเชย (มาเรียน)" ในปฏิทินวันหยุด (หน้าเช็คชื่อรายเดือน &gt; วันหยุด) เลือกว่าเรียนตามตารางสอนวันไหน
-ระบบเช็คชื่อรายวิชาจะนับคาบของวันนั้น (ค้างเช็ค / ใช้เช็คชื่อรายวันแทน / ปพ.5 รายวิชา) · ไม่เลือก = ไม่นับเวลาเรียนรายวิชาวันนั้น</p>
-<div data-mk-list><div class="pp5fmt-say">กำลังโหลด…</div></div>
-<button type="button" class="btn btn-primary btn-sm mt-2" data-mk-save hidden>บันทึกวันสอนชดเชย</button>
-<div class="pp5fmt-say" data-mk-say></div>`;
-    box.appendChild(wrap);
-    const list = wrap.querySelector('[data-mk-list]');
-    const say = wrap.querySelector('[data-mk-say]');
-    const saveBtn = wrap.querySelector('[data-mk-save]');
-    let year = '';
-    let all = {};
-    (async () => {
-      const settings = await global.PP5Data.settings.get();
-      year = String(settings.academicYear || settings.academic_year || '');
-      const raw = settings.settings_json?.makeup_timetable;
-      all = raw && typeof raw === 'object' ? raw : {};
-      wrap.querySelector('[data-mk-year]').textContent = year ? `ปีการศึกษา ${year}` : '';
-      const ce = Number(year) - 543;
-      if (!(ce > 1900)) { list.innerHTML = '<div class="pp5fmt-say">ยังไม่ได้ตั้งปีการศึกษา</div>'; return; }
-      const { data, error } = await global.PP5Data.client.from('holidays').select('holiday_date,holiday_type,title')
-        .gte('holiday_date', `${ce}-05-01`).lte('holiday_date', `${ce + 1}-03-31`).order('holiday_date');
-      if (error) throw error;
-      const days = (data || []).filter((row) => String(row.holiday_type || '').trim() === 'school')
-        .map((row) => ({ date: String(row.holiday_date).slice(0, 10), title: String(row.title || '') }));
-      if (!days.length) {
-        list.innerHTML = '<div class="pp5fmt-say">ปีนี้ยังไม่มีวันสอนชดเชย — เพิ่มที่หน้าเช็คชื่อรายเดือน &gt; วันหยุด เลือกประเภท "สอนชดเชย (มาเรียน)"</div>';
-        return;
-      }
-      const saved = all[year] || {};
-      list.innerHTML = `<div class="pp5fmt-tgrid">${days.map((d) => `<label class="pp5fmt-term"><b>${esc(thaiShort(d.date))}</b>
-  <small>${esc(d.title)}</small>
-  <select class="form-select form-select-sm" data-mk-date="${esc(d.date)}">
-    <option value="">ไม่นับเวลาเรียนรายวิชา</option>
-    ${WEEKDAYS.slice(0, 5).map((name, i) => `<option value="${i + 1}"${Number(saved[d.date]) === i + 1 ? ' selected' : ''}>ใช้ตารางสอนวัน${name}</option>`).join('')}
-  </select></label>`).join('')}</div>`;
-      saveBtn.hidden = false;
-    })().catch((error) => { list.innerHTML = `<div class="pp5fmt-say is-err">${esc(error?.message || error)}</div>`; });
-    saveBtn.addEventListener('click', async () => {
-      const map = {};
-      wrap.querySelectorAll('[data-mk-date]').forEach((select) => { if (select.value) map[select.dataset.mkDate] = Number(select.value); });
-      say.className = 'pp5fmt-say';
-      say.textContent = 'กำลังบันทึก…';
-      try {
-        const next = { ...all, [year]: map };
-        await global.PP5Data.settings.patchSettingsJson('makeup_timetable', next, 'บันทึกวันสอนชดเชยไม่สำเร็จ');
-        all = next;
-        say.className = 'pp5fmt-say is-ok';
-        say.textContent = `บันทึกแล้ว — ${Object.keys(map).length} วัน นับคาบรายวิชาตามตารางที่เลือก`;
-      } catch (error) {
-        say.className = 'pp5fmt-say is-err';
-        say.textContent = error?.message || String(error);
-      }
-    });
-  }
-
   function settingsCard() {
     const nav = doc.getElementById('settingsTab');
     if (!nav || doc.getElementById('pp5FormatCard')) return;
@@ -241,7 +174,6 @@
       (nav.closest('.card') || nav).before(box);
     }
     termsSection(box);
-    makeupSection(box);
     const say = box.querySelector('[data-say]');
     box.addEventListener('change', async (event) => {
       const input = event.target.closest('input[name="pp5Format"]');

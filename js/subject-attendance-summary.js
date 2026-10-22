@@ -290,8 +290,7 @@
           ]);
           const weeks = new Map();
           schedules.forEach((r) => { const s = Number(r.semester) || 0; if (!weeks.has(s)) weeks.set(s, new Map()); weeks.get(s).set(Number(r.weekday), Number(r.periods) || 0); });
-          const filled = global.PP5SubjectSchedule.fillFromDaily(rows, daily, weeks, ids, null,
-            global.PP5SubjectSchedule.makeupMap?.(settings.settings_json, state.year));
+          const filled = global.PP5SubjectSchedule.fillFromDaily(rows, daily, weeks, ids);
           state.filledDays = new Set(filled.map((r) => r.attendance_date)).size;
           rows.push(...filled);
         }
