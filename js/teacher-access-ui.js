@@ -11,6 +11,7 @@
   const esc = (v) => text(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const GRADE_ORDER = ['ป.1', 'ป.2', 'ป.3', 'ป.4', 'ป.5', 'ป.6', 'ม.1', 'ม.2', 'ม.3'];
   const ASSIGNABLE = /^(ป\.[1-6]|ม\.[1-3])$/;
+  const FLASH_MS = 2500; // "บันทึกแล้ว" ค้างให้เห็นก่อนแถบล่างหาย
   const ORDER = ['ภาษาไทย', 'คณิตศาสตร์', 'วิทยาศาสตร์', 'เทคโนโลยี', 'สังคมศึกษา', 'ประวัติศาสตร์', 'สุขศึกษา', 'ศิลปะ', 'การงาน', 'ภาษาอังกฤษ', 'หน้าที่พลเมือง', 'การป้องกัน'];
   const subjectRank = (name) => { let r = 99; ORDER.forEach((w, i) => { if (text(name).includes(w)) r = i; }); return r; };
   const roomKey = (grade, room) => `${grade}/${room}`;
@@ -179,8 +180,11 @@ ${ctx.enabled ? '' : `<details class="ta-card ta-enable mt-3"><summary><i class=
 
     const $ = (sel) => body.querySelector(sel);
     const bar = $('[data-bar]');
+    // แถบล่างขึ้นเฉพาะตอนมีที่แก้ยังไม่บันทึก / กำลังบันทึก / บันทึกไม่สำเร็จ (owner 2026-10-22: "มอบหมายงานแล้ว
+    // ทำไมปุ่มไม่หายไป" — เดิมขึ้นค้างพร้อมปุ่มจางตลอดที่เลือกครู)  บันทึกสำเร็จ: ขึ้น "บันทึกแล้ว" สั้น ๆ แล้วหาย (FLASH_MS)
     const setDirty = (dirty, message, kind) => {
       state.dirty = dirty;
+      bar.hidden = !dirty || !state.selected;
       bar.classList.toggle('is-dirty', dirty && !kind);
       bar.classList.toggle('is-err', kind === 'err');
       $('[data-dirty]').textContent = message || (dirty ? 'มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก' : 'งานของครูคนนี้เป็นปัจจุบัน');
@@ -205,7 +209,7 @@ ${ctx.enabled ? '' : `<details class="ta-card ta-enable mt-3"><summary><i class=
       const box = $('[data-editor]');
       const teacher = teachers.find((t) => t.id === state.selected);
       if (!teacher) { box.innerHTML = '<div class="ta-card ta-empty"><i class="bi bi-arrow-left"></i> เลือกครูจากรายชื่อด้านซ้าย</div>'; bar.hidden = true; return; }
-      bar.hidden = false;
+      bar.hidden = !state.dirty;
       const name = text(teacher.display_name || teacher.username);
       const homeRooms = new Set(state.jobs.filter((j) => j.scope === 'homeroom').map((j) => roomKey(j.grade, j.room)));
       const subjJobs = state.jobs.filter((j) => j.scope === 'subject');
@@ -284,8 +288,16 @@ ${ctx.enabled ? '' : `<details class="ta-card ta-enable mt-3"><summary><i class=
         try {
           await perms.replace(state.selected, year, state.jobs);
           await mount(root, { year, selected: state.selected, filter: state.filter, subjRoom: state.subjRoom });
+          // หน้าวาดใหม่แล้ว (แถบใหม่ซ่อนอยู่): โชว์ "บันทึกแล้ว" สั้น ๆ แล้วซ่อน เว้นแต่ครูเริ่มแก้ต่อ
+          const freshBar = root.querySelector('[data-bar]');
           const fresh = root.querySelector('[data-dirty]');
-          if (fresh) fresh.textContent = 'บันทึกแล้ว — งานของครูคนนี้เป็นปัจจุบัน';
+          if (freshBar && fresh) {
+            fresh.textContent = 'บันทึกแล้ว — งานของครูคนนี้เป็นปัจจุบัน';
+            freshBar.hidden = false;
+            global.setTimeout(() => {
+              if (!freshBar.classList.contains('is-dirty') && !freshBar.classList.contains('is-err')) freshBar.hidden = true;
+            }, FLASH_MS);
+          }
         } catch (error) {
           setDirty(true, `บันทึกไม่สำเร็จ: ${error?.message || error}`, 'err');
           button.disabled = false;
