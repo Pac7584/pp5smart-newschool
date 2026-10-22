@@ -1,8 +1,8 @@
 /* ===== เช็คชื่อรายวัน บนมือถือ/แท็บเล็ต (owner 2026-10-10) =====
    หน้าเดิม (gas-pages.js attendance_daily) วางวันที่ ชั้น ห้อง ซ้อนกัน 2 แถว + หัวข้อแต่ละช่อง และปุ่ม 6 ปุ่ม
    (รวมปุ่ม LINE จาก js/line-notify.js) ยาว 4 แถว จนรายชื่อนักเรียนเริ่มเกือบล่างจอ
-   ตอนนี้: วันที่ | ชั้น | ห้อง แถวเดียว  ปุ่ม 2 แถว:  [บันทึก][มาทุกคน] / [LINE][ชาย→หญิง][รีเฟรช][ลบ]
-   จอคอม (>= 992px) ไม่เปลี่ยน  ไม่แตะ HTML ของหน้าเดิม */
+   ตอนนี้ (owner 2026-10-22): [วันที่][มาทุกคน][แจ้งขาด] แถวเดียว, [รายชื่อนักเรียน (n คน)][ชาย→หญิง][รีเฟรช][ลบ]
+   เป็นแถวหัวรายชื่อ, บันทึกที่แถบล่าง  จอคอม (>= 992px) ไม่เปลี่ยน  ไม่แตะ HTML ของหน้าเดิม */
 
 /* แถบบันทึกด้านล่าง: js/attendance-daily-bar.js ใส่ .pp5-att-idle เมื่อไม่มีอะไรต้องบันทึก */
 html body #mobileStickySaveBar.pp5-att-idle { display: none !important; }
@@ -12,64 +12,57 @@ html body #mobileStickySaveBar.pp5-att-idle { display: none !important; }
   html body #mobileStickySaveBar .mobile-save-info { font-size: 0.74rem; color: #fde68a; }
   html body #mobileStickySaveBar .btn-mobile-save { padding: 8px 14px; font-size: 0.9rem; border-radius: 10px; }
 
-  /* วันที่ | ชั้น | ห้อง แถวเดียว */
-  #contentFrame .attendance-controls-card .form-row {
-    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
-    gap: 6px;
-  }
-  #contentFrame .attendance-controls-card .form-row .form-group:first-child { grid-column: auto; }
+  /* owner 2026-10-22 รอบ 2: แถวเดียว [วันที่][ห้อง?][มาทุกคน][แจ้งขาด]
+     ปุ่ม ชาย→หญิง / รีเฟรช / ลบ ย้ายไปแถวหัว "รายชื่อนักเรียน (16 คน)" (js/attendance-daily-bar.js moveListTools)
+     บนมือถือบันทึกที่แถบล่างที่เดียว (แถบขึ้นเมื่อมีสิ่งต้องบันทึก) ปุ่มบันทึกด้านบนจึงซ่อน
+     ใช้ display:contents ให้ช่องวันที่กับปุ่มเป็นแถว flex เดียวกันในการ์ด  ไม่แตะ HTML ของหน้าเดิม */
+  #contentFrame .attendance-controls-card { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
+  #contentFrame .attendance-controls-card > #gcQuickBarHost { flex: 0 0 100%; min-width: 0; max-width: 100%; }
+  #contentFrame .attendance-controls-card > .form-row,
+  #contentFrame .attendance-controls-card > .button-container { display: contents; }
+  #contentFrame .attendance-controls-card .form-row .form-group { margin: 0; min-width: 0; flex: 0 0 84px; }
+  #contentFrame .attendance-controls-card .form-row .form-group:first-child { flex: 1 1 0; }
   #contentFrame .attendance-controls-card .form-row .form-label { display: none; }
   #contentFrame .attendance-controls-card .form-row .form-control,
   #contentFrame .attendance-controls-card .thai-date-button {
-    height: 42px;
-    min-height: 42px;
+    height: 40px;
+    min-height: 40px;
     padding-left: 8px;
     padding-right: 6px;
     font-size: 0.86rem;
   }
-  #contentFrame .attendance-controls-card .thai-date-button { gap: 4px; white-space: nowrap; }
+  #contentFrame .attendance-controls-card .thai-date-button { width: 100%; gap: 4px; white-space: nowrap; }
   #contentFrame .attendance-controls-card .thai-date-button #attendanceDateText { overflow: hidden; text-overflow: ellipsis; }
 
-  /* ปุ่ม 2 แถว (ตาราง 6 ช่อง)  order:0 = ลำดับตามที่ออกแบบไว้ (css/button-system.css ย้ายปุ่มหลักไปท้ายแถวในหน้าอื่น) */
+  /* order:0 = ลำดับตามที่ออกแบบไว้ (css/button-system.css ย้ายปุ่มหลักไปท้ายแถวในหน้าอื่น) */
   #contentFrame .attendance-controls-card .button-container > .btn { order: 0; }
-  /* owner 2026-10-22: บนมือถือบันทึกที่แถบล่างที่เดียว (แถบขึ้นเมื่อมีสิ่งต้องบันทึก, js/attendance-daily-bar.js)
-     ปุ่มบันทึกด้านบนซ่อน  ปุ่มที่เหลือ: มี LINE [มาทุกคน][แจ้งขาด] / [ชาย→หญิง][🔄][🗑️]  ไม่มี LINE แถวเดียว */
   #contentFrame .attendance-controls-card .button-container > #btnSaveAttendanceTop { display: none !important; }
   #contentFrame .attendance-controls-card .button-container > .btn-warning { order: 1; }
   #contentFrame .attendance-controls-card .button-container > #pp5LineAbsence { order: 2; }
   #contentFrame .attendance-controls-card .button-container > #btnAttSortToggle { order: 3; }
   #contentFrame .attendance-controls-card .button-container > .btn-primary { order: 4; }
   #contentFrame .attendance-controls-card .button-container > .btn-danger { order: 5; }
-  #contentFrame .attendance-controls-card .button-container {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 6px;
-    margin-top: 8px;
-    padding-top: 8px;
-  }
   #contentFrame .attendance-controls-card .button-container > .btn,
   #contentFrame .attendance-controls-card #pp5LineAbsence > .btn {
-    width: 100%;
+    flex: 0 0 auto;
+    width: auto;
     height: 40px;
     min-height: 40px;
     margin: 0;
-    padding: 4px 6px;
-    font-size: 0.82rem;
+    padding: 4px 10px !important;
+    font-size: 0.82rem !important;
     white-space: nowrap;
     justify-content: center;
   }
-  #contentFrame .attendance-controls-card .button-container .btn-main-save { grid-column: span 3; height: 40px; font-size: 0.88rem; }
-  #contentFrame .attendance-controls-card .button-container .btn-warning { grid-column: span 3; }
-  #contentFrame .attendance-controls-card #btnAttSortToggle { grid-column: span 4; }
-  #contentFrame .attendance-controls-card .button-container .btn-primary,
-  #contentFrame .attendance-controls-card .button-container .btn-danger { grid-column: span 1; }
-  /* รีเฟรช / ลบ เหลือไอคอน (ปุ่มลบยังเป็นสีแดง) */
+  /* รีเฟรช / ลบ เหลือไอคอน (ปุ่มลบยังเป็นสีแดง) ทั้งในการ์ดนี้และหลังย้ายไปแถวหัวรายชื่อ */
   #contentFrame .attendance-controls-card .button-container .btn-primary .btn-label,
-  #contentFrame .attendance-controls-card .button-container .btn-danger .btn-label { display: none; }
+  #contentFrame .attendance-controls-card .button-container .btn-danger .btn-label,
+  #contentFrame .pp5-att-list-tools .btn-primary .btn-label,
+  #contentFrame .pp5-att-list-tools .btn-danger .btn-label { display: none; }
 
   /* ปุ่ม LINE (ใส่โดย js/line-notify.js หลังปุ่มบันทึก) อยู่ขวาของ "มาทุกคน" ด้วยข้อความสั้น */
   #contentFrame .attendance-controls-card #pp5LineAbsence:not([hidden]) {
-    grid-column: span 3;
+    flex: 0 0 auto;
     margin: 0 !important;
     display: block !important;
     min-width: 0;
@@ -78,7 +71,7 @@ html body #mobileStickySaveBar.pp5-att-idle { display: none !important; }
      (เดิมไม่มี -> iPhone เห็น "แจ้งผู้ปกครองนักเรียนที่ขาดวันนี้ทาง LINE" ล้นปุ่ม, owner 2026-10-22) */
   #contentFrame .attendance-controls-card #pp5LineAbsence > .btn {
     font-size: 0 !important;
-    padding: 4px 6px !important;
+    padding: 4px 10px !important;
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -89,14 +82,34 @@ html body #mobileStickySaveBar.pp5-att-idle { display: none !important; }
   }
   #contentFrame .attendance-controls-card #pp5LineAbsence > .btn i { font-size: 0.95rem; }
   #contentFrame .attendance-controls-card #pp5LineAbsence > .btn::after { content: "แจ้งขาด"; font-size: 0.82rem; }
-  /* ข้อความผลการส่ง LINE ขึ้นใต้ปุ่มทั้งแถว */
+  /* ข้อความผลการส่ง LINE ขึ้นใต้แถวเต็มความกว้าง */
+  #contentFrame .attendance-controls-card #pp5LineAbsence:has([data-msg]:not(:empty)) { flex-basis: 100%; }
   #contentFrame .attendance-controls-card #pp5LineAbsence [data-msg]:not(:empty) { display: block; margin-top: 4px; white-space: normal; }
-  /* ไม่มี LINE: ปุ่มทั้งหมดแถวเดียว [มาทุกคน 2][ชาย→หญิง 2][🔄][🗑️] */
-  #contentFrame .attendance-controls-card .button-container:not(:has(#pp5LineAbsence:not([hidden]))) .btn-warning,
-  #contentFrame .attendance-controls-card .button-container:not(:has(#pp5LineAbsence:not([hidden]))) #btnAttSortToggle { grid-column: span 2; }
+
+  /* แถวหัว: [📝 รายชื่อนักเรียน (16 คน)] ......... [ชาย→หญิง][🔄][🗑️]  ยอด มา/ลา/ขาด ลงแถวถัดไป */
+  #contentFrame .student-list-card > .pp5-att-list-head:has(.pp5-att-list-tools) { display: grid !important; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 6px; }
+  #contentFrame .student-list-card > .pp5-att-list-head > span:first-child { min-width: 0; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block !important; }
+  /* ไอคอน 📝 กับ 📅 ไม่จำเป็นบนมือถือ (ไอคอน 📝 มี display ใน style ของหน้าเดิม จึงต้อง !important) */
+  #contentFrame .student-list-card > .pp5-att-list-head > span:first-child > span:first-child,
+  #contentFrame .attendance-controls-card .thai-date-button .thai-date-icon { display: none !important; }
+  #contentFrame .attendance-controls-card .thai-date-button { justify-content: center; }
+  #contentFrame .pp5-att-list-tools { display: flex; margin-left: auto; flex: 0 0 auto; }
+  #contentFrame .student-list-card .pp5-att-list-tools > .btn {
+    height: 36px;
+    min-height: 36px;
+    margin: 0;
+    padding: 4px 7px !important;
+    font-size: 0.76rem !important;
+    white-space: nowrap;
+  }
+  #contentFrame .student-list-card > .pp5-att-list-head > .pp5-att-summary-inline { grid-column: 1 / -1; }
 
   /* การ์ดนักเรียนแถวเดียว (owner 2026-10-22): ชื่อซ้าย ปุ่ม มาเรียน/ลา/ขาด ขวา  สูงราว 56px จากเดิม ~110px
      ป้ายสถานะซ้ำกับปุ่มที่ไฮไลต์อยู่แล้วจึงซ่อน  ปุ่มยังสูง 40px ให้นิ้วกดง่าย */
+  /* ปุ่มจัดลำดับ: ข้อความ ชาย→หญิง พอ ไม่ต้องมีไอคอน ↕️ (จอ <= 360px กลับเป็นไอคอนอย่างเดียว ด้านล่าง) */
+  #contentFrame .student-list-card .pp5-att-list-tools #btnAttSortToggle > span:first-child { display: none; }
+  #contentFrame .pp5-att-list-tools { gap: 4px; }
+
   #contentFrame #attendanceCards .student-card {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -130,6 +143,25 @@ html body #mobileStickySaveBar.pp5-att-idle { display: none !important; }
   /* กรอบซ้อน 4 ชั้นกินขอบข้างละ ~40px: ลดเฉพาะกล่องรายชื่อ */
   #contentFrame .attendance-page .main-container:has(#attendanceCards) { padding-left: 2px; padding-right: 2px; }
   #contentFrame .student-list-card:has(#attendanceCards) { padding-left: 8px; padding-right: 8px; }
+}
+
+/* จอแคบ (iPhone SE ฯลฯ, <= 360px): ให้ [วันที่][มาทุกคน][แจ้งขาด] และ [รายชื่อนักเรียน][↕️][🔄][🗑️] ยังอยู่แถวเดียว
+   ซ่อนไอคอนประกอบ (📅 ✓ 📝 LINE) และปุ่มจัดลำดับเหลือไอคอน ↕️ (ข้อความ ชาย→หญิง ยังอยู่ให้เครื่องอ่านหน้าจอ) */
+@media (max-width: 360px) {
+  #contentFrame .attendance-controls-card .button-container > .btn-warning > span:first-child,
+  #contentFrame .attendance-controls-card #pp5LineAbsence > .btn i { display: none; }
+  #contentFrame .attendance-controls-card .thai-date-button { padding-left: 6px; padding-right: 4px; font-size: 0.8rem; }
+  #contentFrame .attendance-controls-card .button-container > .btn,
+  #contentFrame .attendance-controls-card #pp5LineAbsence > .btn { padding: 4px 7px !important; }
+  #contentFrame .attendance-controls-card #pp5LineAbsence > .btn::after { font-size: 0.78rem; }
+  #contentFrame .attendance-controls-card .button-container > .btn { font-size: 0.78rem !important; }
+  #contentFrame .student-list-card > .pp5-att-list-head > span:first-child { font-size: 0.82rem; }
+  #contentFrame .student-list-card .pp5-att-list-tools #btnAttSortToggle > span:first-child { display: inline; }
+  #contentFrame .student-list-card .pp5-att-list-tools { gap: 4px; }
+  #contentFrame .student-list-card .pp5-att-list-tools > .btn { padding: 4px 7px !important; }
+  #contentFrame .student-list-card .pp5-att-list-tools #btnAttSortLabel {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
 }
 
 /* ===== กระชับหน้าเช็คชื่อ (owner 2026-10-14: "กินพื้นที่ที่จะใช้งานจริง") — หัวหน้า (รูปครู) คงเดิม =====

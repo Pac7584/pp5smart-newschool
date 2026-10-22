@@ -78,8 +78,34 @@
     card.hidden = true;
   }
 
+  // มือถือ (owner 2026-10-22): ปุ่ม ชาย→หญิง / รีเฟรช / ลบ ไปอยู่ขวาของหัว "รายชื่อนักเรียน (n คน)" แถวเดียวกัน
+  // ย้ายปุ่มเดิมทั้งปุ่ม (onclick เดิมทำงานต่อ)  จอคอมย้ายกลับที่เดิมท้าย .button-container  หน้าตาใน css/attendance-daily.css
+  const PHONE = '(max-width: 991.98px)';
+  function moveListTools() {
+    if (typeof doc.querySelector !== 'function') return;
+    const head = doc.querySelector('#contentFrame .student-list-card > .pp5-att-list-head');
+    const container = doc.querySelector('#contentFrame .attendance-controls-card .button-container');
+    if (!head || !container) return;
+    const tools = [doc.getElementById('btnAttSortToggle'), container.querySelector(':scope > .btn-primary') || head.querySelector('.pp5-att-list-tools > .btn-primary'),
+      container.querySelector(':scope > .btn-danger') || head.querySelector('.pp5-att-list-tools > .btn-danger')].filter(Boolean);
+    const phone = !global.matchMedia || global.matchMedia(PHONE).matches;
+    let box = head.querySelector(':scope > .pp5-att-list-tools');
+    if (phone) {
+      if (!box) {
+        box = doc.createElement('div');
+        box.className = 'pp5-att-list-tools';
+        head.insertBefore(box, head.children[1] || null);
+      }
+      tools.forEach((button) => { if (button.parentNode !== box) box.append(button); });
+    } else if (box) {
+      tools.forEach((button) => container.append(button));
+      box.remove();
+    }
+  }
+
   function update() {
     mergeSummary();
+    moveListTools();
     const bar = doc.getElementById('mobileStickySaveBar');
     if (!bar) return;
     const list = Array.isArray(global.dailyStudents) ? global.dailyStudents : [];
@@ -112,6 +138,7 @@
     new MutationObserver(schedule).observe(frame, { subtree: true, childList: true, attributes: true, characterData: true });
     doc.addEventListener('click', schedule, true);
     doc.addEventListener('change', schedule, true);
+    if (typeof global.addEventListener === 'function') global.addEventListener('resize', schedule);
     schedule();
   }
 
