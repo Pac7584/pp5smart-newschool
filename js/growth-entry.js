@@ -68,6 +68,15 @@
     .sg2 .sg2-listhead { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
     .sg2 .sg2-hint { font-size:.8rem; color:var(--sg-muted); }
     .sg2 .sg2-hint i { color:#f59e0b; }
+    .sg2 .sg2-roundnote { display:flex; align-items:center; gap:12px; padding:12px 14px; margin-bottom:12px; border-radius:12px;
+      background:color-mix(in srgb,#0284c7 9%,var(--sg-card)); border:1px solid color-mix(in srgb,#0284c7 30%,transparent); }
+    .sg2 .sg2-roundnote[hidden] { display:none; }
+    .sg2 .sg2-roundnote > i { font-size:1.3rem; color:#0284c7; flex:0 0 auto; }
+    .sg2 .sg2-rn-text { flex:1 1 auto; min-width:0; }
+    .sg2 .sg2-rn-text b { display:block; color:var(--sg-text); }
+    .sg2 .sg2-rn-text span { display:block; font-size:.82rem; color:var(--sg-muted); }
+    .sg2 .sg2-roundnote .sg2-btn { flex:0 0 auto; }
+    @media (max-width: 768px) { .sg2 .sg2-roundnote { flex-wrap:wrap; } .sg2 .sg2-roundnote .sg2-btn { width:100%; } }
     .sg2 .sg2-table { border:1px solid var(--sg-line); border-radius:12px; overflow:auto; }
     .sg2 .sg2-row { display:grid; align-items:center; gap:8px; padding:9px 12px; border-bottom:1px solid var(--sg-line);
       grid-template-columns:36px minmax(160px,2.2fr) 100px 100px 52px 100px 118px minmax(90px,.8fr); min-width:820px; }
@@ -203,6 +212,7 @@
       <div class="sg2-head" style="margin:0"><span class="sg2-ico t-sky"><i class="bi bi-person-lines-fill"></i></span>
         <div><h3 id="sg2ListTitle">รายชื่อนักเรียน</h3><p class="sg2-hint"><i class="bi bi-lightning-charge-fill"></i> พิมพ์น้ำหนัก กด Enter ไปช่องส่วนสูง ระบบคำนวณ BMI และภาวะโภชนาการให้ทันที</p></div></div>
     </div>
+    <div id="sg2RoundNote" class="sg2-roundnote" role="status" hidden></div>
     <div class="sg2-table">
       <div class="sg2-row head"><div class="c-no">เลขที่</div><div>ชื่อ - นามสกุล · เพศ</div><div style="text-align:center">น้ำหนัก (กก.)</div><div style="text-align:center">ส่วนสูง (ซม.)</div><div style="text-align:center">BMI</div><div>ภาวะโภชนาการ</div><div>สถานะ</div><div>หมายเหตุ</div></div>
       <div id="sgRows"><div class="sg2-empty">เลือกชั้นและห้อง ระบบจะโหลดรายชื่ออัตโนมัติ</div></div>
@@ -300,9 +310,19 @@
         row.setAttribute('data-nut', NUT[label] ? label : '');
         row.setAttribute('data-warn', warn.w || warn.h ? '1' : '0');
       }
+      var TH_MONTH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+      // "2026-10-02" -> "2 ต.ค." (withYear: "2 ต.ค. 2569")
+      function thaiDate(iso, withYear){
+        var m = String(iso || '').match(/^([0-9]{4})-([0-9]{2})-([0-9]{2})/);
+        if (!m) return '';
+        var y = Number(m[1]); if (y < 2400) y += 543;
+        return Number(m[3]) + ' ' + TH_MONTH[Number(m[2]) - 1] + (withYear ? ' ' + y : '');
+      }
       function setStatus(row, state){
         var st = row.querySelector('.growth-status');
-        st.textContent = state === 'dirty' ? 'แก้ไขแล้ว—ยังไม่บันทึก' : (state === 'saved' ? 'บันทึกแล้ว' : 'ยังไม่บันทึกรอบนี้');
+        // owner 2026-10-22: ครูงงว่า "บันทึกแล้ว" ทั้งที่จะเริ่มกรอก -> บอกวันที่ที่บันทึกรอบนี้ไว้ด้วย
+        var on = state === 'saved' ? thaiDate(studentOf(row).saved_on) : '';
+        st.textContent = state === 'dirty' ? 'แก้ไขแล้ว—ยังไม่บันทึก' : (state === 'saved' ? 'บันทึกแล้ว' + (on ? ' ' + on : '') : 'ยังไม่บันทึกรอบนี้');
         st.className = 'growth-status ' + (state === 'dirty' ? 'st-dirty' : (state === 'saved' ? 'st-saved' : ''));
         row.classList.toggle('is-dirty', state === 'dirty');
       }
@@ -377,7 +397,49 @@
           paintRow(row);
           setStatus(row, s.has_saved_record ? 'saved' : 'new');
         });
+        roundNote();
         summary(); busy(false);
+      }
+
+      // รอบที่เลือกมีข้อมูลบันทึกไว้แล้ว (owner 2026-10-22: ครูเปิดหน้ามาเจอตัวเลขเต็ม + "บันทึกแล้ว" แล้วงง):
+      //   - ป้ายบอกว่าเดือน/รอบนี้บันทึกไว้แล้วกี่คน เมื่อไร  ชั่งครั้งใหม่ -> ปุ่ม "เริ่มรอบที่ 2" (หรือให้เลือกเดือนถัดไป)
+      //   - ช่องวันที่ใช้วันที่ชั่งวัดเดิมของรอบนี้ (เดิมเป็น "วันนี้" เสมอ กดบันทึกซ้ำแล้ววันที่เดิมถูกทับทั้งห้อง)
+      //     เปิดรอบที่ยังไม่บันทึก -> กลับเป็นวันนี้ (ถ้าครูไม่ได้เลือกวันที่เอง)
+      var autoDate = false, settingDate = false;
+      function setDate(iso){
+        if (!$('sgDate') || $('sgDate').value === iso) return;
+        settingDate = true;
+        $('sgDate').value = iso;
+        if (typeof Event === 'function') $('sgDate').dispatchEvent(new Event('change'));
+        settingDate = false;
+      }
+      function roundNote(){
+        var box = $('sg2RoundNote');
+        var saved = students.filter(function(s){ return s.has_saved_record; });
+        if (!saved.length) {
+          if (box) box.hidden = true;
+          if (autoDate) { setDate(today()); autoDate = false; }
+          return;
+        }
+        var tally = {}, most = '';
+        saved.forEach(function(s){ if (s.saved_on) tally[s.saved_on] = (tally[s.saved_on] || 0) + 1; });
+        Object.keys(tally).forEach(function(d){ if (!most || tally[d] > tally[most]) most = d; });
+        if (most) { setDate(most); autoDate = true; }
+        if (!box) return;
+        var round = String($('sgRound').value || '1');
+        var month = monthNames[Number($('sgMonth').value) - 1] || '';
+        box.hidden = false;
+        box.innerHTML = '<i class="bi bi-info-circle-fill" aria-hidden="true"></i><div class="sg2-rn-text"><b>' + esc(month) + ' รอบที่ ' + esc(round)
+          + ' บันทึกไว้แล้ว ' + saved.length + (saved.length < students.length ? ' จาก ' + students.length : '') + ' คน'
+          + (most ? ' (ชั่งวัดเมื่อ ' + thaiDate(most, true) + ')' : '') + '</b>'
+          + '<span>ตัวเลขในช่องคือค่าที่บันทึกไว้ แก้แล้วกดบันทึกได้  ถ้าจะชั่งครั้งใหม่ '
+          + (round === '1' ? 'กดเริ่มรอบที่ 2' : 'ให้เลือกเดือนถัดไป') + '</span></div>'
+          + (round === '1' ? '<button type="button" class="sg2-btn ghost" onclick="SGEntry.nextRound()"><i class="bi bi-plus-circle"></i> เริ่มรอบที่ 2</button>' : '');
+      }
+      function nextRound(){
+        if (!confirmDiscard()) return;
+        $('sgRound').value = '2';
+        loadStudents(true);
       }
 
       function getLoadKey(){ return [$('sgGrade').value, $('sgClass').value, $('sgYear').value, $('sgMonth').value, $('sgRound').value].join('|'); }
@@ -387,9 +449,19 @@
         if (getLoadKey() === lastLoadKey) return;
         loadStudents();
       }
-      function loadStudents(){
+      // เปลี่ยนปี/เดือน/รอบ -> โหลดใหม่เอง (เดิมต้องกด "โหลดใหม่")  มีที่แก้ค้าง: ถาม  ไม่ทิ้ง -> ตัวเลือกกลับค่าเดิม
+      function onPeriodChange(){
+        if (!$('sgGrade').value || !$('sgClass').value || isLoading || getLoadKey() === lastLoadKey) return;
+        if (!confirmDiscard()) {
+          var last = lastLoadKey.split('|');
+          if (last.length === 5) { $('sgYear').value = last[2]; $('sgMonth').value = last[3]; $('sgRound').value = last[4]; }
+          return;
+        }
+        loadStudents(true);
+      }
+      function loadStudents(skipConfirm){
         if (!$('sgGrade').value || !$('sgClass').value) { alertBox('กรุณาเลือกระดับชั้นและห้อง', false); return; }
-        if (!confirmDiscard()) return;
+        if (skipConfirm !== true && !confirmDiscard()) return;
         isLoading = true;
         lastLoadKey = getLoadKey();
         alertBox(''); busy(true, 'กำลังโหลดรายชื่อนักเรียนและข้อมูลที่เคยบันทึก...');
@@ -480,10 +552,11 @@
         });
         $('sgClass').addEventListener('change', autoLoadStudentsIfReady);
         // อายุเปลี่ยนตามวันที่ชั่งวัด -> คิดภาวะโภชนาการใหม่ทุกแถว
-        $('sgDate').addEventListener('change', function(){ rows().forEach(paintRow); summary(); });
+        $('sgDate').addEventListener('change', function(){ if (!settingDate) autoDate = false; rows().forEach(paintRow); summary(); });
+        ['sgYear', 'sgMonth', 'sgRound'].forEach(function(id){ $(id).addEventListener('change', onPeriodChange); });
       }
       setTimeout(init, 0);
-      return { loadStudents: loadStudents, save: save, revert: revert, isDirty: isDirty };
+      return { loadStudents: loadStudents, save: save, revert: revert, isDirty: isDirty, nextRound: nextRound };
     })();
   </script>`;
 

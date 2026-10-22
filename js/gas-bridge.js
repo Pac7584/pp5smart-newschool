@@ -7059,6 +7059,8 @@
             note: text(saved?.note),
             has_saved_record: !!saved,
             hasSavedRecord: !!saved,
+            // วันที่ชั่งวัดของรอบนี้ที่บันทึกไว้ (หน้ากรอกใช้แทน "วันนี้" ตอนเปิดรอบที่บันทึกแล้ว กันวันที่เดิมถูกทับ)
+            saved_on: text(saved?.measured_on),
             // หน้ากรอกรุ่นใหม่ (js/growth-entry.js): ภาวะโภชนาการ WHO ต้องใช้วันเกิด, รูปหน้าชื่อ, ค่ารอบก่อน
             birthdate: text(student.birthdate || student.birth_date),
             photoUrl: text(student.photoUrl || student.photo_url),
