@@ -182,6 +182,9 @@
     const setSay = (msg, kind) => { say.className = `ss-say${kind ? ` is-${kind}` : ''}`; say.innerHTML = msg; };
     const state = { year: '', semester: 1, saved: new Map(), draft: new Map(), jobs: [], subjects: [], scoped: false, assignments: [], room: '', weekend: false };
     let target = null;
+    // เลื่อนไปที่แถววิชาที่เปิดมาครั้งเดียวตอนเปิดหน้า (owner 2026-10-22: เดิมเลื่อนทุกครั้งที่วาดใหม่
+    // กดช่องวันของวิชาด้านล่างแล้วหน้าเด้งขึ้นไปที่แถวนั้นเสมอ)
+    let targetShown = false;
     try {
       target = JSON.parse(global.sessionStorage.getItem('pp5SubjectScheduleTarget') || 'null');
       global.sessionStorage.removeItem('pp5SubjectScheduleTarget');
@@ -292,7 +295,8 @@ ${jobs.map((j) => {
       bar.hidden = false;
       saveBtn.disabled = !state.draft.size;
       if (!say.textContent || state.draft.size) setSay(state.draft.size ? `แก้ไว้ ${state.draft.size} วิชา — ยังไม่ได้บันทึก` : '', '');
-      if (target) body.querySelector('.ss-row.is-target')?.scrollIntoView?.({ block: 'center' });
+      const targetRow = target && !targetShown ? body.querySelector('.ss-row.is-target') : null;
+      if (targetRow) { targetShown = true; targetRow.scrollIntoView?.({ block: 'center' }); }
     }
 
     root.addEventListener('click', async (event) => {
@@ -315,6 +319,9 @@ ${jobs.map((j) => {
         const same = total(week) === total(savedWeek(job)) && [...week.entries()].every(([k, v]) => savedWeek(job).get(k) === v);
         if (same) state.draft.delete(key); else state.draft.set(key, week);
         render();
+        // ตารางวาดใหม่ทั้งก้อน: คืนโฟกัสให้ช่องเดิม (กดต่อด้วยคีย์บอร์ดได้) โดยไม่เลื่อนหน้า
+        const row = [...body.querySelectorAll('[data-key]')].find((r) => r.dataset.key === key);
+        row?.querySelector(`[data-cell="${d}"]`)?.focus?.({ preventScroll: true });
         return;
       }
       if (event.target.closest('[data-weekend]')) { state.weekend = true; render(); return; }
