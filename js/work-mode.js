@@ -249,7 +249,9 @@ ${option('subject', 'bi-journal-bookmark-fill', 'ครูประจำวิ�
         dailyByRoom.get(room).add(text(r.attendance_date).slice(0, 10));
       });
     }
-    const todayDay = weekdayOf(todayIso);
+    // วันสอนชดเชย (owner 2026-10-22) ใช้ตารางสอนของวันที่ผู้ดูแลตั้งไว้ — วันนี้เป็นวันชดเชยก็นับคาบของวันนั้น
+    const makeup = global.PP5SubjectSchedule?.makeupMap?.(settings?.settings_json, year) || new Map();
+    const todayDay = makeup.get(todayIso) || weekdayOf(todayIso);
     const byId = new Map(subjects.map((s) => [s.id, s]));
     const seen = new Set();
     const rows = [];
@@ -276,7 +278,7 @@ ${option('subject', 'bi-journal-bookmark-fill', 'ครูประจำวิ�
         recorded.get(d).add(Number(r.period) || 1);
       });
       const weekMap = new Map((week || []).map((r) => [Number(r.weekday), Number(r.periods) || 0]));
-      const late = attendance && week?.length && range ? global.PP5SubjectSchedule?.missedPeriods?.(weekMap, recorded, range, holidays, todayIso, dailyByRoom.get(job.grade + '/' + text(job.room))) : null;
+      const late = attendance && week?.length && range ? global.PP5SubjectSchedule?.missedPeriods?.(weekMap, recorded, range, holidays, todayIso, dailyByRoom.get(job.grade + '/' + text(job.room)), makeup) : null;
       rows.push({ subject, grade: job.grade, room: text(job.room), term, total: students.size, owed: late ? late.owed : null,
         scored: scored ? scored.size : null, days: dates ? dates.length : null, last: dates?.length ? dates[dates.length - 1] : '',
         hasWeek: week ? week.length > 0 : null, weekTotal: week ? week.reduce((sum, r) => sum + (Number(r.periods) || 0), 0) : 0,

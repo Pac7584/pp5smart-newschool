@@ -106,11 +106,11 @@
     const t = new Date(Date.UTC(y, m - 1, d + days));
     return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`;
   }
-  function nearTeachingDays(iso, week, todayIso, minIso, count = 3) {
+  function nearTeachingDays(iso, week, todayIso, minIso, count = 3, dayOf = weekdayOf) {
     const found = [];
     for (let k = 1; k <= 14; k += 1) {
       for (const d of [isoAdd(iso, -k), isoAdd(iso, k)]) {
-        if (d > todayIso || (minIso && d < minIso) || !(week.get(weekdayOf(d)) > 0)) continue;
+        if (d > todayIso || (minIso && d < minIso) || !(week.get(dayOf(d)) > 0)) continue;
         found.push({ d, k });
       }
     }
@@ -246,6 +246,9 @@
     const holidays = await query((c) => c.from('holidays').select('holiday_date'))
       .then((rows) => new Set(rows.map((r) => text(r.holiday_date).slice(0, 10)))).catch(() => new Set());
     state.year = text(settings.academicYear || settings.academic_year);
+    // วันสอนชดเชย (owner 2026-10-22 "ใช้ตารางของวันที่ถูกชดเชย") — ผู้ดูแลตั้งที่แท็บรูปแบบ ปพ.5 · วันนั้นใช้ตารางสอนของวันที่ตั้งไว้
+    const makeup = global.PP5SubjectSchedule?.makeupMap?.(settings.settings_json, state.year) || new Map();
+    const dayOf = (iso) => makeup.get(iso) || weekdayOf(iso);
     state.semester = Number(settings.semester || settings.currentSemester) === 2 ? 2 : 1;
     try { state.role = (await global.PP5Data.auth.requireUser())?.profile?.role || ''; } catch (_) { state.role = ''; }
     try {
@@ -336,7 +339,7 @@
       const week = state.week;
       const total = [...week.values()].reduce((sum, n) => sum + n, 0);
       const weekend = [6, 7].some((d) => week.get(d));
-      const chosen = weekdayOf(dateInput.value);
+      const chosen = dayOf(dateInput.value);
       weekBox.innerHTML = `<div class="sa-week-head"><b><i class="bi bi-calendar-week"></i> ตารางสอนวิชานี้ ภาค ${state.semester}</b>
   <span class="sa-plan">${total ? `${total} คาบ/สัปดาห์` : 'ยังไม่ได้ตั้ง'}</span>
   <button type="button" class="sa-link" data-edit-week data-pp5-btn-skip><i class="bi bi-pencil-square"></i> ${total ? 'แก้ตารางสอน' : 'ตั้งตารางสอน'}</button></div>
@@ -393,7 +396,7 @@ ${total ? `<div class="sa-days${weekend ? ' has-weekend' : ''}" aria-label="ว�
           if (!state.byPeriod.has(p)) state.byPeriod.set(p, new Map());
           state.byPeriod.get(p).set(text(row.student_id), row.status);
         });
-        state.planned = state.week.get(weekdayOf(date)) || 0;
+        state.planned = state.week.get(dayOf(date)) || 0;
         state.period = keepPeriod && keepPeriod <= MAX_PERIODS ? keepPeriod
           : (target?.period && target.date === date ? Number(target.period) : firstOpenPeriod(state.planned, state.byPeriod));
         target = null;
@@ -419,7 +422,8 @@ ${total ? `<div class="sa-days${weekend ? ' has-weekend' : ''}" aria-label="ว�
       if (count < MAX_PERIODS && state.canWrite) buttons.push('<button type="button" class="sa-add" data-pp5-btn-skip data-add-period><i class="bi bi-plus-lg"></i> เพิ่มคาบ</button>');
       periodBox.innerHTML = buttons.join('');
       const day = DAYS.find((d) => d.n === weekdayOf(dateInput.value));
-      planBox.textContent = (state.planned ? `ตามตารางสอน วัน${day?.name || ''}มี ${state.planned} คาบ`
+      const asDay = DAYS.find((d) => d.n === makeup.get(dateInput.value));
+      planBox.textContent = (state.planned ? (asDay ? `วันสอนชดเชย ใช้ตารางวัน${asDay.name} มี ${state.planned} คาบ` : `ตามตารางสอน วัน${day?.name || ''}มี ${state.planned} คาบ`)
           : `สอนชดเชย — วัน${day?.name || ''}ไม่อยู่ในตารางสอนวิชานี้`)
         + (dateInput.value > today() ? ' · เช็คล่วงหน้า (ถ้าวันนั้นหยุด/งดสอน กดลบการเช็คชื่อคาบนั้น)' : '');
     }
@@ -429,7 +433,7 @@ ${total ? `<div class="sa-days${weekend ? ' has-weekend' : ''}" aria-label="ว�
       const date = dateInput.value;
       const day = DAYS.find((d) => d.n === weekdayOf(date));
       const teach = DAYS.filter((d) => state.week.get(d.n)).map((d) => d.short).join(' ');
-      const near = nearTeachingDays(date, state.week, dateInput.max || today(), dateInput.min);
+      const near = nearTeachingDays(date, state.week, dateInput.max || today(), dateInput.min, 3, dayOf);
       periodBox.innerHTML = '';
       planBox.textContent = `ตามตารางสอน วัน${day?.name || ''}ไม่มีคาบวิชานี้`;
       body.innerHTML = `<div class="sa-off">
@@ -541,7 +545,7 @@ ${state.canWrite ? '' : '<div class="sa-note is-warn mb-2">ดูได้อย
       });
       const S = global.PP5SubjectSchedule;
       const range = S?.termRange?.(settings.settings_json, state.year, state.semester) || null;
-      const late = range ? S.missedPeriods(state.week, recorded, range, holidays, today(), state.dailyDates) : null;
+      const late = range ? S.missedPeriods(state.week, recorded, range, holidays, today(), state.dailyDates, makeup) : null;
       const dailyNote = late?.byDaily ? ` · ใช้เช็คชื่อรายวันแทน ${late.byDaily} คาบ (คาบที่ยังไม่ได้เช็ครายคาบ)` : '';
       const lateHtml = !state.week.size ? ''
         : !range ? `<div class="sa-note mb-2"><i class="bi bi-info-circle"></i> ผู้ดูแลยังไม่ได้ตั้งวันเปิด–ปิดภาคเรียน (หน้าตั้งค่าระบบกลาง แท็บรูปแบบ ปพ.5) ระบบจึงยังนับคาบที่ค้างเช็คไม่ได้</div>`
@@ -555,7 +559,7 @@ ${state.canWrite ? '' : '<div class="sa-note is-warn mb-2">ดูได้อย
   <span class="sa-chip">สอนและเช็คชื่อแล้ว ${taught}${planned ? ` / ${planned}` : ''} ชั่วโมง · ${list.length} วัน</span>
 </div>
 ${list.length ? `<table><thead><tr><th>วันที่</th><th>คาบ</th><th>มา</th><th>ลา</th><th>ขาด</th></tr></thead><tbody>
-${list.map(([d, day]) => `<tr data-date="${esc(d)}"${d === current ? ' class="is-current"' : ''}><td>${esc(thaiDate(d))}${state.week.size && !state.week.get(weekdayOf(d)) ? ' <span class="sa-chip is-warn">ชดเชย</span>' : ''}</td><td>${day.hours}</td><td>${day.present}</td><td>${day.leave}</td><td>${day.absent}</td></tr>`).join('')}
+${list.map(([d, day]) => `<tr data-date="${esc(d)}"${d === current ? ' class="is-current"' : ''}><td>${esc(thaiDate(d))}${state.week.size && (makeup.has(d) || !state.week.get(weekdayOf(d))) ? ' <span class="sa-chip is-warn">ชดเชย</span>' : ''}</td><td>${day.hours}</td><td>${day.present}</td><td>${day.leave}</td><td>${day.absent}</td></tr>`).join('')}
 </tbody></table><div class="small mt-1" style="color:var(--sa-muted)">มา/ลา/ขาด นับรวมทุกคาบ · กดที่วันที่เพื่อเปิดแก้ไข</div>` : '<div class="sa-note">ยังไม่มีการเช็คชื่อรายคาบของวิชานี้ — ปก ปพ.5 แบบรายวิชาจะคิดเวลาเรียนจากเช็คชื่อรายวันไปก่อน</div>'}`;
     }
 

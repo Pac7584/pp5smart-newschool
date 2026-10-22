@@ -2358,6 +2358,11 @@
     const isoWeekday = (iso) => { const [y, m, d] = text(iso).split('-').map(Number); const js = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); return js === 0 ? 7 : js; };
     // ภาคของวันที่ = pp5_semester_of ในฐานข้อมูล (พ.ค.–ต.ค. = 1, อื่น ๆ = 2)
     const semesterOfDate = (iso) => { const m = Number(text(iso).slice(5, 7)); return m >= 5 && m <= 10 ? 1 : 2; };
+    // วันสอนชดเชย (owner 2026-10-22 "ใช้ตารางของวันที่ถูกชดเชย"): settings_json.makeup_timetable[ปี] = { 'YYYY-MM-DD': วัน 1-7 }
+    // วันนั้นใช้ตารางสอนของวันที่ตั้งไว้ (เหมือน subject-schedule.js makeupMap) — ไม่ได้ตั้ง = วันเสาร์ไม่มีคาบตามเดิม
+    const makeupDays = new Map(Object.entries(settings.settings_json?.makeup_timetable?.[academicYear] || {})
+      .map(([d, day]) => [normalizeDate(d), number(day, 0)]).filter(([d, day]) => d && day >= 1 && day <= 7));
+    const teachDay = (iso) => makeupDays.get(iso) || isoWeekday(iso);
     const dailyFillRows = async (subject, hourlyRows, att) => {
       const weeks = await weeksOf(subject);
       if (!weeks.size) return [];
@@ -2373,7 +2378,7 @@
       (att.rows || []).forEach((row) => {
         const date = row.attendance_date;
         if (!inRoom.has(text(row.student_id))) return;
-        const n = weeks.get(semesterOfDate(date))?.get(isoWeekday(date)) || 0;
+        const n = weeks.get(semesterOfDate(date))?.get(teachDay(date)) || 0;
         const done = taught.get(date) || new Set();
         for (let p = 1; p <= n; p += 1) {
           if (done.has(p)) continue;

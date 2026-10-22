@@ -70,12 +70,26 @@
     const js = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
     return js === 0 ? 7 : js;
   }
+  // วันสอนชดเชย (owner 2026-10-22 "ใช้ตารางของวันที่ถูกชดเชย"): settings_json.makeup_timetable = { "2569": { "2026-09-05": 4 } }
+  //   = วันนั้นเรียนตามตารางสอนของวันพฤหัสบดี (1-7) · ผู้ดูแลตั้งที่หน้าตั้งค่าระบบกลาง แท็บรูปแบบ ปพ.5 · ไม่ได้ตั้ง = เหมือนเดิม
+  //   (วันหยุด/เสาร์-อาทิตย์ไม่นับคาบรายวิชา) — กติกาเดียวกับ gas-bridge dailyFillRows
+  function makeupMap(settingsJson, year) {
+    const raw = settingsJson?.makeup_timetable?.[text(year)];
+    const out = new Map();
+    if (raw && typeof raw === 'object') {
+      Object.entries(raw).forEach(([d, day]) => { const n = Number(day); if (ISO.test(d) && n >= 1 && n <= 7) out.set(d, n); });
+    }
+    return out;
+  }
+  const teachDay = (iso, makeup) => makeup?.get(iso) || weekdayOf(iso);
   // week: Map(วัน 1-7 -> คาบ) · recorded: Map('YYYY-MM-DD' -> Set(คาบที่เช็คแล้ว)) · holidays: Set('YYYY-MM-DD')
+  // makeupDays: Map(วันที่ -> วันในตาราง) จาก makeupMap — วันสอนชดเชยใช้ตารางของวันนั้น แม้อยู่ในรายการวันหยุด
   // นับเฉพาะวันก่อนวันนี้ (วันนี้ยังเช็คได้ ไม่ถือว่าค้าง) · คาบที่สอนชดเชย (วันนอกตาราง หรือคาบเกินตาราง) หักออกจากที่ค้าง
   // dailyDates (owner 2026-10-22 "มันไม่ควรค้าง เพราะเราเช็คชื่อรายวันไปแล้ว มันต้องสัมพันธ์กัน" -> เลือก "ใช้รายวันแทน"):
   // Set('YYYY-MM-DD') วันที่ห้องนี้มีเช็คชื่อรายวันแล้ว — วันสอนที่ยังไม่มีรายคาบเลยแต่มีรายวัน ไม่นับว่าค้าง (byDaily)
   // กติกาเดียวกับ ปพ.5 รายวิชาใน gas-bridge (hourlyAttendance เติมรายวันเป็นรายคาบตามตารางสอน)
-  function missedPeriods(week, recorded, range, holidays, todayIso, dailyDates) {
+  function missedPeriods(week, recorded, range, holidays, todayIso, dailyDates, makeupDays) {
+    const off = (d) => holidays?.has(d) && !makeupDays?.has(d);
     if (!range || !week || !week.size) return null;
     if (range.empty) return { planned: 0, missed: [], missedCount: 0, makeup: 0, owed: 0, byDaily: 0, notYet: 'ended' };
     if (todayIso <= range.start) return { planned: 0, missed: [], missedCount: 0, makeup: 0, owed: 0, byDaily: 0, notYet: 'future' };
@@ -85,8 +99,8 @@
     let missedCount = 0;
     let byDaily = 0;
     for (let d = range.start; d <= last; d = isoAdd(d, 1)) {
-      const n = Number(week.get(weekdayOf(d))) || 0;
-      if (!n || holidays?.has(d)) continue;
+      const n = Number(week.get(teachDay(d, makeupDays))) || 0;
+      if (!n || off(d)) continue;
       planned += n;
       const got = recorded.get(d) || new Set();
       const lack = [];
@@ -98,7 +112,7 @@
     let makeup = 0;
     recorded.forEach((periods, d) => {
       if (d < range.start || d > last) return;
-      const n = holidays?.has(d) ? 0 : Number(week.get(weekdayOf(d))) || 0;
+      const n = off(d) ? 0 : Number(week.get(teachDay(d, makeupDays))) || 0;
       periods.forEach((p) => { if (p > n) makeup += 1; });
     });
     return { planned, missed, missedCount, makeup, owed: Math.max(0, missedCount - makeup), byDaily };
@@ -108,7 +122,7 @@
   // วันสอนตามตารางสอนที่วิชานี้ยังไม่มีรายคาบเลย แต่นักเรียนมีเช็คชื่อรายวัน -> สถานะรายวันกับทุกคาบของวันนั้น
   // weeks: Map(ภาค 1|2 -> Map(วัน 1-7 -> คาบ)) · ภาคของวันที่ = พ.ค.–ต.ค. 1 / อื่น ๆ 2 (pp5_semester_of)
   const DAILY_STATUS = { present: 'present', 'มา': 'present', leave: 'leave', 'ลา': 'leave', absent: 'absent', 'ขาด': 'absent' };
-  function fillFromDaily(hourlyRows, dailyRows, weeks, studentIds, holidays) {
+  function fillFromDaily(hourlyRows, dailyRows, weeks, studentIds, holidays, makeup) {
     if (!weeks || !weeks.size) return [];
     // คาบที่เช็คแล้วของแต่ละวัน — owner 2026-10-22: วันที่เช็คไม่ครบ คาบที่เหลือก็ใช้รายวันแทน
     const taught = new Map();
@@ -122,9 +136,9 @@
     (dailyRows || []).forEach((row) => {
       const date = text(row.attendance_date).slice(0, 10);
       const status = DAILY_STATUS[text(row.status).toLowerCase()];
-      if (!status || holidays?.has(date) || (inRoom && !inRoom.has(text(row.student_id)))) return;
+      if (!status || (holidays?.has(date) && !makeup?.has(date)) || (inRoom && !inRoom.has(text(row.student_id)))) return;
       const m = Number(date.slice(5, 7));
-      const n = Number(weeks.get(m >= 5 && m <= 10 ? 1 : 2)?.get(weekdayOf(date))) || 0;
+      const n = Number(weeks.get(m >= 5 && m <= 10 ? 1 : 2)?.get(teachDay(date, makeup))) || 0;
       const done = taught.get(date) || new Set();
       for (let p = 1; p <= n; p += 1) if (!done.has(p)) out.push({ student_id: text(row.student_id), attendance_date: date, period: p, hours: 1, status, fromDaily: true });
     });
@@ -419,5 +433,5 @@ ${jobs.map((j) => {
   global.GAS_PAGES.subject_schedule = shell();
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', watch, { once: true });
   else watch();
-  global.PP5SubjectSchedule = { shell, jobsFor, nextCount, total, keyOf, termRange, missedPeriods, fillFromDaily, isoAdd, weekdayOf };
+  global.PP5SubjectSchedule = { shell, jobsFor, nextCount, total, keyOf, termRange, missedPeriods, fillFromDaily, isoAdd, weekdayOf, makeupMap, teachDay };
 })(window);
