@@ -3879,7 +3879,103 @@
     return classPrintResult('สรุปผลประเมินรายชั้น', grade, classNo);
   }
 
-  async function getPp5ReadinessSummary(grade, classNo, academicYear) {
+  // ---------- ความตรงกันของข้อมูลก่อนออก ปพ. (owner 2026-10-22: "ถ้าสอนรายวิชา แล้วปรับมาเป็นรายชั้นจะแมตกันไหม
+  // รวมทั้งเวลาเรียน รายงานผล ออก ปพ.5-6") อ่านอย่างเดียว ไม่แก้ข้อมูล
+  // เวลาเรียนมี 2 แหล่ง: ปพ.5 ประจำชั้น / ปพ.6 / สรุปเวลาเรียน ใช้เช็คชื่อรายวัน (attendance_daily) ส่วน ปพ.5 รายวิชา /
+  // เสี่ยง มส. / คำเตือน มส. ในหน้ากรอกคะแนน ใช้เช็คชื่อรายคาบ (subject_attendance) ถ้าวิชานั้นมี  ผลประเมินทางการ
+  // (characteristic / rtw / competency) กับของครูรายวิชา (subj_*) ก็แยกกัน  ตรวจว่าแหล่งเหล่านี้ขัดกันตรงไหน
+  // items: [{ key, level: 'bad'|'warn', title, rows: [{ who, when, what }] }]  rows ไม่เกิน CONSISTENCY_ROWS ต่อหัวข้อ
+  const CONSISTENCY_ROWS = 60;
+  async function pp5ConsistencyChecks({ grade, classNo, academicYear, students, scoreRows, assessRows, subjects, officialComplete }) {
+    const items = [];
+    const ids = students.map((s) => text(s.id)).filter(Boolean);
+    const nameOf = new Map(students.map((s) => [text(s.id), studentDisplayName(s)]));
+    const subjectName = new Map((subjects || []).map((s) => [text(s.id), text(s.name)]));
+    const thaiDay = (iso) => { const [y, m, d] = text(iso).split('-').map(Number); return y ? `${d} ${['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'][m - 1]} ${y + 543}` : ''; };
+    const now = new Date();
+    const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
+    const push = (key, level, title, rows) => { if (rows.length) items.push({ key, level, title, count: rows.length, rows: rows.slice(0, CONSISTENCY_ROWS) }); };
+    const checked = { subjectAttendance: false, ms: false, assessments: true };
+
+    // 1-3 เช็คชื่อรายวัน กับ รายคาบ
+    let subjectRows = [];
+    if (ids.length) {
+      try {
+        subjectRows = await optionalTableAll('subject_attendance', (query) => query.in('student_id', ids).eq('academic_year', text(academicYear)));
+      } catch (_) { subjectRows = []; }
+    }
+    if (subjectRows.length) {
+      checked.subjectAttendance = true;
+      const range = academicYearDateRange(academicYear);
+      const { rows: daily } = await readClassAttendanceRange(grade, classNo, range.first, range.last, range.academicYear);
+      const dailyOf = new Map(daily.map((row) => [`${text(row.student_id)}|${row.attendance_date}`, row.status]));
+      const dailyDates = new Set(daily.map((row) => row.attendance_date));
+      const byStudentDate = new Map();
+      subjectRows.forEach((row) => {
+        const status = normalizeAttendanceStatus(row.status);
+        const date = normalizeDate(row.attendance_date);
+        if (!status || !date) return;
+        const key = `${text(row.student_id)}|${date}`;
+        if (!byStudentDate.has(key)) byStudentDate.set(key, []);
+        byStudentDate.get(key).push({ status, subject: text(row.subject_id), period: number(row.period, 1) });
+      });
+      if (!daily.length) {
+        push('daily_missing_all', 'bad', 'มีเช็คชื่อรายวิชาแล้ว แต่ยังไม่มีเช็คชื่อรายวันเลย — ปพ.6 และ ปพ.5 ประจำชั้นจะไม่มีเวลาเรียน (ครูประจำชั้นต้องเช็คชื่อรายวันด้วย)',
+          [{ who: `${grade}/${classNo}`, when: '', what: `เช็คชื่อรายวิชาแล้ว ${new Set(subjectRows.map((r) => normalizeDate(r.attendance_date))).size} วัน` }]);
+      } else {
+        const subjectDates = [...new Set([...byStudentDate.keys()].map((key) => key.split('|')[1]))].sort();
+        push('daily_missing_days', 'warn', 'วันที่เช็คชื่อรายวิชาแล้ว แต่ยังไม่ได้เช็คชื่อรายวัน (ไม่นับวันที่ยังมาไม่ถึง และวันหยุด)',
+          subjectDates.filter((d) => d <= today && !dailyDates.has(d)).map((d) => ({ who: `${grade}/${classNo}`, when: thaiDay(d), what: 'ไม่มีเช็คชื่อรายวันของวันนี้' })));
+        const conflicts = [];
+        [...byStudentDate.entries()].sort(([a], [b]) => a.localeCompare(b)).forEach(([key, marks]) => {
+          const [sid, date] = key.split('|');
+          const day = dailyOf.get(key);
+          if (!day) return;
+          const subjectsText = [...new Set(marks.map((m) => subjectName.get(m.subject) || m.subject))].join(', ');
+          if (day === 'absent' && marks.some((m) => m.status === 'present')) {
+            conflicts.push({ who: nameOf.get(sid) || sid, when: thaiDay(date), what: `รายวัน "ขาด" แต่รายวิชา "มา" (${subjectsText})` });
+          } else if (day === 'present' && marks.every((m) => m.status === 'absent')) {
+            conflicts.push({ who: nameOf.get(sid) || sid, when: thaiDay(date), what: `รายวัน "มา" แต่ขาดทุกคาบที่เช็ค (${subjectsText})` });
+          }
+        });
+        push('daily_subject_conflict', 'warn', 'เช็คชื่อรายวันกับรายวิชาขัดกัน (ร้อยละใน ปพ.6 กับ ปพ.5 รายวิชาจะไม่ตรงกัน)', conflicts);
+      }
+    }
+
+    // 4 มส. จากเวลาเรียน (เกณฑ์เดียวกับ ปพ.5 รายวิชา / คำเตือนหน้ากรอกคะแนน) กับ มส. ที่ให้ในคะแนน
+    try {
+      const report = await computePp5SubjectSheets(grade, classNo, students, 'all', academicYear);
+      const msGiven = new Set((scoreRows || []).filter((r) => text(r.grade_text).trim() === 'มส').map((r) => `${text(r.student_id)}|${text(r.subject_id)}`));
+      const rows = [];
+      (report?.sheets || []).forEach((sheet) => {
+        const att = sheet.attendance;
+        if (!att || !Array.isArray(att.students)) return;
+        att.students.forEach((row) => {
+          const sid = text(row.code);
+          const key = `${sid}|${text(sheet.id)}`;
+          const pct = Number.isFinite(Number(row.pct)) ? `${Math.round(Number(row.pct) * 10) / 10}%` : '-';
+          if (row.below === true && !msGiven.has(key)) rows.push({ who: nameOf.get(sid) || sid, when: text(sheet.name), what: `เวลาเรียน ${pct} ไม่ถึงเกณฑ์ แต่ผลการเรียนยังไม่ได้ให้ มส.` });
+          else if (row.below !== true && msGiven.has(key) && row.pct !== null && row.pct !== undefined) rows.push({ who: nameOf.get(sid) || sid, when: text(sheet.name), what: `ให้ มส. ไว้ แต่เวลาเรียน ${pct} ถึงเกณฑ์แล้ว` });
+        });
+      });
+      checked.ms = true;
+      push('ms_mismatch', 'warn', 'ผล มส. ในคะแนนไม่ตรงกับเวลาเรียน (ตรวจตามเกณฑ์ขาดได้ไม่เกินร้อยละ 20 ของเวลาเรียนเต็ม)', rows);
+    } catch (_) { /* ไม่มีรายวิชา / อ่านเวลาเรียนไม่ได้ = ข้ามข้อนี้ */ }
+
+    // 5 ผลประเมินจากครูรายวิชามีแล้ว แต่ผลประจำชั้น (ที่ใช้ใน ปพ.5 ประจำชั้น / ปพ.6) ยังไม่ครบ
+    const subjectTyped = (type) => new Set((assessRows || []).filter((r) => r.assessment_type === type).map((r) => text(r.student_id)));
+    const pending = [];
+    [['subj_char', 'characteristic', 'คุณลักษณะอันพึงประสงค์'], ['subj_rtw', 'rtw', 'อ่าน คิดวิเคราะห์ เขียน'], ['subj_comp', 'competency', 'สมรรถนะสำคัญ']]
+      .forEach(([subjType, officialType, label]) => {
+        const done = officialComplete[officialType] || new Set();
+        [...subjectTyped(subjType)].filter((sid) => !done.has(sid)).forEach((sid) => pending.push({ who: nameOf.get(sid) || sid, when: label, what: 'ครูรายวิชาประเมินแล้ว แต่ผลประจำชั้นยังไม่ครบ' }));
+      });
+    push('subject_assessment_pending', 'warn', 'ผลประเมินจากครูรายวิชายังไม่ได้นำไปใส่ผลประจำชั้น (ใช้หน้า "สรุปการประเมินจากครูรายวิชา" เติมให้)', pending);
+
+    return { checked, items };
+  }
+
+  async function getPp5ReadinessSummary(grade, classNo, academicYear, options = {}) {
     academicYear = academicYear || await currentYear();
     const students = await data.students.list({ grade, room: classNo, academicYear });
     if (!students.length) {
@@ -4011,6 +4107,16 @@
       warnings.push(`สมรรถนะสำคัญ: ยังไม่ครบ ${missingComp.length} คน`);
     }
 
+    // ความตรงกันของข้อมูล (ตรวจทีละห้อง หน้า "ภาพรวมทุกห้อง" ปิดไว้เพราะช้า) — ตรวจไม่ได้ไม่ทำให้หน้าตรวจความพร้อมพัง
+    let consistency = null;
+    if (options.consistency !== false) {
+      try {
+        consistency = await pp5ConsistencyChecks({ grade, classNo, academicYear, students, scoreRows: targetScoreRows, assessRows: targetAssessRows,
+          subjects: allSubjects, officialComplete: { characteristic: charStudents, rtw: rtwStudents, competency: compStudents } });
+      } catch (error) { consistency = { checked: {}, items: [], error: text(error?.message || error) }; }
+      consistency.items.forEach((item) => (item.level === 'bad' ? blockingIssues : warnings).push(`ความตรงกันของข้อมูล: ${item.title} — ${item.count} รายการ`));
+    }
+
     // 4. คำนวณคะแนนความพร้อมจริง (ถ่วงน้ำหนักตามความก้าวหน้าจริง)
     const subjectPct = totalSubjectEntries > 0 ? (completedSubjectEntries / totalSubjectEntries) : 0;
     const actPct = students.length > 0 ? ((students.length - missingAct.length) / students.length) : 0;
@@ -4039,7 +4145,8 @@
           'คุณลักษณะอันพึงประสงค์': { ok: missingChar.length === 0, missingStudents: missingChar },
           'กิจกรรมพัฒนาผู้เรียน': { ok: missingAct.length === 0, missingStudents: missingAct },
           'สมรรถนะสำคัญ': { ok: missingComp.length === 0, missingStudents: missingComp }
-        }
+        },
+        consistency
       }
     };
   }
@@ -4056,7 +4163,7 @@
     const classes = [];
     for (const key of classKeys) {
       const [grade, classNo] = key.split('|');
-      const sum = await getPp5ReadinessSummary(grade, classNo, academicYear);
+      const sum = await getPp5ReadinessSummary(grade, classNo, academicYear, { consistency: false });
       if (sum.success) {
         classes.push({
           grade,
