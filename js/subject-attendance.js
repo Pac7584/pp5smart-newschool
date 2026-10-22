@@ -32,7 +32,9 @@
   const MAX_PERIODS = 8;
   const MISSING_SQL = ['42P01', 'PGRST205', 'PGRST202', '42883'];
   // ฐานข้อมูลยังไม่มีคอลัมน์ period / ตาราง subject_schedules (ยังไม่ได้รัน SQL 032)
-  const NEEDS_032 = (error) => ['42703', 'PGRST204', ...MISSING_SQL].includes(error?.code) || /period|subject_schedules|pp5_save_subject_(period|schedule)/.test(text(error?.message));
+  // ข้อความเดิมของ pp5_subject_attendance_year ก่อน SQL 040 (ฐานที่ข้อความยังเพี้ยน = ยังไม่รัน 039 จะจับไม่ได้)
+  const FUTURE_BLOCKED = (error) => /ต้องไม่เกินวันนี้/.test(text(error?.message));
+  const NEEDS_032 =(error) => ['42703', 'PGRST204', ...MISSING_SQL].includes(error?.code) || /period|subject_schedules|pp5_save_subject_(period|schedule)/.test(text(error?.message));
 
   function subjectRank(name) {
     const n = text(name);
@@ -256,7 +258,9 @@
     const setDate = (value) => { dateInput.value = value; dateInput.dispatchEvent(new global.Event('input', { bubbles: true })); };
     setDate(target?.date || today());
     const yearCE = Number(state.year) - 543;
-    if (yearCE > 1900) { dateInput.min = `${yearCE}-05-01`; dateInput.max = [`${yearCE + 1}-03-31`, today()].sort()[0]; }
+    // owner 2026-10-22: ครูต้องเช็คล่วงหน้าได้ (เตรียมออก ปพ. และแจ้งลา/มา/ขาดให้นักเรียนก่อน) -> เลือกได้ถึงสิ้นปีการศึกษา
+    // ฐานข้อมูลต้องรัน SQL 202610220040 (เดิมห้ามวันในอนาคต)  ปีการศึกษา = 1 พ.ค. – 31 มี.ค. ตามฐานข้อมูล
+    if (yearCE > 1900) { dateInput.min = `${yearCE}-05-01`; dateInput.max = `${yearCE + 1}-03-31`; }
 
     const message = (html, kind) => { body.innerHTML = `<div class="sa-note${kind ? ` is-${kind}` : ''}">${html}</div>`; bar.hidden = true; historyBox.hidden = true; };
     const setSay = (msg, kind) => { say.className = `sa-say${kind ? ` is-${kind}` : ''}`; say.innerHTML = msg; };
@@ -398,8 +402,9 @@ ${total ? `<div class="sa-days${weekend ? ' has-weekend' : ''}" aria-label="ว�
       if (count < MAX_PERIODS && state.canWrite) buttons.push('<button type="button" class="sa-add" data-pp5-btn-skip data-add-period><i class="bi bi-plus-lg"></i> เพิ่มคาบ</button>');
       periodBox.innerHTML = buttons.join('');
       const day = DAYS.find((d) => d.n === weekdayOf(dateInput.value));
-      planBox.textContent = state.planned ? `ตามตารางสอน วัน${day?.name || ''}มี ${state.planned} คาบ`
-          : `สอนชดเชย — วัน${day?.name || ''}ไม่อยู่ในตารางสอนวิชานี้`;
+      planBox.textContent = (state.planned ? `ตามตารางสอน วัน${day?.name || ''}มี ${state.planned} คาบ`
+          : `สอนชดเชย — วัน${day?.name || ''}ไม่อยู่ในตารางสอนวิชานี้`)
+        + (dateInput.value > today() ? ' · เช็คล่วงหน้า (ถ้าวันนั้นหยุด/งดสอน กดลบการเช็คชื่อคาบนั้น)' : '');
     }
     // วันที่ไม่มีคาบวิชานี้ตามตารางสอน และยังไม่มีบันทึก: ถามก่อนว่าเลือกวันผิด หรือสอนชดเชยจริง
     const offDay = () => state.week.size > 0 && !state.planned && !state.byPeriod.size;
@@ -407,7 +412,7 @@ ${total ? `<div class="sa-days${weekend ? ' has-weekend' : ''}" aria-label="ว�
       const date = dateInput.value;
       const day = DAYS.find((d) => d.n === weekdayOf(date));
       const teach = DAYS.filter((d) => state.week.get(d.n)).map((d) => d.short).join(' ');
-      const near = nearTeachingDays(date, state.week, today(), dateInput.min);
+      const near = nearTeachingDays(date, state.week, dateInput.max || today(), dateInput.min);
       periodBox.innerHTML = '';
       planBox.textContent = `ตามตารางสอน วัน${day?.name || ''}ไม่มีคาบวิชานี้`;
       body.innerHTML = `<div class="sa-off">
@@ -579,12 +584,6 @@ ${list.map(([d, day]) => `<tr data-date="${esc(d)}"${d === current ? ' class="is
 
     async function save(clear) {
       const period = state.period;
-      // วันในอนาคตเช็คชื่อไม่ได้ (ฐานข้อมูลก็ปฏิเสธ) — บอกเป็นภาษาไทยชัด ๆ ก่อนส่ง (owner 2026-10-22: เลือก 3 พ.ย.
-      // แล้วได้ข้อความผิดพลาดที่อ่านไม่ออก)
-      if (!clear && dateInput.value > today()) {
-        setSay(`<i class="bi bi-exclamation-triangle-fill"></i> วันที่ ${esc(thaiDate(dateInput.value))} ยังมาไม่ถึง เช็คชื่อล่วงหน้าไม่ได้ — เลือกวันนี้หรือวันที่ผ่านมาแล้ว`, 'err');
-        return;
-      }
       const rows = state.students.map((s) => ({ student_id: text(s.id), status: clear ? null : state.marks.get(text(s.id)) || 'present' }));
       saveBtn.disabled = true;
       clearBtn.disabled = true;
@@ -603,6 +602,8 @@ ${list.map(([d, day]) => `<tr data-date="${esc(d)}"${d === current ? ' class="is
           : `<i class="bi bi-check-circle-fill"></i> บันทึกคาบ ${period} แล้ว ${data?.saved ?? rows.length} คน${next ? ` — ต่อด้วยคาบ ${next} (ตั้งต้นจากคาบ ${period})` : ''}`, 'ok');
       } catch (error) {
         if (NEEDS_032(error)) need032();
+        // ฐานข้อมูลที่ยังไม่ได้รัน 040 ยังห้ามวันในอนาคต: บอกให้ผู้ดูแลรัน แทนข้อความจากฐานข้อมูล
+        else if (FUTURE_BLOCKED(error)) setSay('<i class="bi bi-exclamation-triangle-fill"></i> ฐานข้อมูลของโรงเรียนยังไม่เปิดให้เช็คชื่อล่วงหน้า — ผู้ดูแลระบบต้องรัน SQL <b>202610220040_subject_attendance_ahead.sql</b> ใน Supabase ก่อน', 'err');
         else setSay(`<i class="bi bi-exclamation-triangle-fill"></i> บันทึกไม่สำเร็จ: ${esc(error?.message || error)}`, 'err');
       } finally {
         saveBtn.disabled = false;
