@@ -34,6 +34,29 @@
     };
   }
 
+  // รูปนักเรียนในตารางจอคอม (owner 2026-10-22): รายชื่อที่หน้าโหลดมามีลิงก์รูปชั่วคราวอยู่แล้ว (supabaseClient
+  // signStudentPhotos) แต่หน้าเดิมทิ้งไปตอนสร้าง dailyStudents จึงจำไว้ที่นี่  google.script.run เรียกชื่อ
+  // getStudentsForAttendance ผ่าน alias ไปที่ getFilteredStudentsInline จึงห่อทั้งสองชื่อ (ส่งผลลัพธ์เดิมกลับ)
+  const photos = new Map();
+  const photoSrc = (value) => {
+    if (typeof global.PP5AssessmentUI?.photoSrc === 'function') return global.PP5AssessmentUI.photoSrc(value);
+    const input = String(value ?? '').trim();
+    return /^(https?:|data:image\/)/i.test(input) ? input : '';
+  };
+  ['getFilteredStudentsInline', 'getStudentsForAttendance'].forEach((name) => {
+    const original = server[name];
+    if (typeof original !== 'function') return;
+    server[name] = async function (...args) {
+      const result = await original.apply(this, args);
+      if (Array.isArray(result) && doc.getElementById('attendanceBody') && String(args[0]) === pageValue('gradeSelect') && String(args[1]) === pageValue('classSelect')) {
+        photos.clear();
+        result.forEach((student) => photos.set(String(student?.id ?? ''), photoSrc(student?.photoUrl || student?.photo_url)));
+        schedule();
+      }
+      return result;
+    };
+  });
+
   const originalSave = server.saveAttendance;
   if (typeof originalSave === 'function') {
     server.saveAttendance = async function (payload, ...rest) {
@@ -103,9 +126,40 @@
     }
   }
 
+  // ช่องชื่อแต่ละแถวของตารางจอคอม (#row-desk-<รหัส>): [รูป][ชื่อ / รหัส] แบบเดียวกับหน้าประเมิน (.pp5-au-*)
+  // ไม่มีรูป -> ไอคอนคน  รูปเสีย -> ไอคอนคน  คลิกรูปเปิดรูปใหญ่ (js/student-photos.js ดักคลิก .pp5-au-avatar.has-photo)
+  const escAttr = (value) => String(value).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+  function avatarHtml(url) {
+    return url
+      ? `<span class="pp5-au-avatar has-photo"><img src="${escAttr(url)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span>`
+      : '<span class="pp5-au-avatar"><i class="bi bi-person-fill" aria-hidden="true"></i></span>';
+  }
+  function decoratePhotos() {
+    if (typeof doc.querySelectorAll !== 'function') return;
+    doc.querySelectorAll('#attendanceBody > tr[id^="row-desk-"]').forEach((row) => {
+      const cell = row.cells && row.cells[1];
+      if (!cell) return;
+      const url = photos.get(row.id.slice('row-desk-'.length)) || '';
+      if (cell.getAttribute('data-pp5-photo') === url && cell.querySelector('.pp5-au-who')) return;
+      const inner = cell.querySelector('.pp5-att-who-text')?.innerHTML ?? cell.innerHTML;
+      cell.setAttribute('data-pp5-photo', url);
+      cell.innerHTML = `<div class="pp5-au-who">${avatarHtml(url)}<div class="pp5-att-who-text">${inner}</div></div>`;
+      const nameLine = cell.querySelector('.pp5-att-who-text > div');
+      if (nameLine) nameLine.classList.add('pp5-au-name');
+      const img = cell.querySelector('img');
+      if (img) img.addEventListener('error', () => {
+        const box = img.parentElement;
+        if (!box) return;
+        box.classList.remove('has-photo');
+        box.innerHTML = '<i class="bi bi-person-fill" aria-hidden="true"></i>';
+      }, { once: true });
+    });
+  }
+
   function update() {
     mergeSummary();
     moveListTools();
+    decoratePhotos();
     const bar = doc.getElementById('mobileStickySaveBar');
     if (!bar) return;
     const list = Array.isArray(global.dailyStudents) ? global.dailyStudents : [];
