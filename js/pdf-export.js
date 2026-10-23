@@ -2565,7 +2565,10 @@
       { content: `มา\n(${unit})`, rowSpan: span }, { content: `${hourly ? 'สอน' : 'เรียน'}\n(${unit})`, rowSpan: span }
     ];
     const head = [headRow1, groupsByDate.map((g) => (g.n > 1 ? { content: text(g.d.dow), colSpan: g.n } : text(g.d.dow)))];
-    if (hourly) head.push(days.map((d) => `${number(d.hours, 0)}`));
+    // แถว 3 = ชั่วโมงที่ นับต่อกันทั้งเดือน 1 2 3 … (owner 2026-10-23 "ชม.มา 1 1 1 1 มันดูสับสน นับเป็น ชม.ที่ 1 2 3 4")
+    //   ช่องที่สอนหลายชั่วโมงในแถวเดียว (ข้อมูลเก่าก่อน SQL 032) แสดงชั่วโมงสุดท้ายของช่องนั้น
+    let hourNo = 0;
+    if (hourly) head.push(days.map((d) => { hourNo += Math.max(1, number(d.hours, 1)); return String(hourNo); }));
     const body = month.students.map((st) => [st.no, st.code, st.name, ...st.cells, String(st.present), String(st.total)]);
     // ช่องชื่อกว้างพอให้ชื่อ-สกุลยาวที่สุดอยู่บรรทัดเดียว ช่องวันใช้ที่เหลือ (ไม่เกิน 9 มม. ไม่ต่ำกว่า 4.2 มม.)
     const small = days.length > 22 ? 7.5 : 8.5;
@@ -2619,7 +2622,7 @@
     doc.setFontSize(9);
     // Sarabun ไม่มีตัว ✓ จึงวาดเครื่องหมายถูกเป็นเส้นแบบเดียวกับในตาราง
     const prefix = 'หมายเหตุ: ';
-    const rest = `= มาเรียน   ล = ลา   ข = ขาด${hourly ? '   |   แถวที่ 3 ของหัวตาราง = ชั่วโมงที่สอนวันนั้น' : ''}   |   นักเรียน ${month.students.length} คน`;
+    const rest = `= มาเรียน   ล = ลา   ข = ขาด${hourly ? '   |   แถวที่ 3 ของหัวตาราง = ชั่วโมงที่ (นับต่อกันทั้งเดือน)' : ''}   |   นักเรียน ${month.students.length} คน`;
     const startX = pageWidth / 2 - (doc.getTextWidth(prefix) + 5 + doc.getTextWidth(rest)) / 2;
     doc.text(prefix, startX, endY);
     const cx = startX + doc.getTextWidth(prefix) + 2;
