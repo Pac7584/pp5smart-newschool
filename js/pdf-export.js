@@ -2553,25 +2553,36 @@
 
     const days = month.days || [];
     const unit = hourly ? 'ชม.' : 'วัน';
+    // หัวตาราง (owner 2026-10-23 "ทำให้ชื่อ นามสกุลแสดงในบรรทัดเดียว ปรับหัวตารางให้เป็นตัวไม่หนา"): วันที่เดียวกันหลายคาบรวมเป็นหัวเดียว
+    //   (เดิม "12-2" ในช่องแคบจึงตกบรรทัดเป็นแนวตั้ง) · แถว 2 = วัน · แถว 3 (รายชั่วโมง) = ชั่วโมงที่สอนช่องนั้น
+    const groupsByDate = [];
+    days.forEach((d) => { const g = groupsByDate[groupsByDate.length - 1]; const key = text(d.date) || text(d.label); if (g && g.key === key) g.n += 1; else groupsByDate.push({ key, d, n: 1 }); });
+    const dateLabel = (d) => text(d.label).split('-')[0];
+    const span = hourly ? 3 : 2;
     const headRow1 = [
-      { content: 'ที่', rowSpan: hourly ? 3 : 2 }, { content: 'รหัส', rowSpan: hourly ? 3 : 2 }, { content: 'ชื่อ - สกุล', rowSpan: hourly ? 3 : 2 },
-      ...days.map((d) => text(d.label)),
-      { content: `มา\n(${unit})`, rowSpan: hourly ? 3 : 2 }, { content: `${hourly ? 'สอน' : 'เรียน'}\n(${unit})`, rowSpan: hourly ? 3 : 2 }
+      { content: 'ที่', rowSpan: span }, { content: 'รหัส', rowSpan: span }, { content: 'ชื่อ - สกุล', rowSpan: span },
+      ...groupsByDate.map((g) => (g.n > 1 ? { content: dateLabel(g.d), colSpan: g.n } : dateLabel(g.d))),
+      { content: `มา\n(${unit})`, rowSpan: span }, { content: `${hourly ? 'สอน' : 'เรียน'}\n(${unit})`, rowSpan: span }
     ];
-    const head = [headRow1, days.map((d) => text(d.dow))];
+    const head = [headRow1, groupsByDate.map((g) => (g.n > 1 ? { content: text(g.d.dow), colSpan: g.n } : text(g.d.dow)))];
     if (hourly) head.push(days.map((d) => `${number(d.hours, 0)}`));
     const body = month.students.map((st) => [st.no, st.code, st.name, ...st.cells, String(st.present), String(st.total)]);
-    // วันน้อยไม่ยืดช่องวันจนกว้างเกิน: ช่องวันกว้างไม่เกิน 9 มม. แล้ววางตารางกลางหน้า
-    const maxWidth = pageWidth - 20;
-    const numDays = Math.max(days.length, 1);
-    const nameWidth = Math.min(54, Math.max(36, maxWidth - 8 - 14 - 22 - numDays * 6.2));
-    const dayWidth = Math.min(9, (maxWidth - 8 - 14 - nameWidth - 22) / numDays);
-    const left = (pageWidth - (8 + 14 + nameWidth + 22 + dayWidth * numDays)) / 2;
-    const columnStyles = { 0: { cellWidth: 8 }, 1: { cellWidth: 14 }, 2: { cellWidth: nameWidth, halign: 'left' } };
-    days.forEach((_d, i) => { columnStyles[3 + i] = { cellWidth: dayWidth }; });
-    columnStyles[3 + days.length] = { cellWidth: 11 };
-    columnStyles[4 + days.length] = { cellWidth: 11 };
+    // ช่องชื่อกว้างพอให้ชื่อ-สกุลยาวที่สุดอยู่บรรทัดเดียว ช่องวันใช้ที่เหลือ (ไม่เกิน 9 มม. ไม่ต่ำกว่า 4.2 มม.)
     const small = days.length > 22 ? 7.5 : 8.5;
+    const maxWidth = pageWidth - 16;
+    const numDays = Math.max(days.length, 1);
+    const fixed = 7 + 12 + 20;
+    doc.setFont('Sarabun', 'normal');
+    doc.setFontSize(small);
+    const longest = Math.max(0, ...month.students.map((st) => doc.getTextWidth(text(st.name))));
+    let nameWidth = Math.min(64, Math.max(34, longest + 3));
+    let dayWidth = Math.min(9, (maxWidth - fixed - nameWidth) / numDays);
+    if (dayWidth < 4.2) { dayWidth = 4.2; nameWidth = Math.max(34, maxWidth - fixed - dayWidth * numDays); }
+    const left = (pageWidth - (fixed + nameWidth + dayWidth * numDays)) / 2;
+    const columnStyles = { 0: { cellWidth: 7 }, 1: { cellWidth: 12 }, 2: { cellWidth: nameWidth, halign: 'left' } };
+    days.forEach((_d, i) => { columnStyles[3 + i] = { cellWidth: dayWidth, cellPadding: { top: 1.1, bottom: 1.1, left: 0.2, right: 0.2 } }; });
+    columnStyles[3 + days.length] = { cellWidth: 10 };
+    columnStyles[4 + days.length] = { cellWidth: 10 };
     const isMark = (column) => column >= 3 && column < 3 + days.length;
     runAutoTable(doc, tableDefaults({
       startY: y,
@@ -2581,6 +2592,11 @@
       styles: { font: 'Sarabun', fontSize: small, cellPadding: 1.1, halign: 'center', valign: 'middle', textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2 },
       headStyles: { font: 'Sarabun', fontStyle: 'bold', fontSize: small, fillColor: [245, 245, 245], textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2 },
       columnStyles,
+      // หัวช่องวันที่/วัน/ชั่วโมงเป็นตัวปกติ (ช่องแคบ ตัวหนาล้น) · หัวอื่นยังตัวหนา · ชื่อ-สกุลไม่ตัดบรรทัด
+      didParseCell: (data) => {
+        if (data.section === 'head' && isMark(data.column.index)) { data.cell.styles.fontStyle = 'normal'; data.cell.styles.cellPadding = { top: 1, bottom: 1, left: 0.2, right: 0.2 }; }
+        if (data.section === 'body' && data.column.index === 2) data.cell.styles.overflow = 'ellipsize';
+      },
       willDrawCell: (data) => {
         if (data.section !== 'body' || !isMark(data.column.index)) return;
         const val = String(data.cell.raw || '').trim();
