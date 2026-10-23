@@ -2297,45 +2297,55 @@
 
   function drawPp5SubjectSheet(doc, report, sheet, meta, logo) {
     const pageWidth = doc.internal.pageSize.getWidth();
-    const left = 16;
-    const right = pageWidth - 16;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const left = 10;
     const blank = '...................................';
     doc.setTextColor(0, 0, 0);
+    // หัวกระดาษแบบเดียวกับปก ปพ.5 รายชั้น (drawPp5CoverPage): ตรากลาง ชื่อเอกสาร โรงเรียน สังกัด ปีการศึกษา ชั้น/ห้อง/จำนวนนักเรียน
+    let y = 12;
     if (logo) {
-      try { doc.addImage(logo, 'PNG', left, 9, 16, 16, undefined, 'FAST'); } catch (_) {}
+      try { doc.addImage(logo, 'PNG', (pageWidth - 22) / 2, y, 22, 22, undefined, 'FAST'); } catch (_) {}
+      y += 26;
+    } else {
+      y += 8;
     }
     doc.setFont('Sarabun', 'bold');
-    doc.setFontSize(15);
-    doc.text('แบบบันทึกผลการเรียนประจำรายวิชา', pageWidth / 2, 19, { align: 'center' });
-
-    // ช่องข้อมูล: ป้าย + ค่า + เส้นจุดถึงปลายช่อง
-    doc.setFontSize(11);
-    const field = (label, value, x, y, x2) => {
+    doc.setFontSize(14);
+    doc.text('แบบบันทึกผลการเรียนประจำรายวิชา', pageWidth / 2, y, { align: 'center' });
+    y += 6.5;
+    doc.setFontSize(12.5);
+    doc.text(meta.schoolName || 'โรงเรียน', pageWidth / 2, y, { align: 'center' });
+    y += 5.5;
+    if (text(meta.affiliation)) {
       doc.setFont('Sarabun', 'normal');
-      doc.text(label, x, y);
-      const start = x + doc.getTextWidth(label) + 2;
-      doc.setLineDashPattern([0.4, 0.8], 0);
-      doc.setLineWidth(0.2);
-      doc.line(start, y + 1.2, x2, y + 1.2);
-      doc.setLineDashPattern([], 0);
-      if (text(value)) doc.text(text(value), start + 2, y);
-    };
+      doc.setFontSize(9.5);
+      doc.text(text(meta.affiliation), pageWidth / 2, y, { align: 'center' });
+      y += 5.5;
+    }
+    doc.setFont('Sarabun', 'bold');
+    doc.setFontSize(11.5);
+    doc.text(`ปีการศึกษา ${text(report.academicYear)}`, pageWidth / 2, y, { align: 'center' });
+    y += 5.5;
+    doc.setFontSize(10.5);
+    doc.text(`ชั้น${pp5GradeFullName(report.grade)} ห้อง ${text(report.classNo)}   จำนวนนักเรียน ${number(report.studentCount, 0)} คน`, pageWidth / 2, y, { align: 'center' });
+    y += 3;
+
+    // ข้อมูลรายวิชาเป็นตาราง (ป้ายพื้นเทาเหมือนหัวตารางของปกรายชั้น)
     const hours = text(sheet.hours) ? `${text(sheet.hours)} ชั่วโมง/${sheet.semester ? 'ภาคเรียน' : 'ปี'}` : '';
-    let y = 34;
-    const step = 7.2;
-    const mid = left + (right - left) * 0.58;
-    field('โรงเรียน', meta.schoolName, left, y, right); y += step;
-    field('ที่ตั้ง', report.schoolAddress, left, y, right); y += step;
-    field('ชั้น', pp5GradeFullName(report.grade), left, y, left + 62);
-    field('ห้อง', text(report.classNo), left + 66, y, mid + 4);
-    field('ปีการศึกษา', report.academicYear, mid + 10, y, right); y += step;
-    field('รายวิชา', sheet.name, left, y, mid + 4);
-    field('รหัสวิชา', sheet.code, mid + 10, y, right); y += step;
-    field('กลุ่มสาระการเรียนรู้', sheet.group, left, y, right); y += step;
-    field('ประเภทวิชา', sheet.type, left, y, mid + 4);
-    field('เวลาเรียน', hours, mid + 10, y, right); y += step;
-    field('ครูผู้สอน', sheet.teacher, left, y, right); y += step;
-    field('ครูประจำชั้น', meta.classTeacher, left, y, right); y += 4;
+    const label = (content) => ({ content, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } });
+    runAutoTable(doc, tableDefaults({
+      startY: y,
+      body: [
+        [label('รายวิชา'), text(sheet.name), label('รหัสวิชา'), text(sheet.code)],
+        [label('กลุ่มสาระการเรียนรู้'), text(sheet.group), label('ประเภทวิชา'), text(sheet.type)],
+        [label('เวลาเรียน'), hours, label('ครูผู้สอน'), text(sheet.teacher) || blank],
+        [label('ครูประจำชั้น'), text(meta.classTeacher) || blank, label('ที่ตั้ง'), text(report.schoolAddress)]
+      ],
+      margin: { left, right: 10, bottom: 4 },
+      styles: { font: 'Sarabun', fontSize: 9.5, cellPadding: 1.8, halign: 'left', valign: 'middle', textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2 },
+      columnStyles: { 0: { cellWidth: 32 }, 1: { cellWidth: 63 }, 2: { cellWidth: 24 }, 3: { cellWidth: 71 } }
+    }));
+    y = (doc.lastAutoTable?.finalY || y) + 2;
 
     const total = number(report.studentCount, 0);
     const pct = (n) => (total > 0 ? ((Number(n) || 0) / total * 100).toFixed(1) : '');
@@ -2345,12 +2355,12 @@
     const passGrades = ['4', '3.5', '3', '2.5', '2', '1.5', '1'].reduce((s, k) => s + (Number(g[k]) || 0), 0);
     const failGrades = ['0', 'ร', 'มส'].reduce((s, k) => s + (Number(g[k]) || 0), 0);
     const tableStyle = {
-      margin: { left, right: 16, bottom: 4 },
+      margin: { left, right: 10, bottom: 4 },
       styles: { font: 'Sarabun', fontSize: 9.5, cellPadding: 1.6, halign: 'center', valign: 'middle', textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2 },
-      headStyles: { font: 'Sarabun', fontStyle: 'bold', fontSize: 9.5, fillColor: [255, 255, 255], textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2 }
+      headStyles: { font: 'Sarabun', fontStyle: 'bold', fontSize: 9.5, fillColor: [245, 245, 245], textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2 }
     };
     // ช่องผลการเรียน/ผลการประเมินกว้างเท่ากันทุกช่อง (ไม่ยืดตามความยาวข้อความ)
-    const cellWidth = (doc.internal.pageSize.getWidth() - left - 16 - 17) / 12;
+    const cellWidth = (doc.internal.pageSize.getWidth() - left - 10 - 17) / 12;
     const equalColumns = { 0: { cellWidth: 17 } };
     for (let i = 1; i <= 12; i += 1) equalColumns[i] = { cellWidth };
     runAutoTable(doc, tableDefaults({
@@ -2422,35 +2432,33 @@
       ? `* ${[sheet.characterBy === 'subject' ? 'คุณลักษณะ' : '', sheet.readingBy === 'subject' ? 'การอ่านฯ' : ''].filter(Boolean).join(' และ ')}ใช้ผลประเมินของครูผู้สอนวิชานี้ (ดีเยี่ยม = 3, ดี = 2, ผ่าน = 1, ไม่ผ่าน = 0)`
       : '* คุณลักษณะอันพึงประสงค์ใช้ผลการประเมินรวมของนักเรียน (ดีเยี่ยม = 3, ดี = 2, ผ่าน = 1, ไม่ผ่าน = 0)', left, noteY);
 
-    // ลงนาม: ครูผู้สอน | หัวหน้าฝ่ายวิชาการ/งานวัดผล  แล้วผู้อำนวยการ (อนุมัติ/ไม่อนุมัติ + วันที่)
+    // ลงนาม 3 ช่องแบบปกรายชั้น: ครูผู้สอน | หัวหน้าฝ่ายวิชาการ/งานวัดผล (เห็นควรอนุมัติ/ปรับปรุง) | ผู้อำนวยการ (อนุมัติ/ไม่อนุมัติ + ตรา)
     const signs = meta?.includeSignatures !== false;
-    const colL = pageWidth * 0.28;
-    const colR = pageWidth * 0.72;
-    let sy = Math.max(noteY + 22, 196);
+    const col1 = pageWidth * 0.2;
+    const col2 = pageWidth * 0.5;
+    const col3 = pageWidth * 0.8;
+    const sigY = Math.max(noteY + 36, pageHeight - 30);
     doc.setFont('Sarabun', 'normal');
-    doc.setFontSize(10.5);
-    doc.text('ลงชื่อ ..........................................', colL, sy, { align: 'center' });
-    doc.text(`( ${text(sheet.teacher) || blank} )`, colL, sy + 6.5, { align: 'center' });
-    doc.text('ครูผู้สอน', colL, sy + 13, { align: 'center' });
-    if (signs && meta?.academicHeadSignature) { try { doc.addImage(meta.academicHeadSignature, 'PNG', colR - 15, sy - 9, 30, 9.5); } catch (_) {} }
-    doc.text('ลงชื่อ ..........................................', colR, sy, { align: 'center' });
-    doc.text(`( ${text(meta.academicHead) || blank} )`, colR, sy + 6.5, { align: 'center' });
-    doc.text('หัวหน้าฝ่ายวิชาการ / งานวัดผล', colR, sy + 13, { align: 'center' });
-
-    sy += 27;
-    const cx = pageWidth / 2;
-    doc.text('อนุมัติ', cx - 17, sy, { align: 'right' });
-    doc.setLineWidth(0.25);
-    doc.rect(cx - 15, sy - 3.4, 4, 4);
-    doc.text('/ ไม่อนุมัติ', cx - 9, sy);
-    doc.rect(cx + 8, sy - 3.4, 4, 4);
-    sy += 12;
-    if (signs && meta?.schoolStamp) { try { doc.addImage(meta.schoolStamp, 'PNG', cx + 14, sy - 14, 17, 17); } catch (_) {} }
-    if (signs && meta?.directorSignature) { try { doc.addImage(meta.directorSignature, 'PNG', cx - 15, sy - 9, 30, 9.5); } catch (_) {} }
-    doc.text('ลงชื่อ ..........................................', cx, sy, { align: 'center' });
-    doc.text(`( ${text(meta.directorName) || blank} )`, cx, sy + 6.5, { align: 'center' });
-    doc.text(text(meta.directorPosition) || `ผู้อำนวยการ${meta.schoolName || 'โรงเรียน'}`, cx, sy + 13, { align: 'center' });
-    doc.text('วันที่ .......... เดือน ............................ พ.ศ. ..............', cx, sy + 20, { align: 'center' });
+    doc.setFontSize(9.5);
+    doc.setLineWidth(0.2);
+    doc.setDrawColor(0, 0, 0);
+    const box = (x, label, yy) => { doc.rect(x, yy - 3, 3, 3); doc.text(label, x + 5, yy); };
+    box(col2 - 30, 'เห็นควรอนุมัติ', sigY - 21);
+    box(col2 + 3, 'เห็นควรปรับปรุง', sigY - 21);
+    box(col3 - 23, 'อนุมัติ', sigY - 21);
+    box(col3 + 2, 'ไม่อนุมัติ', sigY - 21);
+    doc.text('ลงชื่อ................................................', col1, sigY, { align: 'center' });
+    doc.text(`( ${text(sheet.teacher) || blank} )`, col1, sigY + 6, { align: 'center' });
+    doc.text('ครูผู้สอน', col1, sigY + 11.5, { align: 'center' });
+    if (signs && meta?.academicHeadSignature) { try { doc.addImage(meta.academicHeadSignature, 'PNG', col2 - 15, sigY - 8.5, 30, 9.5); } catch (_) {} }
+    doc.text('ลงชื่อ................................................', col2, sigY, { align: 'center' });
+    doc.text(`( ${text(meta.academicHead) || blank} )`, col2, sigY + 6, { align: 'center' });
+    doc.text('หัวหน้าฝ่ายวิชาการ / งานวัดผล', col2, sigY + 11.5, { align: 'center' });
+    if (signs && meta?.schoolStamp) { try { doc.addImage(meta.schoolStamp, 'PNG', col3 - 8.5, sigY - 19, 17, 17); } catch (_) {} }
+    if (signs && meta?.directorSignature) { try { doc.addImage(meta.directorSignature, 'PNG', col3 - 15, sigY - 8.5, 30, 9.5); } catch (_) {} }
+    doc.text('ลงชื่อ................................................', col3, sigY, { align: 'center' });
+    doc.text(`( ${text(meta.directorName) || blank} )`, col3, sigY + 6, { align: 'center' });
+    doc.text(text(meta.directorPosition) || `ผู้อำนวยการ${meta.schoolName || 'โรงเรียน'}`, col3, sigY + 11.5, { align: 'center' });
   }
 
   // ข. หน้า "บันทึกเวลาเรียนรายวิชา" ต่อท้ายปกของแต่ละวิชา: รายชื่อนักเรียน วันมา/ลา/ขาด ร้อยละ ชั่วโมงที่เรียน และ มส
