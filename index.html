@@ -392,6 +392,10 @@
       <li class="nav-item admin-only" data-page="teacher_editor"><a href="#" class="nav-link" data-page="teacher_editor"><i class="bi bi-person-video3"></i> ครูประจำชั้น</a></li>
       <li class="nav-item admin-only" data-page="teacher_access"><a href="#" class="nav-link" data-page="teacher_access"><i class="bi bi-person-check"></i> มอบหมายงานครู</a></li>
       <li class="nav-item admin-only" data-page="holiday_form"><a href="#" class="nav-link" data-page="holiday_form"><i class="bi bi-calendar-x"></i> จัดการวันหยุด</a></li>
+      <!-- owner 2026-10-23 "นำวิเคราะห์ sar ไปเพิ่มในเมนูงานวิชาการ" — เมนูเดิมใต้คะแนนและผลการเรียนยังอยู่ (ครูหาเจอที่เดิม) -->
+      <li class="nav-item admin-only" data-page="sar_analytics">
+        <a href="#" class="nav-link" data-page="sar_analytics" onclick="if (typeof showSarAnalyticsModal_ === 'function') { showSarAnalyticsModal_(); } else if (typeof window.showSarAnalyticsModal === 'function') { window.showSarAnalyticsModal(); } return false;"><i class="bi bi-file-earmark-bar-graph-fill text-success"></i> วิเคราะห์ผลสัมฤทธิ์ SAR</a>
+      </li>
     </ul>
 
     <ul class="menu-group admin-only" aria-label="ตั้งค่าระบบ">
