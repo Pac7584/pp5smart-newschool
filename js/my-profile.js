@@ -4,6 +4,8 @@
 //   ② ความปลอดภัย: ปุ่มไปหน้าเปลี่ยนรหัสผ่านเดิม (change_password)
 //   ③ การแสดงผล: ธีมสีของฉัน (js/user-theme.js — เก็บกับบัญชี ไม่กระทบคนอื่น) + โหมดมืด (#themeToggle ที่หัวเว็บ)
 // แก้ชื่อเอง (ขั้นที่ 2, owner 2026-10-20): ผ่าน SQL 202610200037 pp5_update_my_display_name เท่านั้น (ตาราง user_profiles ยังแก้ได้เฉพาะผู้ดูแล)
+// ลายเซ็นของฉัน (owner 2026-10-23 "อยากให้ครูแต่ละคนอัปโหลดลายเซ็นตัวเองได้", SQL 202610230042): ครู/ผู้ดูแลอัปโหลดหรือวาดลายเซ็นของตัวเอง
+//   เก็บผ่าน pp5_save_my_signature เท่านั้น (แก้ได้เฉพาะของตัวเอง) · เอกสาร PDF หาจากชื่อที่แสดง (gas-bridge staffSignatures_)
 // เปิดได้จากเมนู บัญชีผู้ใช้ → โปรไฟล์ของฉัน และกดชื่อที่มุมขวาบน · ตรวจด้วย tools/my-profile-contract.cjs
 (function initMyProfile(global) {
   'use strict';
@@ -41,13 +43,27 @@
   cursor:pointer;font:inherit;font-size:.8rem;color:inherit}
 .pp5-pf-sw[aria-pressed="true"]{border-color:var(--pf-accent);background:color-mix(in srgb,var(--pf-accent) 8%,transparent);font-weight:600}
 .pp5-pf-chip{width:100%;height:24px;border-radius:7px}
-.pp5-pf-say{font-size:.82rem;min-height:1.1em;margin-top:8px}.pp5-pf-say.ok{color:#13795b}.pp5-pf-say.err{color:#c2362b}`;
+.pp5-pf-say{font-size:.82rem;min-height:1.1em;margin-top:8px}.pp5-pf-say.ok{color:#13795b}.pp5-pf-say.err{color:#c2362b}
+.pp5-pf-sig{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.pp5-pf-sig-box{width:260px;height:96px;flex:none;border:1.5px dashed var(--pf-line);border-radius:12px;display:grid;place-items:center;
+  background:repeating-linear-gradient(45deg,transparent 0 8px,color-mix(in srgb,var(--pf-line) 35%,transparent) 8px 9px),#fff;overflow:hidden}
+.pp5-pf-sig-box img{max-width:94%;max-height:86px}
+.pp5-pf-sig-box span{color:#64748b;font-size:.85rem}
+.pp5-pf-sig-actions{display:flex;gap:8px;flex-wrap:wrap}`;
 
   function shell() {
     return `<div class="animate-fade-in"><style>${STYLE}</style><div class="pp5-pf" id="pp5ProfilePage">
 <section class="pp5-pf-card" data-me><div class="pp5-pf-me"><div class="pp5-pf-avatar" aria-hidden="true"><i class="bi bi-person-fill"></i></div>
 <div><div class="pp5-pf-name">กำลังโหลด…</div></div></div></section>
 <section class="pp5-pf-card" data-work hidden><h3><i class="bi bi-briefcase-fill"></i> <span data-work-title>งานของฉัน</span></h3><div data-work-body></div></section>
+<section class="pp5-pf-card" data-signature hidden><h3><i class="bi bi-pen-fill"></i> ลายเซ็นของฉัน</h3>
+<div class="pp5-pf-sig"><div class="pp5-pf-sig-box" data-sig-box><span>กำลังโหลด…</span></div>
+<div><div class="pp5-pf-sig-actions"><button type="button" class="btn btn-outline-primary btn-sm" data-sig-upload><i class="bi bi-upload"></i> อัปโหลดรูป</button>
+<button type="button" class="btn btn-outline-primary btn-sm" data-sig-draw><i class="bi bi-vector-pen"></i> วาดลายเซ็น</button>
+<button type="button" class="btn btn-outline-danger btn-sm" data-sig-delete hidden><i class="bi bi-trash"></i> ลบ</button></div>
+<input type="file" accept="image/png,image/jpeg,image/webp" data-sig-file hidden>
+<p class="pp5-pf-muted">ใช้ในช่อง "ครูผู้สอน / ครูประจำชั้น" ของเอกสาร ปพ.5 ที่มีชื่อของคุณ (จับคู่จากชื่อที่แสดง) · ใช้รูปพื้นขาว ระบบทำพื้นหลังให้โปร่งใสและย่อขนาดให้เอง</p></div></div>
+<p class="pp5-pf-say" data-sig-say role="status"></p></section>
 <section class="pp5-pf-card"><h3><i class="bi bi-shield-lock-fill"></i> ความปลอดภัย</h3>
 <div class="pp5-pf-row"><span>รหัสผ่านสำหรับเข้าสู่ระบบ</span>
 <button type="button" class="btn btn-outline-primary" data-password><i class="bi bi-key-fill"></i> เปลี่ยนรหัสผ่าน</button></div></section>
@@ -184,6 +200,81 @@
     });
   }
 
+  // ---- ลายเซ็นของฉัน: ย่อให้ไม่เกิน 600×220 พิกเซล พื้นขาวเป็นโปร่งใส แล้วเก็บเป็น PNG (ฐานข้อมูลรับไม่เกิน 400 000 ตัวอักษร)
+  const SIGNATURE_MISSING = (error) => /pp5_save_my_signature|pp5_staff_signatures|PGRST202|schema cache|does not exist/i.test(`${error?.code || ''} ${error?.message || ''}`);
+  function shrinkSignature(dataUrl) {
+    return new Promise((resolve, reject) => {
+      const img = new global.Image();
+      img.onload = () => {
+        const scale = Math.min(1, 600 / img.width, 220 / img.height);
+        const canvas = doc.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const g = canvas.getContext('2d');
+        g.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const pixels = g.getImageData(0, 0, canvas.width, canvas.height);
+        const d = pixels.data;
+        for (let i = 0; i < d.length; i += 4) { if (d[i] > 225 && d[i + 1] > 225 && d[i + 2] > 225) d[i + 3] = 0; }
+        g.putImageData(pixels, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => reject(new Error('อ่านรูปไม่ได้ กรุณาใช้ไฟล์ PNG หรือ JPG'));
+      img.src = dataUrl;
+    });
+  }
+  async function signatureCard(root) {
+    const card = root.querySelector('[data-signature]');
+    const box = card.querySelector('[data-sig-box]');
+    const say = card.querySelector('[data-sig-say]');
+    const del = card.querySelector('[data-sig-delete]');
+    const file = card.querySelector('[data-sig-file]');
+    const client = global.PP5Data.client;
+    card.hidden = false;
+    const show = (text, kind) => { say.textContent = text || ''; say.className = 'pp5-pf-say' + (kind ? ' ' + kind : ''); };
+    const paint = (image) => {
+      box.innerHTML = image ? `<img alt="ลายเซ็นของฉัน" src="${esc(image)}">` : '<span>ยังไม่มีลายเซ็น</span>';
+      del.hidden = !image;
+    };
+    const fail = (error) => show(SIGNATURE_MISSING(error) ? 'โรงเรียนยังไม่ได้เปิดระบบลายเซ็นของครู (ต้องติดตั้ง SQL 042) — กรุณาแจ้งผู้ดูแลระบบ'
+      : ((error && error.message) || 'ทำรายการไม่สำเร็จ'), 'err');
+    try {
+      const { data, error } = await client.rpc('pp5_staff_signatures');
+      if (error) throw error;
+      paint((data || []).find((row) => row.mine)?.image || '');
+    } catch (error) { paint(''); fail(error); }
+    const save = async (image, doneText) => {
+      show('กำลังบันทึก…');
+      try {
+        const { error } = await client.rpc('pp5_save_my_signature', { p_image: image });
+        if (error) throw error;
+        paint(image);
+        show(doneText, 'ok');
+      } catch (error) { fail(error); }
+    };
+    card.querySelector('[data-sig-upload]').addEventListener('click', () => file.click());
+    file.addEventListener('change', () => {
+      const picked = file.files?.[0];
+      file.value = '';
+      if (!picked) return;
+      if (picked.size > 5 * 1024 * 1024) { show('ไฟล์ใหญ่เกิน 5MB กรุณาเลือกรูปที่เล็กลง', 'err'); return; }
+      const reader = new global.FileReader();
+      reader.onload = async () => {
+        try { await save(await shrinkSignature(String(reader.result || '')), 'บันทึกลายเซ็นแล้ว'); } catch (error) { fail(error); }
+      };
+      reader.readAsDataURL(picked);
+    });
+    card.querySelector('[data-sig-draw]').addEventListener('click', () => {
+      if (typeof global.showSignaturePadModal_ !== 'function') { show('หน้านี้วาดลายเซ็นไม่ได้ กรุณาอัปโหลดรูปแทน', 'err'); return; }
+      global.showSignaturePadModal_('ลายเซ็นของฉัน', async (dataUrl) => {
+        try { await save(await shrinkSignature(dataUrl), 'บันทึกลายเซ็นแล้ว'); } catch (error) { fail(error); }
+      });
+    });
+    del.addEventListener('click', async () => {
+      if (!global.confirm('ลบลายเซ็นของคุณออกจากระบบใช่ไหม? เอกสารที่พิมพ์ต่อจากนี้จะเป็นเส้นจุดให้เซ็นมือ')) return;
+      await save('', 'ลบลายเซ็นแล้ว');
+    });
+  }
+
   async function mount(root) {
     root.querySelector('[data-password]').addEventListener('click', () => global.navigateTo?.('change_password'));
     themeSwatches(root);
@@ -192,6 +283,7 @@
     const p = state.profile || {};
     const name = clean(p.displayName) || clean(p.username) || 'ผู้ใช้';
     renderMe(root, p, name);
+    if (p.role === 'teacher' || p.role === 'admin') signatureCard(root).catch(() => { /* การ์ดแสดงข้อผิดพลาดเอง */ });
     if (p.role === 'teacher') {
       let ctx = null;
       try { ctx = await global.PP5Permissions?.context?.(); } catch (_) { ctx = null; }

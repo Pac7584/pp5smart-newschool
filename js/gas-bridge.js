@@ -2709,6 +2709,7 @@
     const asked = printOptions?.parts && typeof printOptions.parts === 'object' ? printOptions.parts : {};
     const parts = { cover: asked.cover !== false, scores: asked.scores === true, rtw: asked.rtw === true, character: asked.character === true };
     if (!Object.values(parts).some(Boolean)) throw new Error('เลือกอย่างน้อย 1 ส่วนที่จะพิมพ์');
+    (report.sheets || []).forEach((sheet) => { sheet.teacherSignature = signatureOfName_(options.staffSignatures || new Map(), sheet.teacher); });
     const result = await global.PP5PDF.createPp5SubjectCover({ grade, classNo, schoolAddress: text(settings.schoolAddress || settings.school_address), includeMonthly, parts, ...report },
       tell ? { ...options, onProgress: (done, total) => say(done >= total ? 98 : 70 + (27 * done) / Math.max(1, total), done >= total ? 'กำลังรวมไฟล์ PDF' : `กำลังสร้างหน้า PDF วิชาที่ ${done + 1}/${total}`) } : options);
     say(100, 'สร้าง PDF เสร็จแล้ว');
@@ -2964,6 +2965,7 @@
       competency = assessed.competency.students;
     }
 
+    subjects.forEach((sub) => { sub.teacher_signature = signatureOfName_(options.staffSignatures || new Map(), sub.teacher_name || sub.teacherName); });
     const fullBookPayload = {
       grade,
       classNo,
@@ -4509,6 +4511,7 @@
       teacherSigs.default ||
       (typeof teacherSigs === 'string' ? teacherSigs : '') ||
       sigSettings.teacher || '';
+    const ownSignatures = await staffSignatures_();
     const includeSignatures = sigSettings.includeSignatures !== false;
 
     return {
@@ -4528,11 +4531,14 @@
       academicYear: text(requestedYear || settings.academicYear || settings.academic_year),
       directorName: text(settings.directorName || settings.director_name),
       directorPosition: text(settings.director_position || settings.directorPosition || 'ผู้อำนวยการโรงเรียน'),
-      teacherSignature,
+      // ลายเซ็นครูประจำชั้น: ที่ผู้ดูแลอัปโหลดให้ห้องนี้ก่อน ไม่มีจึงใช้ลายเซ็นของครูคนนั้นเอง (โปรไฟล์ของฉัน)
+      teacherSignature: teacherSignature || signatureOfName_(ownSignatures, classTeacher),
       academicHeadSignature,
       directorSignature,
       schoolStamp,
-      includeSignatures
+      includeSignatures,
+      // ลายเซ็นของครูทุกคนที่อัปโหลดเอง (ชื่อ -> รูป) สำหรับช่อง "ครูผู้สอน"
+      staffSignatures: ownSignatures
     };
   }
 
@@ -5230,6 +5236,23 @@
       throw err;
     }
   }
+
+  // ลายเซ็นของครูแต่ละคน (owner 2026-10-23 "อยากให้ครูแต่ละคนอัปโหลดลายเซ็นตัวเองได้", SQL 202610230042 pp5_staff_signatures):
+  // จับคู่กับชื่อในเอกสารโดยตัดคำนำหน้าและช่องว่าง · ยังไม่ได้รัน SQL / อ่านไม่ได้ = ไม่มี (เอกสารเป็นเส้นจุดเหมือนเดิม)
+  const SIGNATURE_NAME_TITLES = /^(ว่าที่\s*ร(้อยตรี|\.ต\.)\s*|นางสาว|นาง|นาย|ครู|ดร\.|mrs?\.?|ms\.?)/i;
+  function signatureNameKey_(name) {
+    let n = text(name).replace(/\s+/g, '');
+    for (let i = 0; i < 3; i += 1) n = n.replace(SIGNATURE_NAME_TITLES, '');
+    return n.toLowerCase();
+  }
+  async function staffSignatures_() {
+    try {
+      const { data, error } = await client.rpc('pp5_staff_signatures');
+      if (error) return new Map();
+      return new Map((data || []).filter((row) => text(row.image)).map((row) => [signatureNameKey_(row.display_name), text(row.image)]));
+    } catch (_) { return new Map(); }
+  }
+  const signatureOfName_ = (map, name) => (signatureNameKey_(name) && map.get(signatureNameKey_(name))) || '';
 
   async function getSchoolSignatures() {
     let sigMap = {};
