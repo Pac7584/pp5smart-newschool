@@ -91,13 +91,34 @@
   }
 
   const STYLE = `
-.sam{display:grid;gap:10px}
-.sam-top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
-.sam-nav{display:inline-flex;align-items:center;gap:6px}
-.sam-nav b{min-width:150px;text-align:center;font-size:1.05rem}
-.sam-nav button,.sam-tool{border:1px solid var(--sa-line);background:var(--sa-card);color:var(--sa-text);border-radius:10px;min-height:38px;padding:0 .8rem;font-weight:600}
-.sam-legend{display:flex;flex-wrap:wrap;gap:10px;font-size:.8rem;color:var(--sa-muted);align-items:center}
-.sam-legend i{display:inline-flex;width:22px;height:22px;border-radius:6px;align-items:center;justify-content:center;font-style:normal;font-weight:700;margin-right:3px}
+.sam{display:grid;gap:12px}
+.sam-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.sam-nav{display:inline-flex;align-items:center;gap:10px}
+.sam-nav b{min-width:160px;text-align:center;font-size:1.35rem;font-weight:800}
+.sam-nav button{width:42px;height:42px;border-radius:12px;border:1px solid var(--sa-line);background:var(--sa-card);color:var(--sa-text);font-size:1rem}
+.sam-nav button:disabled{opacity:.4}
+.sam-actions{display:flex;flex-wrap:wrap;gap:8px}
+.sam-tool{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--sa-line);background:var(--sa-card);color:var(--sa-text);border-radius:12px;min-height:42px;padding:0 1rem;font-weight:700}
+.sam-tool i{font-size:1.05rem}
+.sam-tool.is-primary{border-color:var(--sa-accent);background:var(--sa-accent);color:#fff;box-shadow:0 6px 16px color-mix(in srgb,var(--sa-accent) 30%,transparent)}
+.sam-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.sam-stat{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--st-bg)}
+.sam-stat>i{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:12px;background:var(--sa-card);color:var(--st-fg);font-size:1.25rem;flex:none}
+.sam-stat b{display:block;font-size:1.35rem;line-height:1.1;color:var(--sa-text)}
+.sam-stat span{font-size:.8rem;color:var(--sa-muted)}
+.sam-stat.is-all{--st-bg:color-mix(in srgb,var(--sa-accent) 9%,var(--sa-card));--st-fg:var(--sa-accent)}
+.sam-stat.is-ok{--st-bg:var(--sa-ok-bg);--st-fg:var(--sa-ok)}
+.sam-stat.is-todo{--st-bg:color-mix(in srgb,#6366f1 9%,var(--sa-card));--st-fg:#6366f1}
+.sam-stat.is-leave{--st-bg:var(--sa-warn-bg);--st-fg:var(--sa-warn)}
+.sam-stat.is-absent{--st-bg:var(--sa-bad-bg);--st-fg:var(--sa-bad)}
+.sam-legend{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sam-chip{display:inline-flex;align-items:center;gap:8px;padding:5px 12px 5px 6px;border:1px solid var(--sa-line);border-radius:999px;background:var(--sa-card);font-size:.8rem;color:var(--sa-text)}
+.sam-chip i{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:7px;font-style:normal;font-weight:800;font-size:.85rem}
+.sam-help{font-size:.8rem;color:var(--sa-muted)}
+@media (max-width:900px){.sam-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:520px){.sam-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.sam-stat{padding:8px 10px;gap:0}.sam-stat>i{display:none}
+  .sam-stat b{font-size:1.1rem}.sam-stat span{font-size:.7rem;line-height:1.2;display:block}.sam-nav b{font-size:1.1rem;min-width:120px}
+  .sam-chip{padding:3px 8px 3px 4px;font-size:.72rem}.sam-chip i{width:20px;height:20px}}
 .sam-wrap{overflow:auto;max-height:70vh;border:1px solid var(--sa-line);border-radius:12px}
 .sam-table{border-collapse:separate;border-spacing:0;font-size:.82rem;min-width:100%}
 .sam-table th,.sam-table td{border-right:1px solid var(--sa-line);border-bottom:1px solid var(--sa-line);text-align:center;padding:0;background:var(--sa-card)}
@@ -117,9 +138,10 @@
 .sam-table th.is-holiday,.sam-table td.is-holiday{min-width:40px}
 .sam-hol{font-size:.7rem;font-weight:700;color:#8a6d00;cursor:help}
 .sam-table td.sam-first,.sam-table th.sam-first{border-left:2px solid color-mix(in srgb,var(--sa-text) 25%,transparent)}
-.sam-table th.sam-p{font-size:.72rem;color:var(--sa-muted);min-width:32px;line-height:1.1;padding:3px 1px}
+.sam-table th.sam-p{font-size:.68rem;font-weight:600;color:var(--sa-muted);min-width:34px;line-height:1.1;padding:3px 1px}
 .sam-table th.sam-p button{display:block;margin:1px auto 0;border:0;background:transparent;color:var(--sa-accent);font-size:.85rem;padding:0 2px;line-height:1}
-.sam-cell{width:30px;height:30px;border:0;background:transparent;font-weight:700;font-size:.9rem;color:var(--sa-muted)}
+.sam-cell{width:28px;height:28px;margin:2px;border:0;border-radius:8px;background:transparent;font-weight:800;font-size:.9rem;color:var(--sa-muted)}
+.sam-cell:not(:disabled):hover{background:var(--sa-soft)}
 .sam-cell[data-s="present"]{color:var(--sa-ok)}.sam-cell[data-s="leave"]{color:var(--sa-warn)}.sam-cell[data-s="absent"]{color:var(--sa-bad)}
 .sam-cell[data-k="saved"][data-s="present"],.sam-legend .is-saved{background:var(--sa-ok-bg)}
 .sam-cell[data-k="saved"][data-s="leave"]{background:var(--sa-warn-bg)}.sam-cell[data-k="saved"][data-s="absent"]{background:var(--sa-bad-bg)}
@@ -133,7 +155,6 @@
 .sam-menu b{font-size:.82rem;padding:4px 8px;color:var(--sa-muted)}
 .sam-menu button{border:0;background:transparent;text-align:left;padding:.45rem .7rem;border-radius:8px;font-size:.88rem;color:var(--sa-text)}
 .sam-menu button:hover{background:var(--sa-soft)}
-.sam-sum-line{font-size:.85rem;color:var(--sa-muted)}
 @media (max-width:640px){.sam-table .sam-name{min-width:112px;max-width:132px;font-size:.76rem;padding:4px 6px;white-space:normal;line-height:1.2}
   .sam-table .sam-no{width:26px;min-width:26px}.sam-table .sam-no+.sam-name{left:26px}
   .sam-legend{gap:6px;font-size:.74rem}.sam-nav b{min-width:110px}}`;
@@ -243,18 +264,19 @@
         const c = g.cols[0];
         const cls = ['sam-day', 'sam-first', c.weekday === 6 ? 'is-sat' : '', c.weekday === 7 ? 'is-sun' : '',
           c.kind === 'holiday' ? 'is-holiday' : '', c.kind === 'makeup' || c.makeup ? 'is-makeup' : ''].filter(Boolean).join(' ');
-        const label = `<b>${Number(g.date.slice(8))}</b><small>${DAY_SHORT[c.weekday]}</small>`;
+        const label = `<b>${Number(g.date.slice(8))}</b><small>${DAY_SHORT[c.weekday]}.</small>`;
         return `<th class="${cls}" colspan="${g.cols.length}" data-day-head="${esc(g.date)}" title="${esc(c.holiday?.title || (c.kind === 'period' ? 'กดเพื่อเปิดแบบรายคาบของวันนี้' : ''))}">${label}</th>`;
       }).join('');
       // แถวที่ 2 ตามลำดับคอลัมน์: คาบ (ปุ่มยืนยันทั้งคาบ) · วันหยุด (ว่าง) · วันสอนชดเชย (ปุ่ม +สอน)
       const lastHead = cols.map((c) => (c.kind === 'period'
-        ? `<th class="sam-p${c.first ? ' sam-first' : ''}${c.makeup ? ' is-makeup' : ''}">ค${c.period}${ctx.canWrite
+        ? `<th class="sam-p${c.first ? ' sam-first' : ''}${c.makeup ? ' is-makeup' : ''}">คาบ${c.period}${ctx.canWrite
           ? `<br><button type="button" data-pp5-btn-skip data-cycle="${esc(c.date)}#${c.period}" title="กดวนทั้งห้อง: มาทุกคน → ลาทุกคน → ขาดทุกคน → ว่าง" aria-label="วนสถานะทั้งห้อง คาบ ${c.period} วันที่ ${esc(c.date)}"><i class="bi bi-arrow-repeat"></i></button>` : ''}</th>`
         // วันหยุดไม่ล็อก (owner 2026-10-22 "บางโรงเรียนเขานัดเด็กมาสอน"): กด +สอน เพิ่มคาบของวิชานี้ในวันหยุดได้
         : c.kind === 'holiday' ? `<th class="sam-first is-holiday"><span class="sam-hol" title="${esc(c.title)}">หยุด</span>${ctx.canWrite
           ? `<br><button type="button" class="sam-add" data-pp5-btn-skip data-add-day="${esc(c.date)}" title="นัดนักเรียนมาเรียนวันนี้"><i class="bi bi-plus"></i>สอน</button>` : ''}</th>`
         : `<th class="sam-first is-makeup">${ctx.canWrite
           ? `<button type="button" class="sam-add" data-pp5-btn-skip data-add-day="${esc(c.date)}"><i class="bi bi-plus"></i>สอน</button>` : '<span class="sam-hol">ชดเชย</span>'}</th>`)).join('');
+      const total = { present: 0, leave: 0, absent: 0 };
       const body = state.students.map((s, i) => {
         const id = text(s.id);
         const sum = { present: 0, leave: 0, absent: 0 };
@@ -262,7 +284,7 @@
           if (c.kind === 'holiday') return `<td class="is-holiday sam-first"></td>`;
           if (c.kind === 'makeup') return `<td class="is-makeup sam-first"></td>`;
           const v = cellValue(c, id, state.saved, state.edits, state.daily);
-          if (sum[v.status] !== undefined) sum[v.status] += 1;
+          if (sum[v.status] !== undefined) { sum[v.status] += 1; total[v.status] += 1; }
           return `<td class="${c.first ? 'sam-first' : ''}${c.makeup ? ' is-makeup' : ''}"><button type="button" class="sam-cell" data-pp5-btn-skip data-cell="${esc(c.date)}#${c.period}" data-id="${esc(id)}"
   data-s="${v.status}" data-k="${v.kind}"${ctx.canWrite ? '' : ' disabled'} aria-label="${esc(s.fullName || id)} ${esc(c.date)} คาบ ${c.period}">${MARK[v.status] || '·'}</button></td>`;
         }).join('');
@@ -274,19 +296,32 @@
   <div class="sam-nav"><button type="button" data-pp5-btn-skip data-shift-month="-1"${prevOk ? '' : ' disabled'} aria-label="เดือนก่อน"><i class="bi bi-chevron-left"></i></button>
     <b>${MONTHS[m - 1]} ${y + 543}</b>
     <button type="button" data-pp5-btn-skip data-shift-month="1"${nextOk ? '' : ' disabled'} aria-label="เดือนถัดไป"><i class="bi bi-chevron-right"></i></button></div>
-  ${ctx.canWrite ? '<button type="button" class="sam-tool" data-pp5-btn-skip data-add-day=""><i class="bi bi-calendar-plus"></i> เพิ่มวันสอน (วันหยุด/นัดพิเศษ)</button>' : ''}
-  ${ctx.canWrite && periods.length ? '<button type="button" class="sam-tool" data-pp5-btn-skip data-fill-all><i class="bi bi-check2-all"></i> ยืนยันทุกคาบที่ยังไม่บันทึก (ถึงวันนี้)</button>' : ''}
+  <div class="sam-actions">${ctx.canWrite ? '<button type="button" class="sam-tool" data-pp5-btn-skip data-add-day=""><i class="bi bi-calendar-plus"></i> เพิ่มวันสอน (วันหยุด/นัดพิเศษ)</button>' : ''}
+  ${ctx.canWrite && periods.length ? '<button type="button" class="sam-tool is-primary" data-pp5-btn-skip data-fill-all><i class="bi bi-check2-all"></i> ยืนยันทุกคาบที่ยังไม่บันทึก (ถึงวันนี้)</button>' : ''}</div>
 </div>
-<div class="sam-sum-line">เดือนนี้ ${periods.length} คาบ · บันทึกแล้ว ${savedN} · ใช้เช็คชื่อรายวัน ${dailyN}${emptyN ? ` · <b style="color:var(--sa-bad)">ยังไม่มีข้อมูล ${emptyN}</b>` : ''}</div>
-<div class="sam-legend"><span><i class="is-saved" style="color:var(--sa-ok)">/</i>บันทึกแล้ว</span><span><i style="color:var(--sa-ok);opacity:.45">/</i>ตามเช็คชื่อรายวัน (นับแล้ว ยังไม่ได้ยืนยัน)</span>
-  <span><i style="outline:2px solid var(--sa-accent);outline-offset:-3px">/</i>แก้แล้ว ยังไม่บันทึก</span><span>/ มา · ล ลา · ข ขาด · กดช่องเพื่อเปลี่ยน · <i class="bi bi-arrow-repeat" style="color:var(--sa-accent);width:auto"></i>ใต้คาบ = วนทั้งห้อง มา → ลา → ขาด → ว่าง</span>
-  <span><i style="background:color-mix(in srgb,#f5c542 30%,transparent)"></i>วันหยุด</span><span><i style="background:var(--sa-warn-bg)"></i>สอนชดเชย</span></div>
+<div class="sam-stats">
+  <div class="sam-stat is-all"><i class="bi bi-book"></i><div><b>${periods.length}</b><span>คาบทั้งหมดในเดือนนี้</span></div></div>
+  <div class="sam-stat is-ok"><i class="bi bi-check-lg"></i><div><b>${savedN}</b><span>บันทึกแล้ว</span></div></div>
+  <div class="sam-stat is-todo"><i class="bi bi-pencil-square"></i><div><b>${dailyN + emptyN}</b><span>ยังไม่บันทึก${dailyN ? ` · ใช้รายวัน ${dailyN}` : ''}</span></div></div>
+  <div class="sam-stat is-leave"><i class="bi bi-envelope"></i><div><b>${total.leave}</b><span>ลา (ครั้ง)</span></div></div>
+  <div class="sam-stat is-absent"><i class="bi bi-x-lg"></i><div><b>${total.absent}</b><span>ขาด (ครั้ง)</span></div></div>
+</div>
+<div class="sam-legend">
+  <span class="sam-chip"><i style="background:var(--sa-ok-bg);color:var(--sa-ok)">/</i>บันทึกแล้ว</span>
+  <span class="sam-chip"><i style="color:var(--sa-ok);opacity:.45">/</i>ตามรายวัน (ยังไม่บันทึก)</span>
+  <span class="sam-chip"><i style="outline:2px solid var(--sa-accent);outline-offset:-3px;color:var(--sa-ok)">/</i>แก้แล้ว</span>
+  <span class="sam-chip"><i style="background:var(--sa-warn-bg);color:var(--sa-warn)">ล</i>ลา</span>
+  <span class="sam-chip"><i style="background:var(--sa-bad-bg);color:var(--sa-bad)">ข</i>ขาด</span>
+  <span class="sam-chip"><i style="background:color-mix(in srgb,#f5c542 30%,transparent)"></i>วันหยุด</span>
+  <span class="sam-chip"><i style="background:var(--sa-warn-bg);border:1.5px dashed var(--sa-warn)"></i>สอนชดเชย</span>
+  <span class="sam-chip"><i class="bi bi-arrow-repeat" style="color:var(--sa-accent)"></i>วนทั้งห้อง มา → ลา → ขาด → ว่าง</span>
+</div>
 ${noWeek ? '<div class="sa-note is-warn">วิชานี้ยังไม่ได้ตั้งตารางสอน — ตารางรายเดือนจะแสดงเฉพาะวันที่บันทึกแล้วและวันสอนชดเชย</div>' : ''}
 ${cols.length ? `<div class="sam-wrap"><table class="sam-table"><thead>
 <tr><th class="sam-no" rowspan="2">ที่</th><th class="sam-name" rowspan="2">ชื่อ-นามสกุล</th>${dayHead}<th class="sam-sum" rowspan="2" style="color:var(--sa-ok)">มา</th><th class="sam-sum" rowspan="2" style="color:var(--sa-warn)">ลา</th><th class="sam-sum" rowspan="2" style="color:var(--sa-bad)">ขาด</th></tr>
 <tr>${lastHead}</tr>
 </thead><tbody>${body}</tbody></table></div>` : '<div class="sa-note">เดือนนี้ไม่มีวันสอนวิชานี้ตามตารางสอน</div>'}
-<div class="small" style="color:var(--sa-muted)">กดที่วันที่บนหัวตารางเพื่อเปิดแบบรายคาบของวันนั้น (เพิ่มคาบ / ลบการเช็คชื่อ) · วันเสาร์ที่ตั้งเป็น "สอนชดเชย" ในปฏิทินวันหยุด กด <b>+สอน</b> เพื่อเลือกจำนวนคาบของวิชานี้</div>
+<div class="sam-help">กดช่องเพื่อเปลี่ยน มา → ลา → ขาด → ว่าง · กดที่วันที่บนหัวตารางเพื่อเปิดแบบรายคาบของวันนั้น (เพิ่มคาบ / ลบการเช็คชื่อ) · วันเสาร์ที่ตั้งเป็น "สอนชดเชย" ในปฏิทินวันหยุด กด <b>+สอน</b> เพื่อเลือกจำนวนคาบของวิชานี้</div>
 </div>`;
       // หัวตารางแถวที่ 2 ติดด้านบนตามความสูงจริงของแถวแรก
       const head = box.querySelector('.sam-table thead');

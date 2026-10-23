@@ -124,9 +124,10 @@
 [data-theme="dark"] .sa{--sa-line:#2b3446;--sa-muted:#a7afbd;--sa-soft:#161d2b;--sa-card:#1b2232;--sa-text:#e5e7eb;
   --sa-ok:#6fe0b4;--sa-ok-bg:rgba(111,224,180,.12);--sa-warn:#ffc46b;--sa-warn-bg:rgba(255,196,107,.12);--sa-bad:#ff8a80;--sa-bad-bg:rgba(255,138,128,.12)}
 .sa-title{display:none}
-.sa-view{display:inline-flex;border:1.5px solid var(--sa-line);border-radius:12px;overflow:hidden;margin-bottom:10px}
-.sa-view button{border:0;background:var(--sa-card);color:var(--sa-muted);font-weight:700;padding:.45rem 1rem;display:inline-flex;align-items:center;gap:6px}
-.sa-view button[aria-pressed="true"]{background:var(--sa-accent);color:#fff}
+.sa-view{display:inline-flex;gap:4px;padding:4px;border-radius:14px;background:var(--sa-soft);border:1px solid var(--sa-line);margin-bottom:12px}
+.sa-view button{border:0;border-radius:10px;background:transparent;color:var(--sa-muted);font-weight:700;min-height:40px;padding:0 1.1rem;display:inline-flex;align-items:center;gap:8px}
+.sa-view button[aria-pressed="true"]{background:var(--sa-accent);color:#fff;box-shadow:0 4px 12px color-mix(in srgb,var(--sa-accent) 30%,transparent)}
+.sa-controls label i{color:var(--sa-accent);margin-right:4px}
 .sa.is-month{max-width:none}
 .sa-card{background:var(--sa-card);border:1px solid var(--sa-line);border-radius:14px;padding:14px 16px;margin-bottom:12px}
 .sa-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -204,12 +205,12 @@
     return `<div class="sa" id="pp5SubjectAttendance"><style>${STYLE}</style>
 <h4 class="sa-title">เช็คชื่อรายวิชา (รายคาบ)</h4>
 <div class="sa-card">
-  <div class="sa-view" role="group" aria-label="มุมมอง"><button type="button" data-pp5-btn-skip data-view="day" aria-pressed="true"><i class="bi bi-list-check"></i> รายคาบ</button><button type="button" data-pp5-btn-skip data-view="month" aria-pressed="false"><i class="bi bi-calendar3"></i> รายเดือน</button></div>
+  <div class="sa-view" role="group" aria-label="มุมมอง"><button type="button" data-pp5-btn-skip data-view="day" aria-pressed="true"><i class="bi bi-calendar-day"></i> รายคาบ</button><button type="button" data-pp5-btn-skip data-view="month" aria-pressed="false"><i class="bi bi-calendar3"></i> รายเดือน</button></div>
   <div class="sa-controls">
-    <div><label for="saGrade">ชั้น</label><select id="saGrade" class="form-select"></select></div>
-    <div><label for="saRoom">ห้อง</label><select id="saRoom" class="form-select"></select></div>
-    <div class="sa-wide"><label for="saSubject">รายวิชา</label><select id="saSubject" class="form-select"></select></div>
-    <div><label for="saDate">วันที่สอน</label><input id="saDate" type="date" class="form-control"></div>
+    <div><label for="saGrade"><i class="bi bi-people"></i>ชั้น</label><select id="saGrade" class="form-select"></select></div>
+    <div><label for="saRoom"><i class="bi bi-door-open"></i>ห้อง</label><select id="saRoom" class="form-select"></select></div>
+    <div class="sa-wide"><label for="saSubject"><i class="bi bi-book"></i>รายวิชา</label><select id="saSubject" class="form-select"></select></div>
+    <div><label for="saDate"><i class="bi bi-calendar-event"></i>วันที่สอน</label><input id="saDate" type="date" class="form-control"></div>
   </div>
   <div class="sa-periods-row"><span class="sa-plabel">คาบที่</span><div class="sa-periods" data-periods role="group" aria-label="คาบที่"></div>
     <span class="sa-plan" data-plan></span></div>
