@@ -2244,7 +2244,8 @@
   const attendanceFullHours = (hours, semester, ownSemester) => (!hours ? 0 : semester && !ownSemester ? hours / 2 : hours);
   const roundTenth = (value) => Math.round(value * 10) / 10;
 
-  async function computePp5SubjectSheets(grade, classNo, students, subjectId, requestedYear, teacherOverrides) {
+  // onProgress(done, total) ไม่บังคับ: แถบความคืบหน้าของหน้า ปพ.5 แบบรายวิชา (owner 2026-10-23 "ขอเป็นแถบเปอร์เซ็นต์ 1-100")
+  async function computePp5SubjectSheets(grade, classNo, students, subjectId, requestedYear, teacherOverrides, onProgress) {
     const settings = await data.settings.get();
     const academicYear = text(requestedYear || settings.academicYear || settings.academic_year || '');
     const roomTeachers = savedRoomTeachers(settings, academicYear);
@@ -2648,7 +2649,10 @@
     });
 
     const sheets = [];
+    let progressDone = 0;
     for (const item of chosen) {
+      if (typeof onProgress === 'function') { try { onProgress(progressDone, chosen.length); } catch (_) { /* แถบสถานะพังไม่ทำให้งานพัง */ } }
+      progressDone += 1;
       const subject = details.get(text(item.id)) || item;
       const group = pp5SubjectGroup(subject);
       const own = await subjectOwn(item.id);
@@ -2691,7 +2695,13 @@
   async function generatePp5SubjectCoverPdf(grade, classNo, subjectId, teacherOverrides, printOptions) {
     const students = await data.students.list({ grade, room: classNo });
     if (!students.length) throw new Error('ไม่พบข้อมูลนักเรียน');
-    const report = await computePp5SubjectSheets(grade, classNo, students, subjectId, '', teacherOverrides);
+    // ความคืบหน้า: อ่านข้อมูล 5-65% (ทีละวิชา) · สร้างหน้า PDF 70-97% (ทีละวิชา) · เสร็จ 100%
+    const tell = typeof printOptions?.onProgress === 'function' ? printOptions.onProgress : null;
+    const say = (pct, label) => { if (tell) { try { tell(Math.round(pct), label); } catch (_) { /* ignore */ } } };
+    say(3, 'กำลังอ่านรายชื่อนักเรียนและรายวิชา');
+    const report = await computePp5SubjectSheets(grade, classNo, students, subjectId, '', teacherOverrides,
+      (done, total) => say(5 + (60 * done) / Math.max(1, total), `กำลังอ่านคะแนนและเวลาเรียน วิชาที่ ${done + 1}/${total}`));
+    say(66, 'กำลังเตรียมหัวกระดาษและลายเซ็น');
     const options = await attendancePrintOptions(grade, classNo, 'แบบบันทึกผลการเรียนประจำรายวิชา');
     const settings = await data.settings.get();
     if (!global.PP5PDF?.createPp5SubjectCover) throw new Error('ยังโหลดตัวสร้าง PDF ไม่ครบ กรุณารีเฟรชหน้า');
@@ -2699,7 +2709,9 @@
     const asked = printOptions?.parts && typeof printOptions.parts === 'object' ? printOptions.parts : {};
     const parts = { cover: asked.cover !== false, scores: asked.scores === true, rtw: asked.rtw === true, character: asked.character === true };
     if (!Object.values(parts).some(Boolean)) throw new Error('เลือกอย่างน้อย 1 ส่วนที่จะพิมพ์');
-    const result = await global.PP5PDF.createPp5SubjectCover({ grade, classNo, schoolAddress: text(settings.schoolAddress || settings.school_address), includeMonthly, parts, ...report }, options);
+    const result = await global.PP5PDF.createPp5SubjectCover({ grade, classNo, schoolAddress: text(settings.schoolAddress || settings.school_address), includeMonthly, parts, ...report },
+      tell ? { ...options, onProgress: (done, total) => say(done >= total ? 98 : 70 + (27 * done) / Math.max(1, total), done >= total ? 'กำลังรวมไฟล์ PDF' : `กำลังสร้างหน้า PDF วิชาที่ ${done + 1}/${total}`) } : options);
+    say(100, 'สร้าง PDF เสร็จแล้ว');
     return typeof result === 'object' && result?.blobUrl ? result.blobUrl : (typeof result === 'object' && result?.dataUri ? result.dataUri : result);
   }
 

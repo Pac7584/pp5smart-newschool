@@ -2794,7 +2794,11 @@
     const parts = { cover: true, scores: false, rtw: false, character: false, ...(report?.parts || {}) };
     let started = false;
     const newPage = () => { if (started) doc.addPage(); started = true; };
-    sheets.forEach((sheet) => {
+    // options.onProgress(done, total) ไม่บังคับ: แถบความคืบหน้า — รอหนึ่งจังหวะระหว่างวิชาให้หน้าจอวาดแถบใหม่ได้
+    const onProgress = typeof options?.onProgress === 'function' ? options.onProgress : null;
+    const tick = (done) => { if (!onProgress) return null; try { onProgress(done, sheets.length); } catch (_) { /* ignore */ } return new Promise((resolve) => setTimeout(resolve, 0)); };
+    for (const [index, sheet] of sheets.entries()) {
+      await tick(index);
       if (parts.cover) {
         newPage();
         drawPp5SubjectSheet(doc, report, sheet, meta, logo);
@@ -2807,7 +2811,8 @@
       if (parts.scores) drawPp5SubjectScorePages(doc, report, sheet, meta, newPage);
       if (parts.rtw) drawPp5SubjectRtwPage(doc, report, sheet, meta, newPage);
       if (parts.character) drawPp5SubjectCharacterPage(doc, report, sheet, meta, newPage);
-    });
+    }
+    await tick(sheets.length);
     doc.setProperties({ title: 'แบบบันทึกผลการเรียนประจำรายวิชา', subject: meta.meta, author: meta.schoolName, creator: 'ระบบ ปพ.5 ออนไลน์' });
     const blobUrl = finish(doc, meta);
     const dataUri = doc.output('datauristring');

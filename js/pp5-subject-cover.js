@@ -25,6 +25,13 @@
     const style = doc.createElement('style');
     style.id = 'pp5SubjectCoverStyles';
     style.textContent = `
+.pp5sc-progress{width:min(460px,90vw);margin:0 auto;padding:18px 20px;border-radius:16px;background:rgba(15,23,42,.92);box-shadow:0 18px 40px rgba(0,0,0,.35);text-align:left;color:#fff}
+.pp5sc-progress-title{font-weight:700;font-size:1rem;line-height:1.4;margin-bottom:10px}
+.pp5sc-progress-top{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+.pp5sc-progress-top b{font-size:1.6rem;font-variant-numeric:tabular-nums;min-width:3.2ch}
+.pp5sc-progress-top span{font-size:.92rem;opacity:.95}
+.pp5sc-progress-track{height:12px;border-radius:999px;background:rgba(255,255,255,.25);overflow:hidden}
+.pp5sc-progress-fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#a78bfa,#34d399);transition:width .25s ease}
 .pp5sc{--sc-line:#e3e6ee;--sc-muted:#5b6275;--sc-soft:#f6f7fb;--sc-card:#fff;--sc-text:#1f2937;--sc-accent:var(--primary,#4f46e5);
   --sc-warn:#a15c00;--sc-warn-bg:#fff4e0;--sc-ok:#13795b;--sc-ok-bg:#e6f6ef;margin-bottom:1rem;color:var(--sc-text)}
 [data-theme="dark"] .pp5sc{--sc-line:#2b3446;--sc-muted:#a7afbd;--sc-soft:#161d2b;--sc-card:#1b2232;--sc-text:#e5e7eb;
@@ -229,17 +236,38 @@
       if (!Object.values(parts).some(Boolean)) { say('<i class="bi bi-exclamation-triangle me-1"></i>เลือกอย่างน้อย 1 ส่วนที่จะพิมพ์', 'warning'); return; }
       if (exportBtn.dataset.busy === '1') return;
       const all = (subjectSelect.value || 'all') === 'all';
-      const what = all ? `ทุกวิชา (${Math.max(0, subjectSelect.options.length - 1)} วิชา)` : subjectSelect.options[subjectSelect.selectedIndex]?.textContent || '';
+      const count = Math.max(0, subjectSelect.options.length - 1);
+      const what = all ? (count ? `ทุกวิชา (${count} วิชา)` : 'ทุกวิชา') : subjectSelect.options[subjectSelect.selectedIndex]?.textContent || '';
       const message = `กำลังสร้าง PDF ปพ.5 แบบรายวิชา ${what} ห้อง ${gradeSelect.value}/${classSelect.value} กรุณารอสักครู่…`;
       exportBtn.dataset.busy = '1';
       exportBtn.disabled = true;
-      exportBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>กำลังสร้าง…';
+      // แถบความคืบหน้า 0-100% แทนวงกลมหมุน (owner 2026-10-23 "ไม่อยากได้แบบสปินเนอร์ ขอเป็นแถบที่แสดงสถานะเปอร์เซ็นต์")
+      const spinner = overlay?.querySelector('.spinner-border');
+      if (spinner) spinner.hidden = true;
+      const bar = doc.createElement('div');
+      bar.className = 'pp5sc-progress';
+      bar.setAttribute('role', 'progressbar');
+      bar.setAttribute('aria-valuemin', '0');
+      bar.setAttribute('aria-valuemax', '100');
+      bar.innerHTML = `<div class="pp5sc-progress-title">${esc(message)}</div><div class="pp5sc-progress-top"><b data-pct>0%</b><span data-step>เริ่มต้น…</span></div><div class="pp5sc-progress-track"><div class="pp5sc-progress-fill" data-fill></div></div>`;
+      // การ์ดพื้นเข้มอ่านง่ายบนม่านโหลด · ข้อความเดิมของม่านซ่อนไว้ระหว่างสร้าง
+      if (overlayText) { overlayText.hidden = true; overlayText.after(bar); } else overlay?.appendChild(bar);
+      let shown = 0;
+      const progress = (pct, label) => {
+        shown = Math.max(shown, Math.min(100, Math.round(Number(pct) || 0)));
+        bar.setAttribute('aria-valuenow', String(shown));
+        bar.querySelector('[data-pct]').textContent = `${shown}%`;
+        bar.querySelector('[data-fill]').style.width = `${shown}%`;
+        if (label) bar.querySelector('[data-step]').textContent = label;
+        exportBtn.textContent = `กำลังสร้าง… ${shown}%`;
+      };
+      progress(0, 'เริ่มต้น…');
       if (overlayText) overlayText.textContent = message;
       if (overlay) overlay.style.display = 'flex';
       say(`<i class="bi bi-hourglass-split me-1"></i>${esc(message)}`);
       try {
         const url = await global.GasServer.exportPp5SubjectBookPDF(gradeSelect.value, classSelect.value, subjectSelect.value || 'all', teacherOverrides(),
-          { parts, monthly: partBox('monthly').checked });
+          { parts, monthly: partBox('monthly').checked, onProgress: progress });
         if (!url) throw new Error('ไม่ได้รับไฟล์ PDF');
         say(`<i class="bi bi-check-circle-fill me-1"></i>สร้าง PDF สำเร็จ · <a href="${esc(url)}" target="_blank" class="text-success fw-bold">คลิกเพื่อเปิดไฟล์ PDF</a>`, 'success');
         global.open(url, '_blank');
@@ -251,6 +279,9 @@
         exportBtn.innerHTML = bookLabel;
         if (overlay) overlay.style.display = 'none';
         if (overlayText && overlayOriginal) overlayText.textContent = overlayOriginal;
+        bar.remove();
+        if (spinner) spinner.hidden = false;
+        if (overlayText) overlayText.hidden = false;
       }
     }, true);
   }
