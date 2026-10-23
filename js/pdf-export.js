@@ -2523,7 +2523,8 @@
   // บันทึกเวลาเรียนรายเดือนของวิชา (owner 2026-10-14 ส่งภาพบันทึกเวลาเรียนรายเดือน "มันต้องมีอย่างนี้ด้วย"): หน้าละเดือน
   // รูปแบบเดียวกับ drawDailyAttendancePage — คอลัมน์ = วันที่สอนวิชานั้น (รายชั่วโมงมีแถวจำนวนชั่วโมง) ✓ / ล / ข
   // ท้ายตารางมีรวมของเดือน (ชั่วโมงหรือวันที่มา / ที่สอน)
-  function drawPp5SubjectMonthPage(doc, report, sheet, month, meta, logo) {
+  // hourStart = ชั่วโมงที่สอนไปแล้วในเดือนก่อน ๆ ของปี (owner 2026-10-23 "อยากให้นับรวมทั้งปี") · คืนค่าชั่วโมงสุดท้ายของเดือนนี้
+  function drawPp5SubjectMonthPage(doc, report, sheet, month, meta, logo, hourStart = 0) {
     const att = sheet.attendance;
     // แต่ละเดือนบอกเองว่าเป็นรายคาบหรือรายวัน (วิชาทั้งปีแบบ mixed มีทั้งสองแบบในเล่มเดียว)
     const hourly = typeof month.hourly === 'boolean' ? month.hourly : att.mode === 'hourly';
@@ -2547,7 +2548,7 @@
     y += 4.5;
     doc.setFontSize(8.5);
     doc.text(hourly
-      ? `เช็คชื่อรายชั่วโมง: สอน ${month.days.length} ครั้ง รวม ${number(month.taught, 0)} ชั่วโมงในเดือนนี้`
+      ? `เช็คชื่อรายชั่วโมง: สอน ${month.days.length} ครั้ง รวม ${number(month.taught, 0)} ชั่วโมงในเดือนนี้${(month.days || []).length ? ` (ชั่วโมงที่ ${hourStart + 1}–${hourStart + (month.days || []).reduce((sum, d) => sum + Math.max(1, number(d.hours, 1)), 0)} ของปี)` : ''}`
       : `คิดจากเช็คชื่อรายวัน (ยังไม่มีการเช็คชื่อรายชั่วโมงของวิชานี้): เรียน ${month.days.length} วันในเดือนนี้`, pageWidth / 2, y, { align: 'center' });
     y += 3.5;
 
@@ -2565,9 +2566,9 @@
       { content: `มา\n(${unit})`, rowSpan: span }, { content: `${hourly ? 'สอน' : 'เรียน'}\n(${unit})`, rowSpan: span }
     ];
     const head = [headRow1, groupsByDate.map((g) => (g.n > 1 ? { content: text(g.d.dow), colSpan: g.n } : text(g.d.dow)))];
-    // แถว 3 = ชั่วโมงที่ นับต่อกันทั้งเดือน 1 2 3 … (owner 2026-10-23 "ชม.มา 1 1 1 1 มันดูสับสน นับเป็น ชม.ที่ 1 2 3 4")
+    // แถว 3 = ชั่วโมงที่ นับต่อกันทั้งปี (owner 2026-10-23 "นับเป็น ชม.ที่ 1 2 3 4" -> "อยากให้นับรวมทั้งปี"): เดือนนี้เริ่มต่อจากเดือนก่อน
     //   ช่องที่สอนหลายชั่วโมงในแถวเดียว (ข้อมูลเก่าก่อน SQL 032) แสดงชั่วโมงสุดท้ายของช่องนั้น
-    let hourNo = 0;
+    let hourNo = hourStart;
     if (hourly) head.push(days.map((d) => { hourNo += Math.max(1, number(d.hours, 1)); return String(hourNo); }));
     const body = month.students.map((st) => [st.no, st.code, st.name, ...st.cells, String(st.present), String(st.total)]);
     // ช่องชื่อกว้างพอให้ชื่อ-สกุลยาวที่สุดอยู่บรรทัดเดียว ช่องวันใช้ที่เหลือ (ไม่เกิน 9 มม. ไม่ต่ำกว่า 4.2 มม.)
@@ -2598,6 +2599,8 @@
       // หัวช่องวันที่/วัน/ชั่วโมงเป็นตัวปกติ (ช่องแคบ ตัวหนาล้น) · หัวอื่นยังตัวหนา · ชื่อ-สกุลไม่ตัดบรรทัด
       didParseCell: (data) => {
         if (data.section === 'head' && isMark(data.column.index)) { data.cell.styles.fontStyle = 'normal'; data.cell.styles.cellPadding = { top: 1, bottom: 1, left: 0.2, right: 0.2 }; }
+        // เลข 3 หลัก (ชั่วโมงที่ 100 ขึ้นไป) ย่อตัวให้อยู่ในช่องเดิม ตารางไม่ขยาย
+        if (data.section === 'head' && data.row.index === 2 && isMark(data.column.index) && String(data.cell.raw ?? '').length >= 3) data.cell.styles.fontSize = Math.min(small, 6);
         if (data.section === 'body' && data.column.index === 2) data.cell.styles.overflow = 'ellipsize';
       },
       willDrawCell: (data) => {
@@ -2622,7 +2625,7 @@
     doc.setFontSize(9);
     // Sarabun ไม่มีตัว ✓ จึงวาดเครื่องหมายถูกเป็นเส้นแบบเดียวกับในตาราง
     const prefix = 'หมายเหตุ: ';
-    const rest = `= มาเรียน   ล = ลา   ข = ขาด${hourly ? '   |   แถวที่ 3 ของหัวตาราง = ชั่วโมงที่ (นับต่อกันทั้งเดือน)' : ''}   |   นักเรียน ${month.students.length} คน`;
+    const rest = `= มาเรียน   ล = ลา   ข = ขาด${hourly ? '   |   แถวที่ 3 ของหัวตาราง = ชั่วโมงที่ (นับต่อกันทั้งปี)' : ''}   |   นักเรียน ${month.students.length} คน`;
     const startX = pageWidth / 2 - (doc.getTextWidth(prefix) + 5 + doc.getTextWidth(rest)) / 2;
     doc.text(prefix, startX, endY);
     const cx = startX + doc.getTextWidth(prefix) + 2;
@@ -2631,6 +2634,7 @@
     doc.line(cx - 1.3, endY - 1.2, cx - 0.3, endY - 0.1);
     doc.line(cx - 0.3, endY - 0.1, cx + 1.5, endY - 2.5);
     doc.text(rest, startX + doc.getTextWidth(prefix) + 5, endY);
+    return hourNo;
   }
 
   // ---- เล่ม ปพ.5 รายวิชา (owner 2026-10-14: "พิมพ์ ปพ.5 รายวิชารวมเล่มด้วย เหมือนแบบรวมชั้น ไม่ใช่พิมพ์ได้แค่ปก")
@@ -2796,7 +2800,8 @@
         drawPp5SubjectSheet(doc, report, sheet, meta, logo);
         if (sheet.attendance) { newPage(); drawPp5SubjectAttendance(doc, report, sheet, meta); }
         if (sheet.attendance && report.includeMonthly !== false) {
-          (sheet.attendance.months || []).forEach((month) => { newPage(); drawPp5SubjectMonthPage(doc, report, sheet, month, meta, logo); });
+          let yearHours = 0;
+          (sheet.attendance.months || []).forEach((month) => { newPage(); yearHours = drawPp5SubjectMonthPage(doc, report, sheet, month, meta, logo, yearHours); });
         }
       }
       if (parts.scores) drawPp5SubjectScorePages(doc, report, sheet, meta, newPage);
