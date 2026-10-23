@@ -247,6 +247,17 @@
     doc.line(contentLeft, y, pageWidth - contentRight, y);
   }
 
+  // ลายเซ็นที่อัปโหลดไว้ (หน้าตั้งค่า) วางเหนือเส้น "ลงชื่อ" — เคารพสวิตช์ "ใช้ลายเซ็น" (includeSignatures) เหมือนปก ปพ.5
+  // owner 2026-10-23 "เมื่อเราตั้งใช้ลายเซ็นแล้ว ทำไมในใบผลการประเมินถึงไม่แสดงลายเซ็น"
+  function drawSignatureImage(doc, meta, image, centerX, lineY, width = 30) {
+    if (meta?.includeSignatures === false || !image) return;
+    try { doc.addImage(image, 'PNG', centerX - width / 2, lineY - 8.5, width, 9.5); } catch (_) { /* รูปเสียไม่ทำให้เอกสารพัง */ }
+  }
+  function drawSchoolStamp(doc, meta, centerX, lineY, size = 17) {
+    if (meta?.includeSignatures === false || !meta?.schoolStamp) return;
+    try { doc.addImage(meta.schoolStamp, 'PNG', centerX - size / 2, lineY - size + 3, size, size); } catch (_) { /* ignore */ }
+  }
+
   function addSignatures(doc, meta, startY) {
     let y = Math.max(number(startY, 230) + 14, 238);
     if (y > 262) {
@@ -3084,7 +3095,7 @@
             columnStyles: {
               0: { cellWidth: 10 },
               1: { cellWidth: 20 },
-              2: { cellWidth: 54, halign: 'left' },
+              2: { cellWidth: 48, halign: 'left' },
               3: { cellWidth: 18 },
               4: { cellWidth: 18 },
               5: { cellWidth: 18 },
@@ -3103,6 +3114,11 @@
           const pWidth = doc.internal.pageSize.getWidth();
           const teacherName = text(sub.teacher_name || meta.classTeacher || '................................................');
           const directorName = text(meta.directorName || '................................................');
+          // ลายเซ็นครู = ลายเซ็นครูประจำชั้นที่อัปโหลดไว้ ใช้เฉพาะเมื่อผู้สอนวิชานี้คือครูประจำชั้น (ครูวิชาอื่นยังไม่มีลายเซ็นในระบบ)
+          const homeroomTeaches = !text(sub.teacher_name) || text(sub.teacher_name) === text(meta.classTeacher);
+          if (homeroomTeaches) drawSignatureImage(doc, meta, meta.teacherSignature, pWidth * 0.3 - 6, ySig);
+          drawSchoolStamp(doc, meta, pWidth * 0.7 + 14, ySig - 6);
+          drawSignatureImage(doc, meta, meta.directorSignature, pWidth * 0.7 - 8, ySig);
           doc.setFont('Sarabun', 'normal');
           doc.setFontSize(8.5);
           doc.text('ลงชื่อ...............................................ครูผู้สอน', pWidth * 0.3, ySig, { align: 'center' });
@@ -4165,6 +4181,9 @@
     const teacherName = text(report?.teacherName || meta.homeroomTeacher || '....................................................');
     const directorName = text(meta.directorName || '....................................................');
 
+    drawSignatureImage(doc, meta, meta.teacherSignature || report?.teacherSignature, col1, sigY, 26);
+    drawSchoolStamp(doc, meta, col2 + 24, sigY, 15);
+    drawSignatureImage(doc, meta, meta.directorSignature || report?.directorSignature, col2, sigY, 26);
     doc.setFont('Sarabun', 'normal');
     doc.setFontSize(8);
     doc.text('ลงชื่อ................................................', col1, sigY, { align: 'center' });
