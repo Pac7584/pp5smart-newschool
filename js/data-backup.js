@@ -50,8 +50,24 @@
     ['user_profiles', [['id']]],
     ['student_import_runs', [['id']]],
     ['student_import_snapshots', [['id'], ['import_id', 'student_id']]],
-    ['audit_logs', [['id']]]
+    ['audit_logs', [['id']]],
+    // ตารางที่เพิ่มหลัง ก.ย. 2569 (สแกนระบบ 2026-11-13 พบว่าตกหล่น) — ฐานที่ยังไม่ได้รัน SQL ของตารางไหนจะข้ามไปเอง
+    ['subject_attendance', [['id']]],                 // SQL 031/032 เช็คชื่อรายวิชารายคาบ
+    ['subject_schedules', [['id']]],                  // SQL 032 ตารางสอน
+    ['score_remediations', [['id']]],                 // SQL 038 ผลแก้ 0 / ร / มส
+    ['student_transfers', [['id']]],                  // SQL 035 นักเรียนย้ายออก
+    ['clubs', [['id']]],                              // SQL 030 ชุมนุม
+    ['club_members', [['id']]],
+    ['line_links', [['id']]],                         // SQL 021 ผู้ปกครองที่ผูก LINE
+    ['line_notifications', [['id']]]
   ];
+  // ตารางใน install.sql ที่ตั้งใจไม่สำรองจากเว็บ (backup_database.cmd ยังสำรองทุกตาราง) — tools/data-backup-contract.cjs
+  // ตรวจว่าทุกตารางใน install.sql อยู่ใน TABLES หรือในรายการนี้ ตารางใหม่ที่ลืมใส่จะทำให้ชุดทดสอบตก
+  const NOT_IN_WEB_BACKUP = {
+    teacher_signatures: 'SQL 042 ปิดตารางไม่ให้ทุกบทบาทอ่านตรง (แม้ผู้ดูแล) จึงอ่านจากเว็บไม่ได้',
+    line_link_codes: 'รหัสผูก LINE ชั่วคราว หมดอายุเอง ไม่ต้องกู้คืน',
+    line_link_failures: 'บันทึกการผูก LINE ที่ไม่สำเร็จ ใช้ตรวจปัญหาเท่านั้น'
+  };
 
   const SCOPE_TABLES = new Set(['teacher_access_assignments', 'teacher_scope_settings']);
   async function installedTables() {
@@ -225,7 +241,8 @@
   const YEAR_FORMAT = 'pp5-year-archive';
   // Rows that carry their own academic_year (or a date that falls inside the year).
   const YEAR_ROW_TABLES = ['student_year_rosters', 'scores', 'assessments', 'student_comments', 'behavior_records', 'teacher_assignments', 'teacher_access_assignments',
-    'attendance_daily', 'attendance_monthly', 'student_growth', 'holidays', 'academic_years', 'academic_year_report_snapshots'];
+    'attendance_daily', 'attendance_monthly', 'student_growth', 'holidays', 'academic_years', 'academic_year_report_snapshots',
+    'subject_attendance', 'subject_schedules', 'score_remediations', 'student_transfers', 'clubs', 'club_members'];
   const YEAR_DATE_FIELDS = ['attendance_date', 'holiday_date', 'measured_on'];
   // Rows kept for the year's students only.
   const YEAR_STUDENT_TABLES = ['students', 'student_details'];
@@ -1302,7 +1319,7 @@
   global.PP5Backup = {
     createBackup, createYearArchive, createPhotoArchive, openBackupFile, getBackupStatus, guardBeforeRisky, enhanceHomeHub, enhanceSettingsPage, mountPage,
     // exposed for tests
-    _internal: { buildScoreRows, scopeStudentIds, filterContext, scoreSheetAoa, readCliZip, readWholeTable, sameValue, scoreKey, TABLES, FORMAT,
+    _internal: { buildScoreRows, scopeStudentIds, filterContext, scoreSheetAoa, readCliZip, readWholeTable, sameValue, scoreKey, TABLES, NOT_IN_WEB_BACKUP, YEAR_ROW_TABLES, FORMAT,
       selectYearRows, buildYearZip, academicYearOfDate, YEAR_FORMAT, photoEntries, buildPhotoZip, PHOTO_FORMAT }
   };
 

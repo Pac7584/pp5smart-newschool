@@ -7962,7 +7962,8 @@ function enhanceDashboardLayout_(frame) {
 }
 
 // "สถิติการเข้าเรียน": แคนวาสของหน้าเดิม (#attendanceChart) ไม่เคยถูกวาดกราฟจริง — แทนด้วยแถวรายชั้น
-// (แท่งสัดส่วน มา/ลา/ขาด เต็ม 100% + เส้นเกณฑ์ 80% + ตัวเลขชัด) เพราะทุกชั้นอยู่ราว 96-100%
+// (แท่งสัดส่วน มา/ลา/ขาด เต็ม 100% + ตัวเลขชัด) เพราะทุกชั้นอยู่ราว 96-100%
+// owner 2026-11-24 (ข.): ตัวเลขนี้คือ "อัตรามาเรียน" (ลานับเป็นไม่มา) ไม่ใช่สูตร มส. — เอาเส้นแบ่งที่ร้อยละ 80 ออก และเขียนป้ายให้ชัด
 // กราฟแท่งแนวตั้งเริ่มที่ 0 จึงดูเท่ากันหมด โดยไม่แก้ไฟล์หน้าเดิม
 function renderDashboardAttendanceChart_(frame) {
   const canvas = frame.querySelector('#attendanceChart');
@@ -7999,7 +8000,7 @@ function renderDashboardAttendanceChart_(frame) {
         return;
       }
       let html = '<div class="pp5-att-legend"><span><i class="pp5-att-key is-present"></i>มา</span><span><i class="pp5-att-key is-leave"></i>ลา</span>'
-        + '<span><i class="pp5-att-key is-absent"></i>ขาด</span><span><i class="pp5-att-key is-goal"></i>เกณฑ์ 80%</span></div>';
+        + '<span><i class="pp5-att-key is-absent"></i>ขาด</span><span class="pp5-att-note">อัตรามาเรียน = วันมา ÷ วันที่เช็คชื่อ (ลานับเป็นไม่มา) · ไม่ใช่เกณฑ์ มส.</span></div>';
       grades.forEach((g) => {
         const y = yearly[g] || {};
         const total = y.totalDays || 0;
@@ -8013,9 +8014,9 @@ function renderDashboardAttendanceChart_(frame) {
         const low = rate < 80;
         html += '<div class="pp5-att-main"><div class="pp5-att-track">'
           + seg('is-present', y.totalPresent, 'มา') + seg('is-leave', y.totalLeave, 'ลา') + seg('is-absent', y.totalAbsent, 'ขาด')
-          + '<i class="pp5-att-goal" title="เกณฑ์ 80%"></i></div>'
+          + '</div>'
           + '<div class="pp5-att-sub">มา ' + fmt(y.totalPresent) + ' · ลา ' + fmt(y.totalLeave) + ' · ขาด ' + fmt(y.totalAbsent) + ' ครั้ง</div></div>'
-          + '<div class="pp5-att-pct' + (low ? ' is-low' : '') + '">' + (low ? '<i class="bi bi-exclamation-triangle-fill me-1"></i>' : '') + rate.toFixed(1) + '%</div></div>';
+          + '<div class="pp5-att-pct' + (low ? ' is-low' : '') + '" title="อัตรามาเรียน (ลานับเป็นไม่มา) — เกณฑ์ มส. ดูที่หน้านักเรียนเสี่ยง มส.">' + (low ? '<i class="bi bi-exclamation-triangle-fill me-1"></i>' : '') + rate.toFixed(1) + '%</div></div>';
       });
       show('<div class="pp5-att">' + html + '</div>');
     })
@@ -8099,7 +8100,7 @@ function ensureDashStyles_(frame) {
       '.pp5-att-legend span{display:inline-flex;align-items:center;gap:6px}',
       '.pp5-att-key{display:inline-block;width:10px;height:10px;border-radius:3px}',
       '.pp5-att-key.is-present{background:var(--att-present)}.pp5-att-key.is-leave{background:var(--att-leave)}.pp5-att-key.is-absent{background:var(--att-absent)}',
-      '.pp5-att-key.is-goal{width:0;height:12px;border-radius:0;border-left:2px dashed var(--att-muted)}',
+      '.pp5-att-note{color:var(--att-muted);font-size:.76rem}',
       '.pp5-att-row{display:grid;grid-template-columns:52px minmax(0,1fr) 78px;align-items:center;gap:14px;padding:10px 0;border-top:1px solid var(--att-line)}',
       '.pp5-att-row:first-of-type{border-top:0}',
       '.pp5-att-grade{font-weight:700;color:var(--att-ink);text-align:center;background:#eef0ff;border-radius:10px;padding:5px 0}',
@@ -8109,7 +8110,6 @@ function ensureDashStyles_(frame) {
       '.pp5-att-seg{height:100%;min-width:3px}',
       '.pp5-att-seg:first-child{border-radius:999px 0 0 999px}.pp5-att-seg:last-of-type{border-radius:0 999px 999px 0}',
       '.pp5-att-seg.is-present{background:var(--att-present)}.pp5-att-seg.is-leave{background:var(--att-leave)}.pp5-att-seg.is-absent{background:var(--att-absent)}',
-      '.pp5-att-goal{position:absolute;left:80%;top:-2px;bottom:-2px;border-left:2px dashed rgba(255,255,255,.9)}',
       '.pp5-att-sub{font-size:.76rem;color:var(--att-muted);margin-top:5px}',
       '.pp5-att-pct{font-weight:700;font-size:1.05rem;color:var(--att-ink);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}',
       '.pp5-att-pct.is-low{color:var(--att-absent)}.pp5-att-pct.is-none{color:var(--att-muted);font-weight:400}',
@@ -8527,7 +8527,7 @@ function renderDashboardWatchlist_(frame, anchor) {
     const noteHtml = notes.length ? '<div class="pp5-dw-meta" style="margin:-4px 0 6px"><i class="bi bi-info-circle me-1"></i>' + notes.map(escapeHtml_).join(' · ') + '</div>' : '';
     if (!counts.students) {
       // ไม่มีอะไรน่าห่วง = บรรทัดเดียวเล็ก ๆ (owner 2026-10-07: กล่องเขียวใหญ่กินที่โดยไม่จำเป็น)
-      body.innerHTML = '<div class="pp5-dw-empty pp5-dw-empty-slim"><i class="bi bi-check-circle-fill me-2"></i>ยังไม่พบนักเรียนที่ได้เกรด 0, ร, มส หรือมาเรียนต่ำกว่า 80%</div>' + noteHtml;
+      body.innerHTML = '<div class="pp5-dw-empty pp5-dw-empty-slim"><i class="bi bi-check-circle-fill me-2"></i>ยังไม่พบนักเรียนที่ได้เกรด 0, ร, มส หรืออัตรามาเรียนต่ำกว่า 80%</div>' + noteHtml;
       return;
     }
     const stat = (value, label, key) => '<div class="pp5-dw-stat" style="' + tone[key] + '"><b>' + value + '</b><span>' + label + '</span></div>';
@@ -8535,10 +8535,10 @@ function renderDashboardWatchlist_(frame, anchor) {
       + stat(counts.students, 'นักเรียนที่ต้องติดตาม (คน)', 'all')
       + stat(counts.grade0, 'เกรด 0 ที่กรอกครบแล้ว (รายวิชา)', 'grade0')
       + stat(counts.special, 'ร / มส (รายวิชา)', 'r')
-      + stat(counts.attendance, 'มาเรียนต่ำกว่า 80% (คน)', 'attendance')
+      + stat(counts.attendance, 'อัตรามาเรียนต่ำกว่า 80% (คน)', 'attendance')
       + '</div>' + noteHtml;
     const typeCount = (type) => (res.classes || []).reduce((n, g) => n + g.students.filter((s) => s.issues.some((i) => i.type === type)).length, 0);
-    const filters = [['all', 'ทั้งหมด'], ['grade0', 'เกรด 0'], ['r', 'ร'], ['ms', 'มส'], ['attendance', 'มาเรียนต่ำกว่า 80%']]
+    const filters = [['all', 'ทั้งหมด'], ['grade0', 'เกรด 0'], ['r', 'ร'], ['ms', 'มส'], ['attendance', 'อัตรามาเรียนต่ำกว่า 80%']]
       .filter(([key]) => key === 'all' || typeCount(key) > 0);
     if (filters.length > 2) {
       html += '<div class="pp5-dw-filter" role="group" aria-label="กรองรายชื่อ"><span>แสดง:</span>'
@@ -8854,7 +8854,7 @@ function enhanceSupabaseHomeHubPage_() {
         if (actionArea) actionArea.innerHTML = '<button type="button" class="btn btn-sm btn-success fw-bold d-flex align-items-center gap-1" onclick="navigateTo(\'export_pdf_page\')"><i class="bi bi-printer"></i> พิมพ์ ปพ. ทันที</button>';
       } else {
         if (headline) headline.textContent = `งานถัดไป: ${activeStation.title}`;
-        if (sub) sub.textContent = `ดำเนินการต่อเพื่อปลดล็อกการออกเอกสาร ปพ. ของชั้น ${grade}/1`;
+        if (sub) sub.textContent = `ดำเนินการต่อเพื่อปลดล็อกการออกเอกสาร ปพ. ของชั้น ${grade}/${data.classNo || room}`;
         if (actionArea) actionArea.innerHTML = `<button type="button" class="btn btn-sm btn-primary fw-bold d-flex align-items-center gap-1" onclick="navigateTo('${activeStation.nextAction}')"><i class="bi bi-arrow-right-circle"></i> ${activeStation.actionLabel}</button>`;
       }
 
@@ -8957,74 +8957,27 @@ function enhanceSupabaseHomeHubPage_() {
       drawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    function renderFallback(fallbackGrade) {
-      renderData({
-        grade: fallbackGrade,
-        classNo: '1',
-        overallPercent: 65,
-        isReadyForPP5: false,
-        milestones: {
-          attendance: {
-            title: 'เวลาเรียน',
-            badge: '8/11 ด.',
-            isDone: false,
-            items: [
-              { label: 'พ.ค. 69', recorded: true },
-              { label: 'มิ.ย. 69', recorded: true },
-              { label: 'ก.ค. 69', recorded: true },
-              { label: 'ส.ค. 69', recorded: true },
-              { label: 'ก.ย. 69', recorded: true },
-              { label: 'ต.ค. 69', recorded: true },
-              { label: 'พ.ย. 69', recorded: true },
-              { label: 'ธ.ค. 69', recorded: true },
-              { label: 'ม.ค. 70', recorded: false },
-              { label: 'ก.พ. 70', recorded: false },
-              { label: 'มี.ค. 70', recorded: false }
-            ]
-          },
-          scores: {
-            title: 'คะแนนรายวิชา',
-            badge: '8/8 วิชา',
-            isDone: true,
-            items: [
-              { label: 'ภาษาไทย', recorded: true },
-              { label: 'คณิตศาสตร์', recorded: true },
-              { label: 'วิทยาศาสตร์', recorded: true },
-              { label: 'สังคมศึกษา', recorded: true },
-              { label: 'ประวัติศาสตร์', recorded: true },
-              { label: 'สุขศึกษาฯ', recorded: true },
-              { label: 'ศิลปะ', recorded: true },
-              { label: 'ภาษาอังกฤษ', recorded: true }
-            ]
-          },
-          assessments: {
-            title: 'ประเมิน 4 ด้าน',
-            badge: '2/4 ด้าน',
-            isDone: false,
-            items: [
-              { label: 'คุณลักษณะอันพึงประสงค์ 8 ข้อ', page: 'characteristic_assessment', done: true },
-              { label: 'การอ่าน คิดวิเคราะห์ และเขียน', page: 'read_think_write_form', done: true },
-              { label: 'สมรรถนะสำคัญ 5 ด้าน', page: 'competency_assessment', done: false },
-              { label: 'กิจกรรมพัฒนาผู้เรียน (ลูกเสือ/ชุมนุม)', page: 'activity_assessment', done: false }
-            ]
-          },
-          health: {
-            title: 'สุขภาพ/ความเห็น',
-            badge: 'รอข้อมูล',
-            isDone: false,
-            items: [
-              { label: 'น้ำหนัก-ส่วนสูง ภาคเรียนที่ 1', page: 'student_growth_entry', done: true },
-              { label: 'น้ำหนัก-ส่วนสูง ภาคเรียนที่ 2', page: 'student_growth_entry', done: false },
-              { label: 'บันทึกความเห็นครูประจำชั้น', page: 'teacher_comment_form_backup', done: false }
-            ]
-          },
-          export: {
-            title: 'ปลดล็อก ปพ.',
-            badge: 'รอข้อมูลครบ',
-            isDone: false
-          }
-        }
-      });
+    // อ่านข้อมูลไม่สำเร็จ (สแกนระบบ 2026-11-13): เดิมแสดงตัวเลขตัวอย่างที่แต่งไว้ (65%, คะแนน 8/8 วิชา ...)
+    // เหมือนเป็นข้อมูลจริงของห้อง — ตอนนี้บอกตรง ๆ ว่าอ่านไม่สำเร็จ และให้กดลองใหม่
+    function renderFallback() {
+      latestProgressData = null;
+      if (percentPill) percentPill.textContent = '–';
+      if (trackFill) trackFill.style.width = '0%';
+      if (nodesContainer) nodesContainer.innerHTML = '';
+      const drawer = card.querySelector('#rmDrawer');
+      if (drawer) drawer.style.display = 'none';
+      if (headline) headline.textContent = 'อ่านข้อมูลความคืบหน้าไม่สำเร็จ';
+      if (sub) sub.textContent = 'ยังไม่มีตัวเลขของห้องนี้ ลองใหม่อีกครั้ง ถ้ายังไม่ได้ให้ตรวจการเชื่อมต่ออินเทอร์เน็ต';
+      if (actionArea) {
+        actionArea.innerHTML = '';
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.className = 'btn btn-sm btn-outline-primary fw-bold d-flex align-items-center gap-1';
+        retry.dataset.rmRetry = '1';
+        retry.innerHTML = '<i class="bi bi-arrow-clockwise"></i> ลองใหม่';
+        retry.addEventListener('click', () => fetchProgress(currentActiveGrade));
+        actionArea.appendChild(retry);
+      }
     }
   }
 
@@ -9035,6 +8988,8 @@ function enhanceSupabaseHomeHubPage_() {
 
     const isReady = !!data.isReadyForPP5;
     const percent = data.overallPercent || 0;
+    // ห้องจริงของข้อมูลชุดนี้ (สแกนระบบ 2026-11-13: เดิมเขียน "/1" ตายตัว ครูห้อง 2 กดพิมพ์แล้วไปห้อง 1)
+    const roomNo = String(data.classNo || '1').replace(/[^0-9A-Za-zก-๙]/g, '') || '1';
     const ms = data.milestones || {};
 
     const overlay = document.createElement('div');
@@ -9048,7 +9003,7 @@ function enhanceSupabaseHomeHubPage_() {
             <i class="bi bi-clipboard2-pulse-fill text-primary" style="font-size:1.5rem;"></i>
             <div>
               <h5 class="mb-0 fw-bold">ตรวจสุขภาพข้อมูล ปพ.5 / ปพ.6</h5>
-              <small class="text-muted">ชั้น${window.PP5Grades?.fullName?.(data.grade) || data.grade}/1 (ปีการศึกษา ${data.academicYear || '2569'})</small>
+              <small class="text-muted">ชั้น${window.PP5Grades?.fullName?.(data.grade) || data.grade}/${roomNo} (ปีการศึกษา ${data.academicYear || '2569'})</small>
             </div>
           </div>
           <button type="button" class="btn-close" id="btnCloseHealthDoctor" aria-label="ปิด"></button>
@@ -9070,10 +9025,10 @@ function enhanceSupabaseHomeHubPage_() {
             </div>
             ${isReady ? `
               <div class="mt-3 pt-2 border-top d-flex gap-2 flex-wrap">
-                <button type="button" class="btn btn-sm btn-success fw-bold flex-grow-1" onclick="if (window.GradeClassHelper?.saveSelection) window.GradeClassHelper.saveSelection('${data.grade}', '1'); document.getElementById('pp5HealthDoctorOverlay')?.remove(); navigateTo('pp5_full_book');">
+                <button type="button" class="btn btn-sm btn-success fw-bold flex-grow-1" onclick="if (window.GradeClassHelper?.saveSelection) window.GradeClassHelper.saveSelection('${data.grade}', '${roomNo}'); document.getElementById('pp5HealthDoctorOverlay')?.remove(); navigateTo('pp5_full_book');">
                   <i class="bi bi-journal-bookmark-fill me-1"></i> พิมพ์ ปพ.5 รวมเล่มทันที
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-primary fw-bold" onclick="if (window.GradeClassHelper?.saveSelection) window.GradeClassHelper.saveSelection('${data.grade}', '1'); document.getElementById('pp5HealthDoctorOverlay')?.remove(); navigateTo('report_card_generator');">
+                <button type="button" class="btn btn-sm btn-outline-primary fw-bold" onclick="if (window.GradeClassHelper?.saveSelection) window.GradeClassHelper.saveSelection('${data.grade}', '${roomNo}'); document.getElementById('pp5HealthDoctorOverlay')?.remove(); navigateTo('report_card_generator');">
                   <i class="bi bi-journal-medical me-1"></i> พิมพ์ ปพ.6
                 </button>
               </div>
@@ -9141,10 +9096,10 @@ function enhanceSupabaseHomeHubPage_() {
               <small class="text-muted ms-4">${isReady ? 'พร้อมพิมพ์เล่ม ปพ.5 และ ปพ.6 ได้ทันที' : 'จะปลดล็อกอัตโนมัติเมื่อข้อมูลทั้ง 4 ด้านครบถ้วน'}</small>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
-              <button type="button" class="btn btn-sm ${isReady ? 'btn-success' : 'btn-outline-primary'}" onclick="if (window.GradeClassHelper?.saveSelection) window.GradeClassHelper.saveSelection('${data.grade}', '1'); document.getElementById('pp5HealthDoctorOverlay')?.remove(); navigateTo('pp5_full_book');">
+              <button type="button" class="btn btn-sm ${isReady ? 'btn-success' : 'btn-outline-primary'}" onclick="if (window.GradeClassHelper?.saveSelection) window.GradeClassHelper.saveSelection('${data.grade}', '${roomNo}'); document.getElementById('pp5HealthDoctorOverlay')?.remove(); navigateTo('pp5_full_book');">
                 <i class="bi bi-journal-bookmark-fill"></i> พิมพ์ ปพ.5 รวมเล่ม
               </button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="if (window.GradeClassHelper?.saveSelection) window.GradeClassHelper.saveSelection('${data.grade}', '1'); document.getElementById('pp5HealthDoctorOverlay')?.remove(); navigateTo('report_card_generator');">
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="if (window.GradeClassHelper?.saveSelection) window.GradeClassHelper.saveSelection('${data.grade}', '${roomNo}'); document.getElementById('pp5HealthDoctorOverlay')?.remove(); navigateTo('report_card_generator');">
                 <i class="bi bi-file-earmark-person"></i> ปพ.6
               </button>
             </div>

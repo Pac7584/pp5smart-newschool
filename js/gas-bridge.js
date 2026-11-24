@@ -6004,24 +6004,24 @@
       const totalStudents = studentIds.length;
 
       const months = academicYearMonths(year);
+      const yearRange = academicYearDateRange(year);
+      // สแกนระบบ 2026-11-13: เดิมอ่าน attendance_monthly ก่อน (ตารางเก่า — หน้าเช็คชื่อรายเดือนบันทึกลง attendance_daily แล้ว)
+      // และอ่าน attendance_daily ทุกปีรวดเดียว (ได้ไม่เกิน 1000 แถว เดือนหลัง ๆ จึงขึ้นว่ายังไม่บันทึก)
+      // ตอนนี้: เช็คชื่อรายวันของปีการศึกษานี้เท่านั้น แบ่งรอบอ่าน ไม่นับวันหยุดและแถวที่ไม่มีสถานะ
       const attendedMonthsSet = new Set();
       if (studentIds.length > 0) {
         try {
-          const { data: attData } = await client.from('attendance_monthly')
-            .select('year_month, student_id')
-            .in('student_id', studentIds);
-          (attData || []).forEach((r) => { if (r.year_month) attendedMonthsSet.add(r.year_month); });
+          const [dailyRows, holidayDates] = await Promise.all([
+            optionalTableAll('attendance_daily', (query) => query.in('student_id', studentIds)
+              .gte('attendance_date', yearRange.first).lte('attendance_date', yearRange.last)
+              .order('attendance_date').order('student_id')),
+            noSchoolHolidayDateSet_(yearRange.first, yearRange.last).catch(() => new Set())
+          ]);
+          dailyRows.forEach((r) => {
+            const day = normalizeDate(r.attendance_date);
+            if (day && !holidayDates.has(day) && normalizeAttendanceStatus(r.status)) attendedMonthsSet.add(day.slice(0, 7));
+          });
         } catch (_) {}
-        if (attendedMonthsSet.size === 0) {
-          try {
-            const { data: dailyData } = await client.from('attendance_daily')
-              .select('attendance_date')
-              .in('student_id', studentIds);
-            (dailyData || []).forEach((r) => {
-              if (r.attendance_date) attendedMonthsSet.add(String(r.attendance_date).slice(0, 7));
-            });
-          } catch (_) {}
-        }
       }
       const attendanceBreakdown = months.map((m) => {
         const isRecorded = attendedMonthsSet.has(m.key);
@@ -6038,11 +6038,8 @@
       let scoreRows = [];
       if (studentIds.length > 0) {
         try {
-          const { data: sData } = await client.from('scores')
-            .select('subject_id, semester')
-            .eq('academic_year', year)
-            .in('student_id', studentIds);
-          scoreRows = sData || [];
+          scoreRows = await optionalTableAll('scores', (query) => query
+            .eq('academic_year', year).in('student_id', studentIds).order('id'));
         } catch (_) {}
       }
       const recordedSubjectIds = new Set(scoreRows.map((s) => String(s.subject_id)));
@@ -6058,11 +6055,9 @@
       let assessmentRows = [];
       if (studentIds.length > 0) {
         try {
-          const { data: aData } = await client.from('assessments')
-            .select('assessment_type')
-            .eq('academic_year', year)
-            .in('student_id', studentIds);
-          assessmentRows = aData || [];
+          // ราว 40 แถวต่อคนต่อปี — ห้อง 25 คนก็เกิน 1000 แถวแล้ว จึงแบ่งรอบอ่าน
+          assessmentRows = await optionalTableAll('assessments', (query) => query
+            .eq('academic_year', year).in('student_id', studentIds).order('id'));
         } catch (_) {}
       }
       const assessmentTypes = new Set(assessmentRows.map((a) => a.assessment_type));
@@ -6079,14 +6074,18 @@
       const doneAssessmentsCount = assessmentBreakdown.filter((a) => a.done).length;
       const isAssessmentsDone = doneAssessmentsCount === 4;
 
-      let growthCount = 0;
+      // น้ำหนัก-ส่วนสูง (สแกนระบบ 2026-11-13): เดิมนับทุกปีรวมกันและไม่แยกภาค — ตอนนี้ภาคเสร็จเมื่อนักเรียน
+      // ทุกคนในห้องมีผลชั่งวัดของปีนี้ในภาคนั้น (เดือน พ.ค.–ต.ค. = ภาค 1, พ.ย.–มี.ค. = ภาค 2 ตาม pp5_semester_of)
+      const measuredByTerm = { 1: new Set(), 2: new Set() };
       let commentsCount = 0;
       if (studentIds.length > 0) {
         try {
-          const { count: gCount } = await client.from('student_growth')
-            .select('student_id', { count: 'exact', head: true })
-            .in('student_id', studentIds);
-          growthCount = gCount || 0;
+          const growthRows = await optionalTableAll('student_growth', (query) => query
+            .eq('academic_year', year).in('student_id', studentIds).order('id'));
+          growthRows.forEach((r) => {
+            const m = Number(r.month) || Number(normalizeDate(r.measured_on).slice(5, 7));
+            if (m >= 1 && m <= 12) measuredByTerm[m >= 5 && m <= 10 ? 1 : 2].add(text(r.student_id));
+          });
         } catch (_) {}
         try {
           const { count: cCount, error: cError } = await client.from('student_comments')
@@ -6096,17 +6095,20 @@
           commentsCount = cError ? 0 : (cCount || 0);
         } catch (_) {}
       }
+      const growthTermDone = (term) => totalStudents > 0 && studentIds.every((id) => measuredByTerm[term].has(id));
+      const growthAny = measuredByTerm[1].size + measuredByTerm[2].size > 0;
       const healthBreakdown = [
-        { label: 'น้ำหนัก-ส่วนสูง ภาคเรียนที่ 1', page: 'student_growth_entry', done: growthCount > 0 },
-        { label: 'น้ำหนัก-ส่วนสูง ภาคเรียนที่ 2', page: 'student_growth_entry', done: growthCount >= totalStudents && totalStudents > 0 },
-        { label: 'บันทึกความเห็นครูประจำชั้น', page: 'teacher_comment_form_backup', done: commentsCount > 0 }
+        { label: 'น้ำหนัก-ส่วนสูง ภาคเรียนที่ 1', page: 'student_growth_entry', done: growthTermDone(1) },
+        { label: 'น้ำหนัก-ส่วนสูง ภาคเรียนที่ 2', page: 'student_growth_entry', done: growthTermDone(2) },
+        // หน้าเดียวกับเมนู (teacher_comment_form) — เดิมพาไปหน้าเก่า teacher_comment_form_backup
+        { label: 'บันทึกความเห็นครูประจำชั้น', page: 'teacher_comment_form', done: commentsCount > 0 }
       ];
-      const isHealthDone = growthCount > 0 && commentsCount > 0;
+      const isHealthDone = (growthTermDone(1) || growthTermDone(2)) && commentsCount > 0;
 
       let scoreP = (recordedSubjectsCount / Math.max(subjects.length || 1, 1)) * 25;
       let attP = (recordedMonthsCount / Math.max(months.length || 1, 1)) * 20;
       let assP = (doneAssessmentsCount / 4) * 25;
-      let heaP = (isHealthDone ? 15 : (growthCount > 0 || commentsCount > 0 ? 8 : 0));
+      let heaP = (isHealthDone ? 15 : (growthAny || commentsCount > 0 ? 8 : 0));
       let isReadyForPP5 = isAttendanceDone && isScoresDone && isAssessmentsDone;
       let expP = isReadyForPP5 ? 15 : 0;
       let percent = Math.min(100, Math.round(attP + scoreP + assP + heaP + expP));
@@ -7699,7 +7701,7 @@
           ['นักเรียนที่ต้องติดตาม (คน)', watch.counts?.students || 0],
           ['เกรด 0 ที่กรอกครบแล้ว (รายวิชา)', watch.counts?.grade0 || 0],
           ['ร / มส (รายวิชา)', watch.counts?.special || 0],
-          ['มาเรียนต่ำกว่า 80% (คน)', watch.counts?.attendance || 0]
+          ['อัตรามาเรียนต่ำกว่า 80% (คน)', watch.counts?.attendance || 0]
         ] : [],
         footer: `พิมพ์เมื่อ ${thaiShortDate_(localIsoDate_(new Date()))} ${new Date().toTimeString().slice(0, 5)} น. · ตัวเลขชุดเดียวกับหน้าภาพรวมโรงเรียน ณ เวลาที่พิมพ์`
       };
@@ -7818,7 +7820,7 @@
         entry.attendanceRate = Math.round((t.present / t.total) * 1000) / 10;
         // Fewer than 10 recorded days is too early to call.
         if (t.total >= 10 && entry.attendanceRate < 80) {
-          entry.issues.push({ type: 'attendance', label: `มาเรียน ${entry.attendanceRate}%`, present: t.present, total: t.total });
+          entry.issues.push({ type: 'attendance', label: `อัตรามาเรียน ${entry.attendanceRate}%`, present: t.present, total: t.total });
         }
       });
 
